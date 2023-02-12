@@ -9,7 +9,7 @@ import gdown
 import numpy as np
 import pandas as pd
 import wfdb
-import scipy.signal as ss  # noqa: F401
+import scipy.signal as SS
 from tqdm.auto import tqdm
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.databases.base import PhysioNetDataBase, DataBaseInfo
@@ -163,10 +163,6 @@ class CINC2023Reader(PhysioNetDataBase):
             lambda x: re.match(self._rec_pattern, x).group("sid")
         )
 
-        self._df_records["fs"] = 100
-        self._df_records["siglen"] = 5 * 60 * self._df_records["fs"]
-        self._df_records["n_sig"] = 18
-
         self._df_records = self._df_records.sort_values(by="record")
         self._df_records.set_index("record", inplace=True)
 
@@ -183,6 +179,21 @@ class CINC2023Reader(PhysioNetDataBase):
                     n=size, random_state=DEFAULTS.SEED, replace=False
                 )
 
+        for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
+            self._df_records[extra_col] = None
+
+        with tqdm(
+            self._df_records.iterrows(),
+            total=len(self._df_records),
+            dynamic_ncols=True,
+            mininterval=1.0,
+            desc="Collecting recording metadata",
+        ) as pbar:
+            for idx, row in pbar:
+                header = wfdb.rdheader(str(row.path))
+                for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
+                    self._df_records.at[idx, extra_col] = getattr(header, extra_col)
+
         self._all_records = self._df_records.index.tolist()
         self._all_subjects = self._df_records["subject"].unique().tolist()
         self._subject_records = {
@@ -191,7 +202,6 @@ class CINC2023Reader(PhysioNetDataBase):
         }
 
         # collect subject metadata from the .txt files
-        # self._df_subjects = pd.DataFrame(columns=["Age", "Sex", "ROSC", "OHCA", "VFib", "TTM", "Outcome", "CPC"])
         metadata_list = []
         with tqdm(
             self._all_subjects,
@@ -219,6 +229,7 @@ class CINC2023Reader(PhysioNetDataBase):
         self._df_subjects.set_index("subject", inplace=True)
         cols = ["Age", "Sex", "ROSC", "OHCA", "VFib", "TTM", "Outcome", "CPC"]
         self._df_subjects = self._df_subjects[cols]
+        del metadata_list, metadata, cols
 
         if write_file:
             records_file.write_text(
@@ -262,7 +273,7 @@ class CINC2023Reader(PhysioNetDataBase):
         sampfrom: Optional[int] = None,
         sampto: Optional[int] = None,
         data_format: str = "channel_first",
-        units: Union[str, type(None)] = "mV",
+        units: Union[str, type(None)] = "uV",
         fs: Optional[int] = None,
     ) -> np.ndarray:
         """
@@ -280,12 +291,13 @@ class CINC2023Reader(PhysioNetDataBase):
             the ending sample index, if None, load to the end
         data_format: str, default "channel_first",
             the format of the data, can be one of
-            "channel_first", "channel_last"
+            "channel_first", "channel_last",
+            or "flat" (alias "plain") if `channels` is a single channel,
             case insensitive.
-        units: str or None, default "mV",
+        units: str or None, default "uV",
             the units of the data, can be one of
-            "mV", "uV" (with alias "muV", "μV"),
-            case insensitive.
+            "mV", "uV" (with alias "muV", "μV"), case insensitive.
+            None for digital data, without digital-to-physical conversion
         fs: int, optional,
             the sampling frequency of the record, defaults to `self.fs`,
 
@@ -295,7 +307,66 @@ class CINC2023Reader(PhysioNetDataBase):
             the data of the record
 
         """
-        pass
+        if isinstance(rec, int):
+            rec = self[rec]
+        fp = str(self.get_absolute_path(rec))
+        rdrecord_kwargs = dict()
+        # normalize channels
+        if channels is not None:
+            if isinstance(channels, (str, int)):
+                channels = [channels]
+            channels = [
+                self._df_records.loc[rec, "sig_name"].index(chn)
+                if isinstance(chn, str)
+                else chn
+                for chn in channels
+            ]
+            rdrecord_kwargs["channels"] = channels
+            n_channels = len(channels)
+        else:
+            n_channels = self._df_records.loc[rec, "n_sig"]
+        allowed_data_format = ["channel_first", "channel_last", "flat", "plain"]
+        assert (
+            data_format.lower() in allowed_data_format
+        ), f"`data_format` should be one of `{allowed_data_format}`, but got `{data_format}`"
+        if n_channels > 1:
+            assert data_format.lower() in ["channel_first", "channel_last"], (
+                "`data_format` should be one of `['channel_first', 'channel_last']` "
+                f"when the passed number of `channels` is larger than 1, but got `{data_format}`"
+            )
+
+        allowed_units = ["mv", "uv", "μv", "muv"]
+        assert (
+            units is None or units.lower() in allowed_units
+        ), f"`units` should be one of `{allowed_units}` or None, but got `{units}`"
+
+        rdrecord_kwargs.update(
+            dict(
+                sampfrom=sampfrom or 0,
+                sampto=sampto,
+                physical=units is not None,
+                return_res=DEFAULTS.DTYPE.INT,
+            )
+        )
+        wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
+
+        # p_signal or d_signal is in the format of "channel_last", and with units in "μV"
+        if units.lower() in ["μv", "uv", "muv"]:
+            data = wfdb_rec.p_signal
+        elif units.lower() == "mv":
+            data = wfdb_rec.p_signal / 1000
+        elif units is None:
+            data = wfdb_rec.d_signal
+
+        if fs is not None and fs != self.fs:
+            data = SS.resample_poly(data, fs, self.fs, axis=0).astype(data.dtype)
+
+        if data_format.lower() == "channel_first":
+            data = data.T
+        elif data_format.lower() in ["flat", "plain"]:
+            data = data.flatten()
+
+        return data
 
     def load_ann(
         self, rec_or_sid: Union[str, int], class_map: Optional[Dict[str, int]] = None
