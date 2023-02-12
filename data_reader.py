@@ -1,21 +1,20 @@
 """
 """
 
+import re
 from pathlib import Path
 from typing import Union, Optional, Any, List, Dict, Sequence
 
+import gdown
 import numpy as np
-import pandas as pd  # noqa: F401
-import wfdb  # noqa: F401
+import pandas as pd
+import wfdb
 import scipy.signal as ss  # noqa: F401
-import scipy.io as sio  # noqa: F401
+from tqdm.auto import tqdm
+from torch_ecg.cfg import DEFAULTS
 from torch_ecg.databases.base import PhysioNetDataBase, DataBaseInfo
-from torch_ecg.utils.misc import (  # noqa: F401
-    get_record_list_recursive,
-    get_record_list_recursive3,
-    list_sum,
-    add_docstring,
-)
+from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring
+from torch_ecg.utils.download import _untar_file
 
 from cfg import BaseCfg
 
@@ -109,12 +108,18 @@ class CINC2023Reader(PhysioNetDataBase):
         )
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
 
+        self._url_compressed = {
+            "full": "https://drive.google.com/u/0/uc?id=1MgIsfknRpRgR2jpVfzcR1Qwj0i6PC0-A",
+            "subset": "https://drive.google.com/u/0/uc?id=1YGa1tFC0TzqBj8Uw32B47EwZ2KeiGUr2",
+        }
+
         self._rec_pattern = "ICARE\\_(?P<sid>[\\d]+)\\_(?P<loc>[\\d]+)"
-        self.data_ext = "wav"
+        self.data_ext = "mat"
         self.header_ext = "hea"
         self.quality_ext = "tsv"
         self.ann_ext = "txt"
 
+        self._df_subjects = None
         self._all_records = None
         self._all_subjects = None
         self._subject_records = None
@@ -134,7 +139,95 @@ class CINC2023Reader(PhysioNetDataBase):
         """
         list all records in the database
         """
-        raise NotImplementedError
+        write_file = False
+        self._df_records = pd.DataFrame(columns=["record", "subject", "path"])
+        records_file = self.db_dir / "RECORDS-NEW"
+        if records_file.exists():
+            self._df_records["record"] = records_file.read_text().splitlines()
+            self._df_records["path"] = self._df_records["record"].apply(
+                lambda x: self.db_dir / x
+            )
+        elif self._subsample is None:
+            write_file = True
+
+        if len(self._df_records) == 0:
+            if self._subsample is None:
+                write_file = True
+            self._df_records["path"] = get_record_list_recursive3(
+                self.db_dir, f"{self._rec_pattern}\\.{self.data_ext}", relative=False
+            )
+            self._df_records["path"] = self._df_records["path"].apply(lambda x: Path(x))
+
+        self._df_records["record"] = self._df_records["path"].apply(lambda x: x.stem)
+        self._df_records["subject"] = self._df_records["record"].apply(
+            lambda x: re.match(self._rec_pattern, x).group("sid")
+        )
+
+        self._df_records["fs"] = 100
+        self._df_records["siglen"] = 5 * 60 * self._df_records["fs"]
+        self._df_records["n_sig"] = 18
+
+        self._df_records = self._df_records.sort_values(by="record")
+        self._df_records.set_index("record", inplace=True)
+
+        if len(self._df_records) > 0:
+            if self._subsample is not None:
+                size = min(
+                    len(self._df_records),
+                    max(1, int(round(self._subsample * len(self._df_records)))),
+                )
+                self.logger.debug(
+                    f"subsample `{size}` records from `{len(self._df_records)}`"
+                )
+                self._df_records = self._df_records.sample(
+                    n=size, random_state=DEFAULTS.SEED, replace=False
+                )
+
+        self._all_records = self._df_records.index.tolist()
+        self._all_subjects = self._df_records["subject"].unique().tolist()
+        self._subject_records = {
+            sid: self._df_records.loc[self._df_records["subject"] == sid].index.tolist()
+            for sid in self._all_subjects
+        }
+
+        # collect subject metadata from the .txt files
+        # self._df_subjects = pd.DataFrame(columns=["Age", "Sex", "ROSC", "OHCA", "VFib", "TTM", "Outcome", "CPC"])
+        metadata_list = []
+        with tqdm(
+            self._all_subjects,
+            total=len(self._all_subjects),
+            dynamic_ncols=True,
+            mininterval=1.0,
+            desc="Collecting subject metadata",
+        ) as pbar:
+            for sid in pbar:
+                file_path = (
+                    self._df_records.loc[self._df_records["subject"] == sid]
+                    .iloc[0]["path"]
+                    .parent
+                    / f"ICARE_{sid}.txt"
+                )
+                metadata = {
+                    k.strip(): v.strip()
+                    for k, v in [
+                        line.split(":") for line in file_path.read_text().splitlines()
+                    ]
+                }
+                metadata["subject"] = sid
+                metadata_list.append(metadata)
+        self._df_subjects = pd.DataFrame(metadata_list)
+        self._df_subjects.set_index("subject", inplace=True)
+        cols = ["Age", "Sex", "ROSC", "OHCA", "VFib", "TTM", "Outcome", "CPC"]
+        self._df_subjects = self._df_subjects[cols]
+
+        if write_file:
+            records_file.write_text(
+                "\n".join(
+                    self._df_records["path"]
+                    .apply(lambda x: x.relative_to(self.db_dir).as_posix())
+                    .tolist()
+                )
+            )
 
     def get_absolute_path(
         self, rec: Union[str, int], extension: Optional[str] = None
@@ -155,7 +248,12 @@ class CINC2023Reader(PhysioNetDataBase):
             absolute path of the file
 
         """
-        pass
+        if isinstance(rec, int):
+            rec = self[rec]
+        path = self._df_records.loc[rec, "path"]
+        if extension is not None and not extension.startswith("."):
+            extension = f".{extension}"
+        return path.with_suffix(extension or "").resolve()
 
     def load_data(
         self,
@@ -250,6 +348,29 @@ class CINC2023Reader(PhysioNetDataBase):
 
         """
         pass
+
+    @property
+    def webpage(self) -> str:
+        # to update to the PhysioNet webpage
+        "https://moody-challenge.physionet.org/2023/"
+
+    @property
+    def url(self) -> str:
+        # return posixpath.join(
+        #     wfdb.io.download.PN_INDEX_URL, f"{self.db_name}/{self.version}"
+        # )
+        return ""  # currently not available
+
+    def download(self, full: bool = True) -> None:
+        """
+        download the database from Google Drive
+        """
+        url = self._url_compressed["full" if full else "subset"]
+        dl_file = "training.tar.gz" if full else "training_subset.tar.gz"
+        dl_file = str(self.db_dir / dl_file)
+        gdown.download(url, dl_file, quiet=False)
+        _untar_file(dl_file, self.db_dir)
+        self._ls_rec()
 
     @property
     def database_info(self) -> DataBaseInfo:
