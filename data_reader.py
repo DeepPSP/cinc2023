@@ -119,6 +119,10 @@ class CINC2023Reader(PhysioNetDataBase):
         self.quality_ext = "tsv"
         self.ann_ext = "txt"
 
+        self.records_file = self.db_dir / "RECORDS-NEW"
+        self.records_metadata_file = self.db_dir / "RECORDS.csv"
+        self.subjects_metadata_file = self.db_dir / "SUBJECTS.csv"
+
         self._df_subjects = None
         self._all_records = None
         self._all_subjects = None
@@ -139,60 +143,81 @@ class CINC2023Reader(PhysioNetDataBase):
         """
         list all records in the database
         """
-        write_file = False
-        self._df_records = pd.DataFrame(columns=["record", "subject", "path"])
-        records_file = self.db_dir / "RECORDS-NEW"
-        if records_file.exists():
-            self._df_records["record"] = records_file.read_text().splitlines()
-            self._df_records["path"] = self._df_records["record"].apply(
-                lambda x: self.db_dir / x
+        self._df_records = pd.DataFrame()
+        self._df_subjects = pd.DataFrame()
+
+        cache_exists = (
+            self.records_file.exists()
+            and self.records_metadata_file.exists()
+            and self.subjects_metadata_file.exists()
+        )
+        write_files = False
+
+        if cache_exists:
+            self._df_records = pd.read_csv(
+                self.records_metadata_file, index_col="record"
             )
+            self._df_records["subject"] = self._df_records["subject"].apply(lambda x: f"{x:04d}")
+            self._df_subjects = pd.read_csv(
+                self.subjects_metadata_file, index_col="subject"
+            )
+            self._df_subjects.index = self._df_subjects.index.map(lambda x: f"{x:04d}")
         elif self._subsample is None:
-            write_file = True
+            write_files = True
+
+        if not self._df_records.empty:
+            data_suffix = f".{self.data_ext}"
+            self._df_records = self._df_records[
+                self._df_records["path"].apply(lambda x: Path(x).with_suffix(data_suffix).exists())
+            ]
 
         if len(self._df_records) == 0:
             if self._subsample is None:
-                write_file = True
+                write_files = True
             self._df_records["path"] = get_record_list_recursive3(
                 self.db_dir, f"{self._rec_pattern}\\.{self.data_ext}", relative=False
             )
             self._df_records["path"] = self._df_records["path"].apply(lambda x: Path(x))
 
-        self._df_records["record"] = self._df_records["path"].apply(lambda x: x.stem)
-        self._df_records["subject"] = self._df_records["record"].apply(
-            lambda x: re.match(self._rec_pattern, x).group("sid")
-        )
+            self._df_records["record"] = self._df_records["path"].apply(
+                lambda x: x.stem
+            )
+            self._df_records["subject"] = self._df_records["record"].apply(
+                lambda x: re.match(self._rec_pattern, x).group("sid")
+            )
 
-        self._df_records = self._df_records.sort_values(by="record")
-        self._df_records.set_index("record", inplace=True)
+            self._df_records = self._df_records.sort_values(by="record")
+            self._df_records.set_index("record", inplace=True)
+
+            for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
+                self._df_records[extra_col] = None
+
+            with tqdm(
+                self._df_records.iterrows(),
+                total=len(self._df_records),
+                dynamic_ncols=True,
+                mininterval=1.0,
+                desc="Collecting recording metadata",
+            ) as pbar:
+                for idx, row in pbar:
+                    header = wfdb.rdheader(str(row.path))
+                    for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
+                        self._df_records.at[idx, extra_col] = getattr(header, extra_col)
 
         if len(self._df_records) > 0:
             if self._subsample is not None:
+                all_subjects = self._df_records["subject"].unique().tolist()
                 size = min(
-                    len(self._df_records),
-                    max(1, int(round(self._subsample * len(self._df_records)))),
+                    len(all_subjects),
+                    max(1, int(round(self._subsample * len(all_subjects)))),
                 )
                 self.logger.debug(
-                    f"subsample `{size}` records from `{len(self._df_records)}`"
+                    f"subsample `{size}` subjects from `{len(all_subjects)}`"
                 )
-                self._df_records = self._df_records.sample(
-                    n=size, random_state=DEFAULTS.SEED, replace=False
-                )
-
-        for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
-            self._df_records[extra_col] = None
-
-        with tqdm(
-            self._df_records.iterrows(),
-            total=len(self._df_records),
-            dynamic_ncols=True,
-            mininterval=1.0,
-            desc="Collecting recording metadata",
-        ) as pbar:
-            for idx, row in pbar:
-                header = wfdb.rdheader(str(row.path))
-                for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
-                    self._df_records.at[idx, extra_col] = getattr(header, extra_col)
+                all_subjects = DEFAULTS.RNG.choice(all_subjects, size=size, replace=False)
+                self._df_records = self._df_records.loc[
+                    self._df_records["subject"].isin(all_subjects)
+                ].sort_values(by="record")
 
         self._all_records = self._df_records.index.tolist()
         self._all_subjects = self._df_records["subject"].unique().tolist()
@@ -202,43 +227,61 @@ class CINC2023Reader(PhysioNetDataBase):
         }
 
         # collect subject metadata from the .txt files
-        metadata_list = []
-        with tqdm(
-            self._all_subjects,
-            total=len(self._all_subjects),
-            dynamic_ncols=True,
-            mininterval=1.0,
-            desc="Collecting subject metadata",
-        ) as pbar:
-            for sid in pbar:
-                file_path = (
-                    self._df_records.loc[self._df_records["subject"] == sid]
-                    .iloc[0]["path"]
-                    .parent
-                    / f"ICARE_{sid}.txt"
-                )
-                metadata = {
-                    k.strip(): v.strip()
-                    for k, v in [
-                        line.split(":") for line in file_path.read_text().splitlines()
-                    ]
-                }
-                metadata["subject"] = sid
-                metadata_list.append(metadata)
-        self._df_subjects = pd.DataFrame(metadata_list)
-        self._df_subjects.set_index("subject", inplace=True)
-        cols = ["Age", "Sex", "ROSC", "OHCA", "VFib", "TTM", "Outcome", "CPC"]
-        self._df_subjects = self._df_subjects[cols]
-        del metadata_list, metadata, cols
+        if self._df_subjects.empty:
+            metadata_list = []
+            with tqdm(
+                self._all_subjects,
+                total=len(self._all_subjects),
+                dynamic_ncols=True,
+                mininterval=1.0,
+                desc="Collecting subject metadata",
+            ) as pbar:
+                for sid in pbar:
+                    file_path = (
+                        self._df_records.loc[self._df_records["subject"] == sid]
+                        .iloc[0]["path"]
+                        .parent
+                        / f"ICARE_{sid}.txt"
+                    )
+                    metadata = {
+                        k.strip(): v.strip()
+                        for k, v in [
+                            line.split(":")
+                            for line in file_path.read_text().splitlines()
+                        ]
+                    }
+                    metadata["subject"] = sid
+                    metadata_list.append(metadata)
+            self._df_subjects = pd.DataFrame(metadata_list)
+            self._df_subjects.set_index("subject", inplace=True)
+            cols = ["Age", "Sex", "ROSC", "OHCA", "VFib", "TTM", "Outcome", "CPC"]
+            self._df_subjects = self._df_subjects[cols]
+            del metadata_list, metadata, cols
+        else:
+            self._df_subjects = self._df_subjects[
+                self._df_subjects.index.isin(self._all_subjects)
+            ]
 
-        if write_file:
-            records_file.write_text(
+        if write_files:
+            self.records_file.write_text(
                 "\n".join(
                     self._df_records["path"]
                     .apply(lambda x: x.relative_to(self.db_dir).as_posix())
                     .tolist()
                 )
             )
+            self._df_records.to_csv(self.records_metadata_file)
+            self._df_subjects.to_csv(self.subjects_metadata_file)
+
+    def clear_cached_metadata_files(self) -> None:
+        "remove the cached metadata files if they exist"
+        if self.records_file.exists():
+            # `Path.unlink` in Python 3.6 does NOT have the `missing_ok` parameter
+            self.records_file.unlink()
+        if self.records_metadata_file.exists():
+            self.records_metadata_file.unlink()
+        if self.subjects_metadata_file.exists():
+            self.subjects_metadata_file.unlink()
 
     def get_absolute_path(
         self, rec: Union[str, int], extension: Optional[str] = None
