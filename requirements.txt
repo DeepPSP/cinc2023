@@ -12,6 +12,7 @@ torch-ecg
 torchsummary
 tensorboardX
 tqdm
+gdown
 biosppy
 deprecated
 torch-optimizer
