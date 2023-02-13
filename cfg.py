@@ -34,10 +34,15 @@ BaseCfg.log_dir = _BASE_DIR / "log"
 BaseCfg.model_dir = _BASE_DIR / "saved_models"
 BaseCfg.log_dir.mkdir(exist_ok=True)
 BaseCfg.model_dir.mkdir(exist_ok=True)
-# BaseCfg.fs = 1000
+BaseCfg.fs = 100
 BaseCfg.torch_dtype = torch.float32  # "double"
 BaseCfg.np_dtype = np.float32
 BaseCfg.ignore_index = -100
+BaseCfg.outcome_mapping = {
+    "Poor": 0,
+    "Good": 1,
+}
+BaseCfg.cpc_mapping = {str(cpc_level): cpc_level - 1 for cpc_level in range(1, 6)}
 
 
 ###############################################################################

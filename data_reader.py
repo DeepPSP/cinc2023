@@ -32,15 +32,16 @@ _CINC2023_INFO = DataBaseInfo(
     1. The goal of the Challenge is to use longitudinal EEG recordings to predict good and poor patient outcomes after cardiac arrest.
     2. The data originates from seven academic hospitals.
     3. All EEG data was pre-processed with bandpass filtering (0.5-20Hz) and resampled to 100 Hz.
-    4. Each recording contains an array with EEG signals from 18 bipolar channel pairs.
-    5. The EEG recordings continue for several hours to days, so the EEG signals are prone to quality deterioration from non-physiological artifacts. Only the **cleanest 5 minutes** of EEG data per hour are provided.
+    4. Each recording contains an array of a duration of 5 minutes with EEG signals from 18 bipolar channel pairs.
+    5. The EEG recordings for one patient continue for several hours to days, so the EEG signals are prone to quality deterioration from non-physiological artifacts. Only the **cleanest 5 minutes** of EEG data per hour are provided.
     6. There might be gaps in the EEG data, since patients may have EEG started several hours after the arrest or need to have brain monitoring interrupted transiently while in the ICU.
-    7. In addition to EEG data, one additional .tsv file includes artifact scores for each hour, containing
+    7. Pattern for the EEG data files: ICARE_<patient_id>_<hour>.mat
+    8. In addition to EEG data, one additional .tsv file includes artifact scores for each hour, containing
         - **Time**: the timestamp for the start of each EEG signal file in relation to the time of cardiac arrest (under the column “Time”).
         - **Quality**: a measure of quality of the EEG signal for the 5-minute epochs, based on how many 10-second epochs within a 5-minute EEG window are contaminated by artifacts, ranging from 0 (all artifacts) to 1 (no artifacts).
-    8. Each patient has one .txt file containing patient information (ref. 9) and clinical outcome (ref. 10).
-    9. Patient information includes information recorded at the time of admission (age, sex), location of arrest (out or in-hospital), type of cardiac rhythm recorded at the time of resuscitation (shockable rhythms include ventricular fibrillation or ventricular tachycardia and non-shockable rhythms include asystole and pulseless electrical activity), and the time between cardiac arrest and ROSC (return of spontaneous circulation).
-    10. Clinical outcome was determined prospectively in two centers by phone interview (at 6 months from ROSC), and at the remaining hospitals retrospectively through chart review (at 3-6 months from ROSC). Neurological function was determined using the Cerebral Performance Category (CPC) scale. CPC is an ordinal scale ranging from 1 to 5:
+    9. Each patient has one .txt file containing patient information (ref. 10) and clinical outcome (ref. 11).
+    10. Patient information includes information recorded at the time of admission (age, sex), location of arrest (out or in-hospital), type of cardiac rhythm recorded at the time of resuscitation (shockable rhythms include ventricular fibrillation or ventricular tachycardia and non-shockable rhythms include asystole and pulseless electrical activity), and the time between cardiac arrest and ROSC (return of spontaneous circulation).
+    11. Clinical outcome was determined prospectively in two centers by phone interview (at 6 months from ROSC), and at the remaining hospitals retrospectively through chart review (at 3-6 months from ROSC). Neurological function was determined using the Cerebral Performance Category (CPC) scale. CPC is an ordinal scale ranging from 1 to 5:
         - CPC = 1: good neurological function and independent for activities of daily living.
         - CPC = 2: moderate neurological disability but independent for activities of daily living.
         - CPC = 3: severe neurological disability.
@@ -113,7 +114,7 @@ class CINC2023Reader(PhysioNetDataBase):
             "subset": "https://drive.google.com/u/0/uc?id=1YGa1tFC0TzqBj8Uw32B47EwZ2KeiGUr2",
         }
 
-        self._rec_pattern = "ICARE\\_(?P<sid>[\\d]+)\\_(?P<loc>[\\d]+)"
+        self._rec_pattern = "ICARE\\_(?P<sid>[\\d]+)\\_(?P<hour>[\\d]+)"
         self.data_ext = "mat"
         self.header_ext = "hea"
         self.quality_ext = "tsv"
@@ -157,18 +158,29 @@ class CINC2023Reader(PhysioNetDataBase):
             self._df_records = pd.read_csv(
                 self.records_metadata_file, index_col="record"
             )
-            self._df_records["subject"] = self._df_records["subject"].apply(lambda x: f"{x:04d}")
+            self._df_records["subject"] = self._df_records["subject"].apply(
+                lambda x: f"{x:04d}"
+            )
+            self._df_records["path"] = self._df_records["path"].apply(
+                lambda x: Path(x).resolve()
+            )
             self._df_subjects = pd.read_csv(
                 self.subjects_metadata_file, index_col="subject"
             )
             self._df_subjects.index = self._df_subjects.index.map(lambda x: f"{x:04d}")
+            self._df_subjects["CPC"] = self._df_subjects["CPC"].apply(str)
+            self._df_subjects["Directory"] = self._df_subjects["Directory"].apply(
+                lambda x: Path(x).resolve()
+            )
         elif self._subsample is None:
             write_files = True
 
         if not self._df_records.empty:
             data_suffix = f".{self.data_ext}"
             self._df_records = self._df_records[
-                self._df_records["path"].apply(lambda x: Path(x).with_suffix(data_suffix).exists())
+                self._df_records["path"].apply(
+                    lambda x: Path(x).with_suffix(data_suffix).exists()
+                )
             ]
 
         if len(self._df_records) == 0:
@@ -214,7 +226,9 @@ class CINC2023Reader(PhysioNetDataBase):
                 self.logger.debug(
                     f"subsample `{size}` subjects from `{len(all_subjects)}`"
                 )
-                all_subjects = DEFAULTS.RNG.choice(all_subjects, size=size, replace=False)
+                all_subjects = DEFAULTS.RNG.choice(
+                    all_subjects, size=size, replace=False
+                )
                 self._df_records = self._df_records.loc[
                     self._df_records["subject"].isin(all_subjects)
                 ].sort_values(by="record")
@@ -251,10 +265,15 @@ class CINC2023Reader(PhysioNetDataBase):
                         ]
                     }
                     metadata["subject"] = sid
+                    metadata["Directory"] = file_path.parent
                     metadata_list.append(metadata)
             self._df_subjects = pd.DataFrame(metadata_list)
             self._df_subjects.set_index("subject", inplace=True)
-            cols = ["Age", "Sex", "ROSC", "OHCA", "VFib", "TTM", "Outcome", "CPC"]
+            # fmt: off
+            cols = [
+                "Directory", "Age", "Sex", "ROSC", "OHCA", "VFib", "TTM", "Outcome", "CPC"
+            ]
+            # fmt: on
             self._df_subjects = self._df_subjects[cols]
             del metadata_list, metadata, cols
         else:
@@ -283,28 +302,58 @@ class CINC2023Reader(PhysioNetDataBase):
         if self.subjects_metadata_file.exists():
             self.subjects_metadata_file.unlink()
 
+    def get_subject_id(self, rec_or_sbj: Union[str, int]) -> str:
+        """
+        Attach a `subject_id` to the record, in order to facilitate further uses
+
+        Parameters
+        ----------
+        rec_or_sbj: str or int,
+            record name or index of the record in `self.all_records`,
+            or subject name
+
+        Returns
+        -------
+        str, a `subject_id` attached to the record `rec`
+
+        """
+        if isinstance(rec_or_sbj, int):
+            rec_or_sbj = self[rec_or_sbj]
+        if rec_or_sbj in self.all_records:
+            return self._df_records.loc[rec_or_sbj, "subject"]
+        elif rec_or_sbj in self.all_subjects:
+            return rec_or_sbj
+        else:
+            raise ValueError(f"record or subject `{rec_or_sbj}` not found")
+
     def get_absolute_path(
-        self, rec: Union[str, int], extension: Optional[str] = None
+        self, rec_or_sbj: Union[str, int], extension: Optional[str] = None
     ) -> Path:
         """
         get the absolute path of the record `rec`
 
         Parameters
         ----------
-        rec: str or int,
-            record name or index of the record in `self.all_records`
+        rec_or_sbj: str or int,
+            record name or index of the record in `self.all_records`,
+            or subject name
         extension: str, optional,
             extension of the file
 
         Returns
         -------
         Path,
-            absolute path of the file
+            absolute path of the file or directory
 
         """
-        if isinstance(rec, int):
-            rec = self[rec]
-        path = self._df_records.loc[rec, "path"]
+        if isinstance(rec_or_sbj, int):
+            rec_or_sbj = self[rec_or_sbj]
+        if rec_or_sbj in self.all_records:
+            path = self._df_records.loc[rec_or_sbj, "path"]
+        else:
+            path = self._df_subjects.loc[rec_or_sbj, "Directory"]
+            if extension is not None:
+                path = path / f"ICARE_{rec_or_sbj}"
         if extension is not None and not extension.startswith("."):
             extension = f".{extension}"
         return path.with_suffix(extension or "").resolve()
@@ -411,28 +460,113 @@ class CINC2023Reader(PhysioNetDataBase):
 
         return data
 
-    def load_ann(
-        self, rec_or_sid: Union[str, int], class_map: Optional[Dict[str, int]] = None
-    ) -> Union[str, int]:
+    def load_ann(self, rec_or_sbj: Union[str, int]) -> Dict[str, Union[str, int]]:
         """
-        load classification annotation of the record `rec` or the subject `sid`
+        load classification annotation corresponding to
+        the record `rec` or the subject `sbj`
 
         Parameters
         ----------
-        rec_or_sid: str or int,
+        rec_or_sbj: str or int,
             the record name or the index of the record in `self.all_records`
-            or the subject id
+            or the subject name
         class_map: dict, optional,
             the mapping of the annotation classes
 
         Returns
         -------
-        ann: str or int,
-            the class of the record,
-            or the number of the class if `class_map` is provided
+        ann: dict,
+            the annotation corresponding to the record or the subject,
+            with items "outcome", "cpc"
 
         """
-        pass
+        subject = self.get_subject_id(rec_or_sbj)
+        row = self._df_subjects.loc[subject]
+        ann = dict(
+            outcome=row["Outcome"],
+            cpc=row["CPC"],
+        )
+        return ann
+
+    def load_outcome(
+        self, rec_or_sbj: Union[str, int], class_map: Optional[Dict[str, int]] = None
+    ) -> Union[str, int]:
+        """
+        load Outcome annotation corresponding to
+        the record `rec` or the subject `sbj`
+
+        Parameters
+        ----------
+        rec_or_sbj: str or int,
+            the record name or the index of the record in `self.all_records`
+            or the subject name
+        class_map: dict, optional,
+            the mapping of the annotation classes
+
+        Returns
+        -------
+        outcome: str or int,
+            the Outcome annotation corresponding to the record or the subject.
+            If `class_map` is not None, the outcome will be mapped to the
+            corresponding class index.
+
+        """
+        outcome = self.load_ann(rec_or_sbj)["outcome"]
+        if class_map is not None:
+            outcome = class_map[outcome]
+        return outcome
+
+    def load_cpc(
+        self, rec_or_sbj: Union[str, int], class_map: Optional[Dict[str, int]] = None
+    ) -> Union[str, int]:
+        """
+        load CPC annotation corresponding to
+        the record `rec` or the subject `sbj`
+
+        Parameters
+        ----------
+        rec_or_sbj: str or int,
+            the record name or the index of the record in `self.all_records`
+            or the subject name
+        class_map: dict, optional,
+            the mapping of the annotation classes
+
+        Returns
+        -------
+        cpc: str or int,
+            the CPC annotation corresponding to the record or the subject.
+            If `class_map` is not None, the outcome will be mapped to the
+            corresponding class index.
+
+        """
+        cpc = self.load_ann(rec_or_sbj)["cpc"]
+        if class_map is not None:
+            cpc = class_map[cpc]
+        return cpc
+
+    def load_quality_table(self, sbj: Union[str, int]) -> pd.DataFrame:
+        """
+        load recording quality table of the subject `sbj`
+
+        Parameters
+        ----------
+        sbj: str or int,
+            the subject name or the index of the subject in `self.all_subjects`
+
+        Returns
+        -------
+        df_quality: pd.DataFrame,
+            the quality table of the subject
+
+        """
+        if isinstance(sbj, int):
+            sbj = self.all_subjects[sbj]
+        fp = self.get_absolute_path(sbj, self.quality_ext)
+        df_quality = (
+            pd.read_csv(fp, sep="\t").dropna(subset=["Record"]).set_index("Record")
+        )
+        df_quality.index.name = "record"
+        return df_quality
 
     @property
     def all_subjects(self) -> List[str]:
