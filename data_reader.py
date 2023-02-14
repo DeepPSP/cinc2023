@@ -2,6 +2,7 @@
 """
 
 import re
+from ast import literal_eval
 from pathlib import Path
 from typing import Union, Optional, Any, List, Dict, Sequence
 
@@ -13,7 +14,7 @@ import scipy.signal as SS
 from tqdm.auto import tqdm
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.databases.base import PhysioNetDataBase, DataBaseInfo
-from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring
+from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring, list_sum
 from torch_ecg.utils.download import _untar_file
 
 from cfg import BaseCfg
@@ -71,6 +72,15 @@ class CINC2023Reader(PhysioNetDataBase):
 
     __name__ = "CINC2023Reader"
 
+    # fmt: off
+    channel_names = [
+        "Fp1-F7", "F7-T3", "T3-T5", "T5-O1", "Fp2-F8", "F8-T4",
+        "T4-T6", "T6-O2", "Fp1-F3", "F3-C3", "C3-P3", "P3-O1",
+        "Fp2-F4", "F4-C4", "C4-P4", "P4-O2", "Fz-Cz", "Cz-Pz",
+    ]
+    # fmt: on
+    electrode_names = sorted(set(list_sum([chn.split("-") for chn in channel_names])))
+
     def __init__(
         self,
         db_dir: str,
@@ -114,7 +124,7 @@ class CINC2023Reader(PhysioNetDataBase):
             "subset": "https://drive.google.com/u/0/uc?id=1YGa1tFC0TzqBj8Uw32B47EwZ2KeiGUr2",
         }
 
-        self._rec_pattern = "ICARE\\_(?P<sid>[\\d]+)\\_(?P<hour>[\\d]+)"
+        self._rec_pattern = "ICARE\\_(?P<sbj>[\\d]+)\\_(?P<hour>[\\d]+)"
         self.data_ext = "mat"
         self.header_ext = "hea"
         self.quality_ext = "tsv"
@@ -144,8 +154,21 @@ class CINC2023Reader(PhysioNetDataBase):
         """
         list all records in the database
         """
-        self._df_records = pd.DataFrame()
-        self._df_subjects = pd.DataFrame()
+        # fmt: off
+        records_index = "record"
+        records_cols = [
+            "subject", "path", "hour", "time", "quality",
+            "fs", "sig_len", "n_sig", "sig_name",
+        ]
+        subjects_index = "subject"
+        subjects_cols = [
+            "Directory",
+            "Age", "Sex", "ROSC", "OHCA", "VFib", "TTM",
+            "Outcome", "CPC",
+        ]
+        # fmt: on
+        self._df_records = pd.DataFrame(columns=[records_index] + records_cols)
+        self._df_subjects = pd.DataFrame(columns=[subjects_index] + subjects_cols)
 
         cache_exists = (
             self.records_file.exists()
@@ -163,6 +186,9 @@ class CINC2023Reader(PhysioNetDataBase):
             )
             self._df_records["path"] = self._df_records["path"].apply(
                 lambda x: Path(x).resolve()
+            )
+            self._df_records["sig_name"] = self._df_records["sig_name"].apply(
+                literal_eval
             )
             self._df_subjects = pd.read_csv(
                 self.subjects_metadata_file, index_col="subject"
@@ -195,26 +221,29 @@ class CINC2023Reader(PhysioNetDataBase):
                 lambda x: x.stem
             )
             self._df_records["subject"] = self._df_records["record"].apply(
-                lambda x: re.match(self._rec_pattern, x).group("sid")
+                lambda x: re.match(self._rec_pattern, x).group("sbj")
             )
 
             self._df_records = self._df_records.sort_values(by="record")
             self._df_records.set_index("record", inplace=True)
 
-            for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
+            for extra_col in ["hour", "quality", "fs", "sig_len", "n_sig", "sig_name"]:
                 self._df_records[extra_col] = None
 
-            with tqdm(
-                self._df_records.iterrows(),
-                total=len(self._df_records),
-                dynamic_ncols=True,
-                mininterval=1.0,
-                desc="Collecting recording metadata",
-            ) as pbar:
-                for idx, row in pbar:
-                    header = wfdb.rdheader(str(row.path))
-                    for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
-                        self._df_records.at[idx, extra_col] = getattr(header, extra_col)
+            if not self._df_records.empty:
+                with tqdm(
+                    self._df_records.iterrows(),
+                    total=len(self._df_records),
+                    dynamic_ncols=True,
+                    mininterval=1.0,
+                    desc="Collecting recording metadata",
+                ) as pbar:
+                    for idx, row in pbar:
+                        header = wfdb.rdheader(str(row.path))
+                        for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
+                            self._df_records.at[idx, extra_col] = getattr(
+                                header, extra_col
+                            )
 
         if len(self._df_records) > 0:
             if self._subsample is not None:
@@ -236,12 +265,13 @@ class CINC2023Reader(PhysioNetDataBase):
         self._all_records = self._df_records.index.tolist()
         self._all_subjects = self._df_records["subject"].unique().tolist()
         self._subject_records = {
-            sid: self._df_records.loc[self._df_records["subject"] == sid].index.tolist()
-            for sid in self._all_subjects
+            sbj: self._df_records.loc[self._df_records["subject"] == sbj].index.tolist()
+            for sbj in self._all_subjects
         }
 
         # collect subject metadata from the .txt files
-        if self._df_subjects.empty:
+        if self._df_subjects.empty and len(self._all_subjects) > 0:
+            df_quality = pd.DataFrame(columns=["Record", "Hour", "Time", "Quality"])
             metadata_list = []
             with tqdm(
                 self._all_subjects,
@@ -250,12 +280,12 @@ class CINC2023Reader(PhysioNetDataBase):
                 mininterval=1.0,
                 desc="Collecting subject metadata",
             ) as pbar:
-                for sid in pbar:
+                for sbj in pbar:
                     file_path = (
-                        self._df_records.loc[self._df_records["subject"] == sid]
+                        self._df_records.loc[self._df_records["subject"] == sbj]
                         .iloc[0]["path"]
                         .parent
-                        / f"ICARE_{sid}.txt"
+                        / f"ICARE_{sbj}.txt"
                     )
                     metadata = {
                         k.strip(): v.strip()
@@ -264,22 +294,49 @@ class CINC2023Reader(PhysioNetDataBase):
                             for line in file_path.read_text().splitlines()
                         ]
                     }
-                    metadata["subject"] = sid
+                    metadata["subject"] = sbj
                     metadata["Directory"] = file_path.parent
                     metadata_list.append(metadata)
-            self._df_subjects = pd.DataFrame(metadata_list)
+                    df_quality = pd.concat(
+                        [
+                            df_quality,
+                            pd.read_csv(
+                                file_path.with_suffix(f".{self.quality_ext}"), sep="\t"
+                            ),
+                        ],
+                        ignore_index=True,
+                    )
+            self._df_subjects = pd.DataFrame(
+                metadata_list, columns=["subject"] + subjects_cols
+            )
             self._df_subjects.set_index("subject", inplace=True)
-            # fmt: off
-            cols = [
-                "Directory", "Age", "Sex", "ROSC", "OHCA", "VFib", "TTM", "Outcome", "CPC"
-            ]
-            # fmt: on
-            self._df_subjects = self._df_subjects[cols]
-            del metadata_list, metadata, cols
+            self._df_subjects = self._df_subjects[subjects_cols]
         else:
             self._df_subjects = self._df_subjects[
                 self._df_subjects.index.isin(self._all_subjects)
             ]
+            df_quality = None
+
+        if df_quality is not None:
+            df_quality = (
+                df_quality.rename(
+                    columns={
+                        "Record": "record",
+                        "Hour": "hour",
+                        "Time": "time",
+                        "Quality": "quality",
+                    }
+                )
+                .dropna(subset=["record"])
+                .set_index("record")
+            )
+            self._df_records.drop(columns=["hour", "time", "quality"], inplace=True)
+            self._df_records = self._df_records.join(df_quality)
+            self._df_records = self._df_records[records_cols]
+        del df_quality
+
+        if self._df_records.empty or self._df_subjects.empty:
+            write_files = False
 
         if write_files:
             self.records_file.write_text(
