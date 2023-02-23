@@ -15,7 +15,7 @@ from tqdm.auto import tqdm
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.databases.base import PhysioNetDataBase, DataBaseInfo
 from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring, list_sum
-from torch_ecg.utils.download import _untar_file
+from torch_ecg.utils.download import http_get, _untar_file
 
 from cfg import BaseCfg
 
@@ -38,22 +38,28 @@ _CINC2023_INFO = DataBaseInfo(
     6. There might be gaps in the EEG data, since patients may have EEG started several hours after the arrest or need to have brain monitoring interrupted transiently while in the ICU.
     7. Pattern for the EEG data files: ICARE_<patient_id>_<hour>.mat
     8. In addition to EEG data, one additional .tsv file includes artifact scores for each hour, containing
+
         - **Time**: the timestamp for the start of each EEG signal file in relation to the time of cardiac arrest (under the column “Time”).
         - **Quality**: a measure of quality of the EEG signal for the 5-minute epochs, based on how many 10-second epochs within a 5-minute EEG window are contaminated by artifacts, ranging from 0 (all artifacts) to 1 (no artifacts).
+
     9. Each patient has one .txt file containing patient information (ref. 10) and clinical outcome (ref. 11).
     10. Patient information includes information recorded at the time of admission (age, sex), location of arrest (out or in-hospital), type of cardiac rhythm recorded at the time of resuscitation (shockable rhythms include ventricular fibrillation or ventricular tachycardia and non-shockable rhythms include asystole and pulseless electrical activity), and the time between cardiac arrest and ROSC (return of spontaneous circulation).
     11. Clinical outcome was determined prospectively in two centers by phone interview (at 6 months from ROSC), and at the remaining hospitals retrospectively through chart review (at 3-6 months from ROSC). Neurological function was determined using the Cerebral Performance Category (CPC) scale. CPC is an ordinal scale ranging from 1 to 5:
+
         - CPC = 1: good neurological function and independent for activities of daily living.
         - CPC = 2: moderate neurological disability but independent for activities of daily living.
         - CPC = 3: severe neurological disability.
         - CPC = 4: unresponsive wakefulness syndrome [previously known as vegetative state].
         - CPC = 5: dead.
-    The CPC scores are grouped into two categories:
+
+    12. The CPC scores are grouped into two categories:
+
         - Good: CPC = 1 or 2.
         - Poor: CPC = 3, 4, or 5.
+
     """,
     usage=[
-        "neurological recovery prediction",
+        "Neurological recovery prediction",
     ],
     note="""
     """,
@@ -61,14 +67,31 @@ _CINC2023_INFO = DataBaseInfo(
     """,
     references=[
         "https://moody-challenge.physionet.org/2023/",
+        "https://physionet.org/content/i-care/",
     ],
-    doi=[],
+    doi=["https://doi.org/10.13026/rjbz-cq89"],
 )
 
 
-@add_docstring(_CINC2023_INFO.format_database_docstring())
+@add_docstring(_CINC2023_INFO.format_database_docstring(), mode="prepend")
 class CINC2023Reader(PhysioNetDataBase):
-    """ """
+    """
+    Parameters
+    ----------
+    db_dir : str or pathlib.Path
+        Local storage path of the database.
+    fs : int, default 100
+        (Re-)sampling frequency of the recordings.
+    backend : {"scipy",  "wfdb"}, optional
+        Backend to use, by default "wfdb", case insensitive.
+    working_dir : str, optional
+        Working directory, to store intermediate files and log files.
+    verbose: int, default 2
+        Verbosity level for logging.
+    kwargs : dict, optional
+        Auxilliary key word arguments.
+
+    """
 
     __name__ = "CINC2023Reader"
 
@@ -90,26 +113,8 @@ class CINC2023Reader(PhysioNetDataBase):
         verbose: int = 2,
         **kwargs: Any,
     ) -> None:
-        """
-        Parameters
-        ----------
-        db_dir: str,
-            storage path of the database
-        fs: int, default 100,
-            (re-)sampling frequency of the recordings
-        backend: str, default "wfdb",
-            backend to use, can be one of
-            "scipy",  "wfdb",
-            case insensitive.
-        working_dir: str, optional,
-            working directory, to store intermediate files and log file
-        verbose: int, default 2,
-            log verbosity
-        kwargs: auxilliary key word arguments
-
-        """
         super().__init__(
-            db_name="cinc2023",  # to update
+            db_name="i-care",
             db_dir=db_dir,
             fs=fs,
             backend=backend,
@@ -120,8 +125,8 @@ class CINC2023Reader(PhysioNetDataBase):
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
 
         self._url_compressed = {
-            "full": "https://drive.google.com/u/0/uc?id=1MgIsfknRpRgR2jpVfzcR1Qwj0i6PC0-A",
-            "subset": "https://drive.google.com/u/0/uc?id=1YGa1tFC0TzqBj8Uw32B47EwZ2KeiGUr2",
+            "full": "https://physionet.org/static/published-projects/i-care/i-care-international-cardiac-arrest-research-consortium-database-1.0.zip",
+            "subset": "https://drive.google.com/u/0/uc?id=10ML4iU8eVZ_434-FoMUUAKJNSksz9Siy",
         }
 
         self._rec_pattern = "ICARE\\_(?P<sbj>[\\d]+)\\_(?P<hour>[\\d]+)"
@@ -141,18 +146,16 @@ class CINC2023Reader(PhysioNetDataBase):
         self._ls_rec()
 
     def _auto_infer_units(self) -> None:
-        """
-        auto infer the units of the signals
-        """
+        """Auto infer the units of the signals."""
         raise NotImplementedError
 
     def _reset_fs(self, new_fs: int) -> None:
-        """ """
+        """Reset the default sampling frequency of the database."""
         self.fs = new_fs
 
     def _ls_rec(self) -> None:
-        """
-        list all records in the database
+        """Find all records in the database directory
+        and store them (path, metadata, etc.) in a dataframe.
         """
         # fmt: off
         records_index = "record"
@@ -350,7 +353,7 @@ class CINC2023Reader(PhysioNetDataBase):
             self._df_subjects.to_csv(self.subjects_metadata_file)
 
     def clear_cached_metadata_files(self) -> None:
-        "remove the cached metadata files if they exist"
+        """Remove the cached metadata files if they exist."""
         if self.records_file.exists():
             # `Path.unlink` in Python 3.6 does NOT have the `missing_ok` parameter
             self.records_file.unlink()
@@ -360,18 +363,18 @@ class CINC2023Reader(PhysioNetDataBase):
             self.subjects_metadata_file.unlink()
 
     def get_subject_id(self, rec_or_sbj: Union[str, int]) -> str:
-        """
-        Attach a `subject_id` to the record, in order to facilitate further uses
+        """Attach a unique subject ID for the record.
 
         Parameters
         ----------
-        rec_or_sbj: str or int,
-            record name or index of the record in `self.all_records`,
+        rec_or_sbj : str or int
+            Record name or index of the record in :attr:`all_records`
             or subject name
 
         Returns
         -------
-        str, a `subject_id` attached to the record `rec`
+        str
+            Subject ID associated with the record.
 
         """
         if isinstance(rec_or_sbj, int):
@@ -386,21 +389,20 @@ class CINC2023Reader(PhysioNetDataBase):
     def get_absolute_path(
         self, rec_or_sbj: Union[str, int], extension: Optional[str] = None
     ) -> Path:
-        """
-        get the absolute path of the record `rec`
+        """Get the absolute path of the record.
 
         Parameters
         ----------
-        rec_or_sbj: str or int,
-            record name or index of the record in `self.all_records`,
-            or subject name
-        extension: str, optional,
-            extension of the file
+        rec_or_sbj : str or int
+            Record name or index of the record in :attr:`all_records`
+            or subject name.
+        extension : str, optional
+            Extension of the file.
 
         Returns
         -------
-        Path,
-            absolute path of the file or directory
+        pathlib.Path
+            Absolute path of the file or directory.
 
         """
         if isinstance(rec_or_sbj, int):
@@ -425,35 +427,35 @@ class CINC2023Reader(PhysioNetDataBase):
         units: Union[str, type(None)] = "uV",
         fs: Optional[int] = None,
     ) -> np.ndarray:
-        """
-        load data from the record `rec`
+        """Load EEG data from the record.
 
         Parameters
         ----------
-        rec: str or int,
-            the record name or the index of the record in `self.all_records`
-        channels: str or int or sequence of str or int, optional,
-            the channel(s) to load, if None, load all channels
-        sampfrom: int, optional,
-            the starting sample index, if None, load from the beginning
-        sampto: int, optional,
-            the ending sample index, if None, load to the end
-        data_format: str, default "channel_first",
-            the format of the data, can be one of
+        rec : str or int
+            Record name or the index of the record in :attr:`all_records`.
+        channels : str or int or Sequence[str] or Sequence[int], optional
+            Names or indices of the channel(s) to load.
+            If is None, all channels will be loaded.
+        sampfrom : int, optional
+            Start index of the data to be loaded.
+        sampto : int, optional
+            End index of the data to be loaded.
+        data_format : str, default "channel_first"
+            Format of the data, can be one of
             "channel_first", "channel_last",
-            or "flat" (alias "plain") if `channels` is a single channel,
+            or "flat" (alias "plain") if `channels` is a single channel.
             case insensitive.
-        units: str or None, default "uV",
-            the units of the data, can be one of
+        units : str or None, default "uV"
+            Units of the data, can be one of
             "mV", "uV" (with alias "muV", "μV"), case insensitive.
-            None for digital data, without digital-to-physical conversion
-        fs: int, optional,
-            the sampling frequency of the record, defaults to `self.fs`,
+            None for digital data, without digital-to-physical conversion.
+        fs : int, optional
+            Sampling frequency of the record, defaults to `self.fs`.
 
         Returns
         -------
-        data: np.ndarray,
-            the data of the record
+        data : numpy.ndarray
+            The loaded EEG data.
 
         """
         if isinstance(rec, int):
@@ -518,23 +520,22 @@ class CINC2023Reader(PhysioNetDataBase):
         return data
 
     def load_ann(self, rec_or_sbj: Union[str, int]) -> Dict[str, Union[str, int]]:
-        """
-        load classification annotation corresponding to
-        the record `rec` or the subject `sbj`
+        """Load classification annotation corresponding to
+        the record `rec` or the subject `sbj`.
 
         Parameters
         ----------
-        rec_or_sbj: str or int,
-            the record name or the index of the record in `self.all_records`
-            or the subject name
-        class_map: dict, optional,
-            the mapping of the annotation classes
+        rec_or_sbj : str or int
+            Record name or the index of the record in :attr:`all_records`
+            or the subject name.
+        class_map : dict, optional
+            Mapping of the annotation classes.
 
         Returns
         -------
-        ann: dict,
-            the annotation corresponding to the record or the subject,
-            with items "outcome", "cpc"
+        ann : dict
+            A dictionary of annotation corresponding to
+            the record or the subject, with items "outcome", "cpc".
 
         """
         subject = self.get_subject_id(rec_or_sbj)
@@ -548,22 +549,21 @@ class CINC2023Reader(PhysioNetDataBase):
     def load_outcome(
         self, rec_or_sbj: Union[str, int], class_map: Optional[Dict[str, int]] = None
     ) -> Union[str, int]:
-        """
-        load Outcome annotation corresponding to
-        the record `rec` or the subject `sbj`
+        """Load Outcome annotation corresponding to
+        the record `rec` or the subject `sbj`.
 
         Parameters
         ----------
-        rec_or_sbj: str or int,
-            the record name or the index of the record in `self.all_records`
-            or the subject name
-        class_map: dict, optional,
-            the mapping of the annotation classes
+        rec_or_sbj : str or int
+            Record name or the index of the record in :attr:`all_records`
+            or the subject name.
+        class_map : dict, optional
+            Mapping of the annotation classes.
 
         Returns
         -------
-        outcome: str or int,
-            the Outcome annotation corresponding to the record or the subject.
+        outcome : str or int
+            The Outcome annotation corresponding to the record or the subject.
             If `class_map` is not None, the outcome will be mapped to the
             corresponding class index.
 
@@ -576,22 +576,21 @@ class CINC2023Reader(PhysioNetDataBase):
     def load_cpc(
         self, rec_or_sbj: Union[str, int], class_map: Optional[Dict[str, int]] = None
     ) -> Union[str, int]:
-        """
-        load CPC annotation corresponding to
-        the record `rec` or the subject `sbj`
+        """Load CPC annotation corresponding to
+        the record `rec` or the subject `sbj`.
 
         Parameters
         ----------
-        rec_or_sbj: str or int,
-            the record name or the index of the record in `self.all_records`
-            or the subject name
-        class_map: dict, optional,
-            the mapping of the annotation classes
+        rec_or_sbj : str or int
+            Record name or the index of the record in :attr:`all_records`
+            or the subject name.
+        class_map : dict, optional
+            Mapping of the annotation classes.
 
         Returns
         -------
-        cpc: str or int,
-            the CPC annotation corresponding to the record or the subject.
+        cpc : str or int
+            The CPC annotation corresponding to the record or the subject.
             If `class_map` is not None, the outcome will be mapped to the
             corresponding class index.
 
@@ -602,18 +601,17 @@ class CINC2023Reader(PhysioNetDataBase):
         return cpc
 
     def load_quality_table(self, sbj: Union[str, int]) -> pd.DataFrame:
-        """
-        load recording quality table of the subject `sbj`
+        """Load recording quality table of the subject.
 
         Parameters
         ----------
-        sbj: str or int,
-            the subject name or the index of the subject in `self.all_subjects`
+        sbj : str or int
+            Subject name or the index of the subject in :attr:`all_subjects`.
 
         Returns
         -------
-        df_quality: pd.DataFrame,
-            the quality table of the subject
+        df_quality : pandas.DataFrame
+            The quality table of the subject.
 
         """
         if isinstance(sbj, int):
@@ -634,46 +632,34 @@ class CINC2023Reader(PhysioNetDataBase):
         return self._subject_records
 
     def plot(self, rec: Union[str, int], **kwargs) -> None:
-        """
-        plot the record `rec`, with metadata and segmentation
+        """Plot the record with metadata and segmentation.
 
         Parameters
         ----------
-        rec: str or int,
-            the record name or the index of the record in `self.all_records`
-        kwargs: dict,
-            not used currently
+        rec : str or int
+            Record name or the index of the record in :attr:`all_records`.
+        kwargs : dict, optional
+            Additional keyword arguments for :func:`matplotlib.pyplot.plot`.
 
         Returns
         -------
-        fig: matplotlib.figure.Figure,
-            the figure of the record
-        ax: matplotlib.axes.Axes,
-            the axes of the figure
+        fig : matplotlib.figure.Figure
+            The figure of the record.
+        ax : matplotlib.axes.Axes
+            The axes of the figure.
 
         """
         pass
 
-    @property
-    def webpage(self) -> str:
-        # to update to the PhysioNet webpage
-        "https://moody-challenge.physionet.org/2023/"
-
-    @property
-    def url(self) -> str:
-        # return posixpath.join(
-        #     wfdb.io.download.PN_INDEX_URL, f"{self.db_name}/{self.version}"
-        # )
-        return ""  # currently not available
-
     def download(self, full: bool = True) -> None:
-        """
-        download the database from Google Drive
-        """
+        """Download the database from PhysioNet or Google Drive."""
         url = self._url_compressed["full" if full else "subset"]
         dl_file = "training.tar.gz" if full else "training_subset.tar.gz"
         dl_file = str(self.db_dir / dl_file)
-        gdown.download(url, dl_file, quiet=False)
+        if full:
+            http_get(url, self.db_dir, extract=True)
+        else:
+            gdown.download(url, dl_file, quiet=False)
         _untar_file(dl_file, self.db_dir)
         self._ls_rec()
 
