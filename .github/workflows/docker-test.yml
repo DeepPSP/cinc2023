@@ -17,4 +17,4 @@ jobs:
       with:
         submodules: recursive
     - name: Build the Docker image and run test script
-      run: docker build . --file Dockerfile --tag deeppsp-cinc2023-docker-image:$(date +%s)
+      run: docker build . --file test.Dockerfile --tag deeppsp-cinc2023-docker-image:$(date +%s)

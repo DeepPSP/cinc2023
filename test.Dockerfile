@@ -51,7 +51,7 @@ COPY ./ /physionet
 # NOTE: also run test_local.py to test locally
 # since GitHub Actions does not have GPU,
 # one need to run test_local.py to avoid errors related to devices
-# RUN python test_docker.py
+RUN python test_docker.py
 
 
 # commands to run test with docker container:
