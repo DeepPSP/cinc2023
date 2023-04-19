@@ -40,15 +40,15 @@ class CinC2023Dataset(Dataset, ReprMixin):
         """
         Parameters
         ----------
-        config: CFG
+        config : CFG
             configuration for the dataset
-        task: str
+        task : str
             task to be performed using the dataset
-        training: bool, default True
+        training : bool, default True
             whether the dataset is for training or validation
-        lazy: bool, default True
+        lazy : bool, default True
             whether to load all data into memory at initialization
-        reader_kwargs: dict,
+        reader_kwargs : dict, optional
             keyword arguments for the data reader class
 
         """
@@ -84,13 +84,11 @@ class CinC2023Dataset(Dataset, ReprMixin):
         self.__set_task(task, lazy)
 
     def __len__(self) -> int:
-        """ """
         if self.cache is None:
             self._load_all_data()
         return self.cache["waveforms"].shape[0]
 
     def __getitem__(self, index: int) -> Dict[str, np.ndarray]:
-        """ """
         if self.cache is None:
             self._load_all_data()
         return {k: v[index] for k, v in self.cache.items()}
@@ -154,6 +152,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
 
         train_file = self.reader.db_dir / f"train_ratio_{_train_ratio}.json"
         test_file = self.reader.db_dir / f"test_ratio_{_test_ratio}.json"
+        (BaseCfg.project_dir / "utils").mkdir(exist_ok=True)
         aux_train_file = (
             BaseCfg.project_dir / "utils" / f"train_ratio_{_train_ratio}.json"
         )
@@ -175,6 +174,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
         df.loc[:, "Age"] = (
             df["Age"].fillna(df["Age"].mean()).astype(int)
         )  # only one nan
+        # to age group
         df.loc[:, "Age"] = df["Age"].apply(lambda x: str(20 * (x // 20)))
         for col in ["OHCA", "VFib"]:
             df.loc[:, col] = df[col].apply(
@@ -184,7 +184,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
             df.loc[:, col] = df[col].astype(int).astype(str)
 
         df_train, df_test = stratified_train_test_split(
-            self.reader._df_subjects,
+            df,
             [
                 "Age",
                 "Sex",
@@ -193,6 +193,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
                 "CPC",
             ],
             test_ratio=1 - train_ratio,
+            reset_index=False,
         )
 
         train_set = df_train.index.tolist()
@@ -216,7 +217,6 @@ class CinC2023Dataset(Dataset, ReprMixin):
         return self.__cache
 
     def extra_repr_keys(self) -> List[str]:
-        """ """
         return ["task", "training"]
 
 
@@ -243,17 +243,28 @@ class FastDataReader(ReprMixin, Dataset):
             self.dtype = np.float32
 
     def __len__(self) -> int:
-        """ """
         return len(self.records)
 
     def __getitem__(self, index: int) -> Dict[str, np.ndarray]:
-        """ """
         rec = self.records[index]
         waveforms = self.reader.load_data(
             rec,
             data_format=self.config[self.task].data_format,
-        )
-        raise NotImplementedError
+        )[np.newaxis, ...]
+        if self.ppm:
+            waveforms, _ = self.ppm(waveforms, self.reader.fs)
+        label = self.reader.load_cpc(rec)
+        if self.config[self.task].loss != "CrossEntropyLoss":
+            label = np.isin(self.config[self.task].classes, label).astype(self.dtype)[
+                np.newaxis, ...
+            ]
+        else:
+            label = np.array([self.config[self.task].classes.index(label)])
+        out_tensors = {
+            "waveforms": waveforms.astype(self.dtype),
+            "label": label.astype(self.dtype),
+        }
+        return out_tensors
 
     def extra_repr_keys(self) -> List[str]:
         return [
