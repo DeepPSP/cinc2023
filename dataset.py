@@ -253,16 +253,16 @@ class FastDataReader(ReprMixin, Dataset):
         )[np.newaxis, ...]
         if self.ppm:
             waveforms, _ = self.ppm(waveforms, self.reader.fs)
-        label = self.reader.load_cpc(rec)
+        label_cpc = self.reader.load_cpc(rec)
         if self.config[self.task].loss != "CrossEntropyLoss":
-            label = np.isin(self.config[self.task].classes, label).astype(self.dtype)[
-                np.newaxis, ...
-            ]
+            label_cpc = np.isin(self.config[self.task].classes, label_cpc).astype(
+                self.dtype
+            )[np.newaxis, ...]
         else:
-            label = np.array([self.config[self.task].classes.index(label)])
+            label_cpc = np.array([self.config[self.task].classes.index(label_cpc)])
         out_tensors = {
             "waveforms": waveforms.astype(self.dtype),
-            "label": label.astype(self.dtype),
+            "cpc": label_cpc.astype(self.dtype),
         }
         return out_tensors
 

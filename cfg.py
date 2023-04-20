@@ -46,6 +46,13 @@ BaseCfg.outcome_map = {
 }
 BaseCfg.cpc = [str(cpc_level) for cpc_level in range(1, 6)]
 BaseCfg.cpc_map = {str(cpc_level): cpc_level - 1 for cpc_level in range(1, 6)}
+BaseCfg.cpc2outcome_map = {
+    "1": "Good",
+    "2": "Good",
+    "3": "Poor",
+    "4": "Poor",
+    "5": "Poor",
+}
 
 
 ###############################################################################

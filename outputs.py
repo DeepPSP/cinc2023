@@ -17,6 +17,5 @@ class CINC2023Outputs:
     """Output class for CinC2023"""
 
     cpc_output: ClassificationOutput
-    outcome_output: ClassificationOutput
     cpc_loss: Optional[float] = None
-    outcome_loss: Optional[float] = None
+    outcome: Optional[str] = None
