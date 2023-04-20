@@ -55,6 +55,7 @@ class CRNN_CINC2023(ECG_CRNN):
             _config.num_channels,
             _config[_config.model_name],
         )
+        self.output_target = _config.output_target
 
     def forward(
         self,
@@ -69,17 +70,23 @@ class CRNN_CINC2023(ECG_CRNN):
             Waveforms tensor, of shape ``(batch_size, channels, seq_len)``.
         labels : Dict[str, torch.Tensor], optional
             the labels of the waveforms data, including:
-            - "cpc": the cpc labels, of shape (batch_size, n_classes) or (batch_size,)
+            - "cpc" (optional): the cpc labels,
+              of shape ``(batch_size, n_classes)`` or ``(batch_size,)``
+            - "outcome" (optional): the outcome labels,
+              of shape ``(batch_size, n_classes)`` or ``(batch_size,)``
 
         Returns
         -------
         Dict[str, torch.Tensor]
             with items:
-            - "cpc": the cpc predictions, of shape (batch_size, n_classes)
+            - "cpc" (optional): the cpc predictions,
+              of shape ``(batch_size, n_classes)`` or ``(batch_size,)``
+            - "outcome" (optional): the outcome predictions,
+              of shape ``(batch_size, n_classes)``
 
         """
         pred = super().forward(waveforms)  # batch_size, n_classes
-        out = {"cpc": pred}
+        out = {self.output_target: pred}
 
         return out
 
@@ -95,7 +102,7 @@ class CRNN_CINC2023(ECG_CRNN):
         Returns
         -------
         CINC2023Outputs, with attributes:
-            - cpc_output: ClassificationOutput, with items:
+            - cpc_output, outcome_output: ClassificationOutput, with items:
                 - classes: list of str,
                   list of the class names
                 - prob: ndarray or DataFrame,
@@ -118,22 +125,25 @@ class CRNN_CINC2023(ECG_CRNN):
         # batch_size, channels, seq_len = _input.shape
         forward_output = self.forward(_input)
 
-        prob = self.softmax(forward_output["cpc"])
+        prob = self.softmax(forward_output[self.output_target])
         pred = torch.argmax(prob, dim=-1)
         bin_pred = (prob == prob.max(dim=-1, keepdim=True).values).to(int)
         prob = prob.cpu().detach().numpy()
         pred = pred.cpu().detach().numpy()
         bin_pred = bin_pred.cpu().detach().numpy()
 
-        cpc_output = ClassificationOutput(
+        output = ClassificationOutput(
             classes=self.classes,
             prob=prob,
             pred=pred,
             bin_pred=bin_pred,
-            forward_output=forward_output["cpc"].cpu().detach().numpy(),
+            forward_output=forward_output[self.output_target].cpu().detach().numpy(),
         )
 
-        return CINC2023Outputs(cpc_output)
+        if self.output_target == "cpc":
+            return CINC2023Outputs(cpc_output=output)
+        elif self.output_target == "outcome":
+            return CINC2023Outputs(outcome_output=output)
 
     @add_docstring(inference.__doc__)
     def inference_CINC2023(
