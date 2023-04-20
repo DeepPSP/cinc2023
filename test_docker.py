@@ -30,6 +30,12 @@ tmp_data_dir.mkdir(parents=True, exist_ok=True)
 dr = CINC2023Reader(tmp_data_dir)
 dr.download(full=False)
 dr._ls_rec()
+# let's remove cached metadata files
+# to test the CinC2023Dataset at the very first run
+# when metadata files are not computed and cached yet,
+# which is exactly the case for the challenge
+dr.clear_cached_metadata_files()
+
 del dr
 
 
