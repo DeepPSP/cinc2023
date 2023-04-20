@@ -13,7 +13,7 @@ from torch_ecg.cfg import CFG, DEFAULTS
 from torch_ecg.utils.misc import ReprMixin, list_sum
 from torch_ecg.utils.utils_data import stratified_train_test_split
 from torch_ecg._preprocessors import PreprocManager
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from cfg import BaseCfg, TrainCfg, ModelCfg  # noqa: F401
 from data_reader import CINC2023Reader
@@ -150,6 +150,14 @@ class CinC2023Dataset(Dataset, ReprMixin):
         _test_ratio = 100 - _train_ratio
         assert _train_ratio * _test_ratio > 0
 
+        # let the data reader (re-)load the metadata dataframes
+        # in which case would be read from the disk via `pd.read_csv`
+        # and the string values parsed from the txt files
+        # are automatically converted to the correct data types
+        # e.g. "50" -> 50 or 50.0 depending on whether the column has nan values
+        # and "True" -> True or "False" -> False, "nan" -> np.nan, etc.
+        self.reader._ls_rec()
+
         train_file = self.reader.db_dir / f"train_ratio_{_train_ratio}.json"
         test_file = self.reader.db_dir / f"test_ratio_{_test_ratio}.json"
         (BaseCfg.project_dir / "utils").mkdir(exist_ok=True)
@@ -164,11 +172,12 @@ class CinC2023Dataset(Dataset, ReprMixin):
             else:
                 return json.loads(test_file.read_text())
 
-        if not force_recompute and aux_train_file.exists() and aux_test_file.exists():
-            if self.training:
-                return json.loads(aux_train_file.read_text())
-            else:
-                return json.loads(aux_test_file.read_text())
+        # aux files are only used for recording the split, not for actual training
+        # if not force_recompute and aux_train_file.exists() and aux_test_file.exists():
+        #     if self.training:
+        #         return json.loads(aux_train_file.read_text())
+        #     else:
+        #         return json.loads(aux_test_file.read_text())
 
         df = self.reader._df_subjects.copy()
         df.loc[:, "Age"] = (
@@ -199,10 +208,13 @@ class CinC2023Dataset(Dataset, ReprMixin):
         train_set = df_train.index.tolist()
         test_set = df_test.index.tolist()
 
-        train_file.write_text(json.dumps(train_set, ensure_ascii=False))
-        aux_train_file.write_text(json.dumps(train_set, ensure_ascii=False))
-        test_file.write_text(json.dumps(test_set, ensure_ascii=False))
-        aux_test_file.write_text(json.dumps(test_set, ensure_ascii=False))
+        if force_recompute or not train_file.exists():
+            train_file.write_text(json.dumps(train_set, ensure_ascii=False))
+            test_file.write_text(json.dumps(test_set, ensure_ascii=False))
+
+        if force_recompute or not aux_train_file.exists():
+            aux_train_file.write_text(json.dumps(train_set, ensure_ascii=False))
+            aux_test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 
         DEFAULTS.RNG.shuffle(train_set)
         DEFAULTS.RNG.shuffle(test_set)
@@ -253,16 +265,16 @@ class FastDataReader(ReprMixin, Dataset):
         )[np.newaxis, ...]
         if self.ppm:
             waveforms, _ = self.ppm(waveforms, self.reader.fs)
-        label_cpc = self.reader.load_cpc(rec)
+        label = self.reader.load_ann(rec)[self.config[self.task].output_target]
         if self.config[self.task].loss != "CrossEntropyLoss":
-            label_cpc = np.isin(self.config[self.task].classes, label_cpc).astype(
-                self.dtype
-            )[np.newaxis, ...]
+            label = np.isin(self.config[self.task].classes, label).astype(self.dtype)[
+                np.newaxis, ...
+            ]
         else:
-            label_cpc = np.array([self.config[self.task].classes.index(label_cpc)])
+            label = np.array([self.config[self.task].classes.index(label)])
         out_tensors = {
             "waveforms": waveforms.astype(self.dtype),
-            "cpc": label_cpc.astype(self.dtype),
+            self.config[self.task].output_target: label.astype(self.dtype),
         }
         return out_tensors
 
