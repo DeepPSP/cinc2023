@@ -16,12 +16,18 @@ from torch_ecg.components.outputs import (
     ClassificationOutput,
 )
 
+from utils.scoring_metrics import compute_challenge_metrics
 from cfg import TrainCfg, ModelCfg, BaseCfg, _BASE_DIR
 from data_reader import CINC2023Reader
 from dataset import CinC2023Dataset
 from outputs import CINC2023Outputs, cpc2outcome_map
 from models import CRNN_CINC2023
-from utils.scoring_metrics import compute_challenge_metrics
+from trainer import CINC2023Trainer, _set_task
+
+
+CINC2023Trainer.__DEBUG__ = False
+CRNN_CINC2023.__DEBUG__ = False
+CinC2023Dataset.__DEBUG__ = False
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -130,19 +136,44 @@ def test_trainer() -> None:
     # train_config.final_model_filename = "final_model.pth.tar"
     train_config.debug = True
 
-    train_config.n_epochs = 20
-    train_config.batch_size = 24  # 16G (Tesla T4)
+    train_config.n_epochs = 10
+    train_config.batch_size = 8  # 16G (Tesla T4)
     # train_config.log_step = 20
     # # train_config.max_lr = 1.5e-3
     # train_config.early_stopping.patience = 20
 
-    # train_config[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
+    train_config[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
     # train_config[TASK].rnn_name = "none"  # "none", "lstm"
     # train_config[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
 
-    # NOT finished
+    _set_task(TASK, train_config)
 
-    # print("trainer test passed")
+    model_config = deepcopy(ModelCfg[TASK])
+
+    # adjust model choices if needed
+    model_name = model_config.model_name = train_config[TASK].model_name
+    model_config[model_name].cnn_name = train_config[TASK].cnn_name
+    model_config[model_name].rnn_name = train_config[TASK].rnn_name
+    model_config[model_name].attn_name = train_config[TASK].attn_name
+
+    model_cls = CRNN_CINC2023
+    model = model_cls(config=model_config)
+    if torch.cuda.device_count() > 1:
+        model = DP(model)
+        # model = DDP(model)
+    model.to(device=DEVICE)
+
+    trainer = CINC2023Trainer(
+        model=model,
+        model_config=model_config,
+        train_config=train_config,
+        device=DEVICE,
+        lazy=False,
+    )
+
+    best_state_dict = trainer.train()
+
+    print("trainer test passed")
 
 
 # from train_model import train_challenge_model
@@ -173,8 +204,8 @@ test_team_code = test_entry  # alias
 
 
 if __name__ == "__main__":
-    test_dataset()
-    test_models()
+    # test_dataset()
+    # test_models()
     test_challenge_metrics()
-    # test_trainer()  # directly run test_entry
+    test_trainer()  # directly run test_entry
     # test_entry()
