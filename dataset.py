@@ -253,19 +253,33 @@ class FastDataReader(ReprMixin, Dataset):
             self.dtype = np.float64
         else:
             self.dtype = np.float32
+        self.aux_target = (
+            "outcome" if self.config[self.task].output_target == "cpc" else "cpc"
+        )
+        self.aux_classes = (
+            BaseCfg.outcome
+            if self.config[self.task].output_target == "cpc"
+            else BaseCfg.cpc
+        )
 
     def __len__(self) -> int:
         return len(self.records)
 
     def __getitem__(self, index: int) -> Dict[str, np.ndarray]:
         rec = self.records[index]
+        sampfrom = DEFAULTS.RNG_randint(0, 300 * 100 - self.config[self.task].input_len)
+        sampto = sampfrom + self.config[self.task].input_len
         waveforms = self.reader.load_data(
             rec,
             data_format=self.config[self.task].data_format,
+            sampfrom=sampfrom,
+            sampto=sampto,
         )[np.newaxis, ...]
         if self.ppm:
             waveforms, _ = self.ppm(waveforms, self.reader.fs)
-        label = self.reader.load_ann(rec)[self.config[self.task].output_target]
+        ann = self.reader.load_ann(rec)
+        label = ann[self.config[self.task].output_target]
+        aux_label = ann[self.aux_target]
         if self.config[self.task].loss != "CrossEntropyLoss":
             label = np.isin(self.config[self.task].classes, label).astype(self.dtype)[
                 np.newaxis, ...
@@ -275,6 +289,9 @@ class FastDataReader(ReprMixin, Dataset):
         out_tensors = {
             "waveforms": waveforms.astype(self.dtype),
             self.config[self.task].output_target: label.astype(self.dtype),
+            self.aux_target: np.array([self.aux_classes.index(aux_label)]).astype(
+                int
+            ),  # categorical
         }
         return out_tensors
 
