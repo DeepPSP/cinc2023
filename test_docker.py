@@ -136,7 +136,7 @@ def test_trainer() -> None:
     # train_config.final_model_filename = "final_model.pth.tar"
     train_config.debug = True
 
-    train_config.n_epochs = 10
+    train_config.n_epochs = 5
     train_config.batch_size = 8  # 16G (Tesla T4)
     # train_config.log_step = 20
     # # train_config.max_lr = 1.5e-3
@@ -184,7 +184,7 @@ from run_model import run_model
 def test_entry() -> None:
     """ """
 
-    data_folder = str(tmp_data_dir / "training_data")
+    data_folder = str(tmp_data_dir)
     train_challenge_model(data_folder, str(TrainCfg.model_dir), verbose=2)
 
     output_dir = _BASE_DIR / "tmp" / "output"
