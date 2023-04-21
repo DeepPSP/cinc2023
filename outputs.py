@@ -12,7 +12,9 @@ from torch_ecg.components.outputs import (
 from cfg import BaseCfg
 
 
-__all__ = ["CINC2023Outputs"]
+__all__ = [
+    "CINC2023Outputs",
+]
 
 
 cpc_map_inv = {v: k for k, v in BaseCfg.cpc_map.items()}

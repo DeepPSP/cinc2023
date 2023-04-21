@@ -1,8 +1,208 @@
-from typing import Tuple
+from typing import Tuple, Sequence, Dict
 
 import numpy as np
 
 from helper_code import is_nan
+from outputs import CINC2023Outputs
+
+
+__all__ = [
+    "compute_challenge_metrics",
+]
+
+
+######################################
+# custom metrics computation functions
+######################################
+
+
+def compute_challenge_metrics(
+    labels: Sequence[Dict[str, np.ndarray]],
+    outputs: Sequence[CINC2023Outputs],
+) -> Dict[str, float]:
+    """
+    Compute the challenge metrics
+
+    Parameters
+    ----------
+    labels : Sequence[Dict[str, np.ndarray]]
+        labels containing at least one of the following items:
+            - "cpc":
+                binary labels, of shape: ``(n_samples, n_classes)``;
+                or categorical labels, of shape: ``(n_samples,)``
+            - "outcome":
+                binary labels, of shape: ``(n_samples, n_classes)``,
+                or categorical labels, of shape: ``(n_samples,)``
+    outputs : Sequence[CINC2023Outputs]
+        outputs containing at least one non-null attributes:
+            - cpc_output: ClassificationOutput, with items:
+                - classes: list of str,
+                  list of the class names
+                - prob: ndarray or DataFrame,
+                  scalar (probability) predictions,
+                  (and binary predictions if `class_names` is True)
+                - pred: ndarray,
+                  the array of class number predictions
+                - bin_pred: ndarray,
+                  the array of binary predictions
+                - forward_output: ndarray,
+                  the array of output of the model's forward function,
+                  useful for producing challenge result using
+                  multiple recordings
+            - cpc_value: Sequence[float],
+                the array of cpc value predictions
+            - outcome_output: ClassificationOutput, with items:
+                - classes: list of str,
+                  list of the outcome class names
+                - prob: ndarray,
+                  scalar (probability) predictions,
+                - pred: ndarray,
+                  the array of outcome class number predictions
+                - forward_output: ndarray,
+                  the array of output of the outcome head of the model's forward function,
+                  useful for producing challenge result using
+                  multiple recordings
+            - outcome: Sequence[str],
+                the array of outcome predictions (class names)
+
+    Returns
+    -------
+    dict, a dict of the following metrics:
+        - outcome_score: float,
+          the Challenge score for the outcome predictions
+        - outcome_auroc: float,
+          the macro-averaged area under the receiver operating characteristic curve for the outcome predictions
+        - outcome_auprc: float,
+          the macro-averaged area under the precision-recall curve for the outcome predictions
+        - outcome_f_measure: float,
+          the macro-averaged F-measure for the outcome predictions
+        - outcome_accuracy: float,
+          the accuracy for the outcome predictions
+        - cpc_mse: float,
+          the mean squared error for the cpc predictions
+        - cpc_mae: float,
+          the mean absolute error for the cpc predictions
+
+    NOTE
+    ----
+    1. the "cpc_xxx" metrics are contained in the returned dict iff corr. labels and outputs are provided;
+       the same applies to the "outcome_xxx" metrics.
+    2. all labels should have a batch dimension, except for categorical labels
+
+    """
+    metrics = {}
+
+    # compute the outcome metrics
+    if outputs[0].outcome_output is not None:
+        outcome_labels = np.concatenate(
+            [label["outcome"] for label in labels]  # categorical or binarized labels
+        )
+        outcome_prob_outputs = np.concatenate(
+            [item.outcome_output.prob for item in outputs]  # probability outputs
+        )
+        outcome_prob_outputs = outcome_prob_outputs.max(axis=1)
+        outcome_pred_outputs = np.concatenate(
+            [item.outcome_output.pred for item in outputs]  # categorical outputs
+        )
+        metrics.update(
+            compute_outcome_metrics(
+                outcome_labels, outcome_prob_outputs, outcome_pred_outputs
+            )
+        )
+
+    # compute the cpc metrics
+    if outputs[0].cpc_output is not None:
+        cpc_labels = np.concatenate(
+            [label["cpc"] for label in labels]  # categorical or binarized labels
+        )
+        cpc_pred_outputs = np.concatenate(
+            [item.cpc_value for item in outputs]  # categorical or regression outputs
+        )
+        metrics.update(compute_cpc_metrics(cpc_labels, cpc_pred_outputs))
+
+    return metrics
+
+
+def compute_outcome_metrics(
+    outcome_labels: np.ndarray,
+    outcome_prob_outputs: np.ndarray,
+    outcome_pred_outputs: np.ndarray,
+) -> Dict[str, float]:
+    """Compute the outcome metrics.
+
+    Parameters
+    ----------
+    outcome_labels : np.ndarray
+        The categorical ground truth labels for `outcome`,
+        of shape ``(num_patients,)``.
+    outcome_prob_outputs : np.ndarray
+        The probability outputs for `outcome`,
+        of shape ``(num_patients, num_classes)``.
+    outcome_pred_outputs : np.ndarray
+        The categorical (class number) outputs for `outcome`,
+        of shape ``(num_patients,)``.
+
+    Returns
+    -------
+    dict
+        A dict of the following metrics:
+            - outcome_auroc: float,
+              the macro-averaged area under the receiver operating characteristic curve for the outcome predictions
+            - outcome_auprc: float,
+              the macro-averaged area under the precision-recall curve for the outcome predictions
+            - outcome_f_measure: float,
+              the macro-averaged F-measure for the outcome predictions
+            - outcome_accuracy: float,
+              the accuracy for the outcome predictions
+            - outcome_score: float,
+              the Challenge score for the outcome predictions
+
+    """
+    metrics = {}
+    metrics["outcome_score"] = compute_challenge_score(
+        outcome_labels, outcome_prob_outputs
+    )
+    auroc, auprc = compute_auc(outcome_labels, outcome_prob_outputs)
+    metrics["outcome_auroc"] = auroc
+    metrics["outcome_auprc"] = auprc
+    metrics["outcome_f_measure"] = compute_f_measure(
+        outcome_labels, outcome_pred_outputs
+    )[0]
+    metrics["outcome_accuracy"] = compute_accuracy(
+        outcome_labels, outcome_pred_outputs
+    )[0]
+    return metrics
+
+
+def compute_cpc_metrics(
+    cpc_labels: np.ndarray, cpc_pred_outputs: np.ndarray
+) -> Dict[str, float]:
+    """Compute the CPC metrics.
+
+    Parameters
+    ----------
+    cpc_labels : np.ndarray
+        The categorical ground truth labels for `cpc`,
+        of shape ``(num_patients,)``.
+    cpc_pred_outputs : np.ndarray
+        The categorical (class number) outputs for `cpc`,
+        or the regression outputs for `cpc`,
+        of shape ``(num_patients,)``.
+
+    Returns
+    -------
+    dict
+        A dict of the following metrics:
+            - cpc_mse: float,
+              the mean squared error for the cpc predictions
+            - cpc_mae: float,
+              the mean absolute error for the cpc predictions
+
+    """
+    metrics = {}
+    metrics["cpc_mse"] = compute_mse(cpc_labels, cpc_pred_outputs)
+    metrics["cpc_mae"] = compute_mae(cpc_labels, cpc_pred_outputs)
+    return metrics
 
 
 ###########################################
@@ -23,8 +223,8 @@ def compute_challenge_score(labels: np.ndarray, outputs: np.ndarray) -> float:
         The categorical ground truth labels for `outcome`,
         of shape ``(num_patients,)``.
     outputs : np.ndarray
-        The probability outputs for `outcome`,
-        of shape ``(num_patients, num_classes)``.
+        The probability outputs (probabilities of the predicted class) for `outcome`,
+        of shape ``(num_patients)``.
 
     Returns
     -------
@@ -102,8 +302,8 @@ def compute_auc(labels: np.ndarray, outputs: np.ndarray) -> Tuple[float, float]:
         The categorical ground truth labels for `outcome`,
         of shape ``(num_patients,)``.
     outputs : np.ndarray
-        The probability outputs for `outcome`,
-        of shape ``(num_patients, num_classes)``.
+        The probability outputs (probabilities of the predicted class) for `outcome`,
+        of shape ``(num_patients)``.
 
     Returns
     -------
@@ -428,7 +628,6 @@ def compute_mse(labels: np.ndarray, outputs: np.ndarray) -> float:
     return mse
 
 
-# Compute mean-absolute error.
 def compute_mae(labels: np.ndarray, outputs: np.ndarray) -> float:
     """Compute the mean-absolute error (MAE).
 

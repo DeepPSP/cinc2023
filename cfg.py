@@ -54,7 +54,7 @@ BaseCfg.cpc2outcome_map = {
     "4": "Poor",
     "5": "Poor",
 }
-BaseCfg.output = "cpc"  # "cpc", "outcome"
+BaseCfg.output_target = "cpc"  # "cpc", "outcome"
 
 
 ###############################################################################
@@ -119,7 +119,7 @@ for t in TrainCfg.tasks:
 TrainCfg.classification.fs = BaseCfg.fs
 TrainCfg.classification.n_channels = BaseCfg.n_channels
 TrainCfg.classification.final_model_name = None
-TrainCfg.classification.output_target = "cpc"  # "cpc", "outcome"
+TrainCfg.classification.output_target = BaseCfg.output_target
 
 # input format configurations
 TrainCfg.classification.data_format = "channel_first"
