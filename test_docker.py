@@ -11,11 +11,17 @@ from torch.nn.parallel import (  # noqa: F401
     DataParallel as DP,
 )  # noqa: F401
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
+from torch_ecg.utils.misc import dict_to_str
+from torch_ecg.components.outputs import (
+    ClassificationOutput,
+)
 
-from cfg import TrainCfg, ModelCfg, _BASE_DIR  # noqa: F401
+from cfg import TrainCfg, ModelCfg, BaseCfg, _BASE_DIR
 from data_reader import CINC2023Reader
 from dataset import CinC2023Dataset
+from outputs import CINC2023Outputs, cpc2outcome_map
 from models import CRNN_CINC2023
+from utils.scoring_metrics import compute_challenge_metrics
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -86,9 +92,34 @@ def test_models() -> None:
 
 def test_challenge_metrics() -> None:
     """ """
-    pass
+    # random prediction
+    cpc_probs = np.random.rand(100, len(BaseCfg.cpc))
+    cpc_probs = np.exp(cpc_probs) / np.sum(np.exp(cpc_probs), axis=1, keepdims=True)
+    cpc_preds = np.argmax(cpc_probs, axis=1)
 
-    # print("challenge metrics test passed")
+    outputs = CINC2023Outputs(
+        cpc_output=ClassificationOutput(
+            classes=BaseCfg.cpc,
+            prob=cpc_probs,
+            pred=cpc_preds,
+        ),
+    )
+
+    # random ground truth
+    cpc_gt = np.random.randint(1, len(BaseCfg.cpc) + 1, size=100)
+    outcome_gt = np.array(
+        [cpc2outcome_map[BaseCfg.cpc_map[str(cpc)]] for cpc in cpc_gt]
+    )
+    labels = {
+        "cpc": cpc_gt,
+        "outcome": outcome_gt,
+    }
+
+    metrics = compute_challenge_metrics([labels], [outputs])
+
+    print(dict_to_str(metrics))
+
+    print("challenge metrics test passed")
 
 
 def test_trainer() -> None:
