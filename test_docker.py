@@ -146,15 +146,27 @@ def test_trainer() -> None:
 
 
 # from train_model import train_challenge_model
-# from run_model import run_model
+from team_code import train_challenge_model
+from run_model import run_model
 
 
 def test_entry() -> None:
     """ """
 
-    pass
+    data_folder = str(tmp_data_dir / "training_data")
+    train_challenge_model(data_folder, str(TrainCfg.model_dir), verbose=2)
 
-    # print("entry test passed")
+    output_dir = _BASE_DIR / "tmp" / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    run_model(
+        TrainCfg.model_dir,
+        data_folder,
+        str(output_dir),
+        allow_failures=False,
+        verbose=2,
+    )
+
+    print("entry test passed")
 
 
 test_team_code = test_entry  # alias
@@ -163,3 +175,6 @@ test_team_code = test_entry  # alias
 if __name__ == "__main__":
     test_dataset()
     test_models()
+    test_challenge_metrics()
+    # test_trainer()  # directly run test_entry
+    # test_entry()
