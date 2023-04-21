@@ -35,7 +35,7 @@ from models import (
 )
 from cfg import TrainCfg, ModelCfg
 from dataset import CinC2023Dataset
-from utils.scoring_metrics import compute_challenge_metrics  # noqa: F401
+from utils.scoring_metrics import compute_challenge_metrics
 
 
 __all__ = [
@@ -231,6 +231,12 @@ class CINC2023Trainer(BaseTrainer):
             # "cpc" (optional): the cpc labels, for classification task or regression task
             # "outcome" (optional): the outcome labels, for classification task
 
+            # move input_tensors to device
+            input_tensors = {
+                k: v.to(device=self.device, dtype=self.dtype)
+                for k, v in input_tensors.items()
+            }
+
             # out_tensors is a dict of tensors, with the following items (some are optional):
             # - "cpc": the cpc predictions, of shape (batch_size, n_classes) or (batch_size,)
             # - "outcome": the outcome predictions, of shape (batch_size, n_classes)
@@ -311,8 +317,8 @@ class CINC2023Trainer(BaseTrainer):
         """
         waveforms = input_tensors.pop("waveforms").to(self.device)
         input_tensors = {k: v.to(self.device) for k, v in input_tensors.items()}
-        waveforms, input_tensors["cpc"] = self.augmenter_manager(
-            waveforms, input_tensors["cpc"]
+        waveforms, input_tensors[self._criterion_key] = self.augmenter_manager(
+            waveforms, input_tensors[self._criterion_key]
         )
         out_tensors = self.model(waveforms, input_tensors)
         return out_tensors
@@ -341,7 +347,7 @@ class CINC2023Trainer(BaseTrainer):
                 torch.cuda.synchronize()
             all_outputs.append(self._model.inference(waveforms))
 
-        if self.val_train_loader is not None:
+        if self.val_train_loader is not None and self._criterion_key == "cpc":
             log_head_num = 5
             head_scalar_preds = all_outputs[0].cpc_output.prob[:log_head_num]
             head_bin_preds = all_outputs[0].cpc_output.bin_pred[:log_head_num]
@@ -374,7 +380,6 @@ class CINC2023Trainer(BaseTrainer):
         eval_res = compute_challenge_metrics(
             labels=all_labels,
             outputs=all_outputs,
-            require_both=False,
         )
 
         # in case possible memeory leakage?

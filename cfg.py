@@ -130,8 +130,8 @@ TrainCfg.classification.input_config = InputConfig(
 )
 TrainCfg.classification.num_channels = TrainCfg.classification.input_config.n_channels
 TrainCfg.classification.input_len = int(
-    300 * TrainCfg.classification.fs
-)  # 300 seconds, to adjust
+    100 * TrainCfg.classification.fs
+)  # 100 seconds, to adjust
 TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
 TrainCfg.classification.sig_slice_tol = None  # None, do no slicing
 
@@ -178,11 +178,8 @@ TrainCfg.classification.loss_kw = CFG(
 )
 
 # monitor choices
-# challenge metric is the **cost** of misclassification
-# hence it is the lower the better
-TrainCfg.classification.monitor = (
-    "challenge_metric"  # weighted_accuracy (not recommended)  # the higher the better
-)
+# "outcome_score", "outcome_accuracy", "outcome_f_measure", "cpc_mae", "cpc_mse"
+TrainCfg.classification.monitor = "outcome_score"
 
 # TODO: consider a regression task for cpc
 

@@ -3,6 +3,7 @@ from typing import Tuple, Sequence, Dict
 import numpy as np
 
 from helper_code import is_nan
+from cfg import BaseCfg
 from outputs import CINC2023Outputs
 
 
@@ -97,6 +98,8 @@ def compute_challenge_metrics(
         outcome_labels = np.concatenate(
             [label["outcome"] for label in labels]  # categorical or binarized labels
         )
+        if outcome_labels.ndim == 2 and outcome_labels.shape[1] == len(BaseCfg.outcome):
+            outcome_labels = outcome_labels.argmax(axis=1)
         outcome_prob_outputs = np.concatenate(
             [item.outcome_output.prob for item in outputs]  # probability outputs
         )
@@ -115,6 +118,8 @@ def compute_challenge_metrics(
         cpc_labels = np.concatenate(
             [label["cpc"] for label in labels]  # categorical or binarized labels
         )
+        if cpc_labels.ndim == 2 and cpc_labels.shape[1] == len(BaseCfg.cpc):
+            cpc_labels = cpc_labels.argmax(axis=1) + 1
         cpc_pred_outputs = np.concatenate(
             [item.cpc_value for item in outputs]  # categorical or regression outputs
         )
