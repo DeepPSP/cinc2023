@@ -43,7 +43,8 @@ from helper_code import (
     load_challenge_data,
     reorder_recording_channels,
 )
-from utils.features import get_features, get_labels, load_challenge_metadata
+from utils.features import get_features, get_labels
+from utils.misc import load_challenge_metadata
 
 
 ################################################################################

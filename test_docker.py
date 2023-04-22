@@ -18,6 +18,7 @@ from torch_ecg.components.outputs import (
 )
 
 from utils.scoring_metrics import compute_challenge_metrics
+from utils.misc import func_indicator
 from cfg import TrainCfg, ModelCfg, BaseCfg, _BASE_DIR, set_entry_test_flag
 from data_reader import CINC2023Reader
 from dataset import CinC2023Dataset
@@ -53,6 +54,11 @@ dr._ls_rec()
 # which is exactly the case for the challenge
 dr.clear_cached_metadata_files()
 
+# adjusts tmp_data_dir to the true data folder that
+# contains the data directly
+# rather than the possible parent folder
+tmp_data_dir = dr._df_records.path.iloc[0].parents[1]
+
 # truncate data
 truncate_cfg = CFG(
     input_folder=str(dr._df_records.path.iloc[0].parents[1]),
@@ -70,6 +76,7 @@ del dr
 TASK = "classification"
 
 
+@func_indicator("testing dataset")
 def test_dataset() -> None:
     """ """
     ds_config = deepcopy(TrainCfg)
@@ -84,6 +91,7 @@ def test_dataset() -> None:
     print("dataset test passed")
 
 
+@func_indicator("testing models")
 def test_models() -> None:
     """ """
     model = CRNN_CINC2023(ModelCfg[TASK])
@@ -112,6 +120,7 @@ def test_models() -> None:
     print("models test passed")
 
 
+@func_indicator("testing challenge metrics")
 def test_challenge_metrics() -> None:
     """ """
     # random prediction
@@ -144,6 +153,7 @@ def test_challenge_metrics() -> None:
     print("challenge metrics test passed")
 
 
+@func_indicator("testing trainer")
 def test_trainer() -> None:
     """ """
     train_config = deepcopy(TrainCfg)
@@ -197,6 +207,7 @@ from team_code import train_challenge_model
 from run_model import run_model
 
 
+@func_indicator("testing challenge entry")
 def test_entry() -> None:
     """ """
 
