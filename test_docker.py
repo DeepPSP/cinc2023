@@ -10,6 +10,7 @@ from torch.nn.parallel import (  # noqa: F401
     DistributedDataParallel as DDP,
     DataParallel as DP,
 )  # noqa: F401
+from torch_ecg.cfg import CFG
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 from torch_ecg.utils.misc import dict_to_str
 from torch_ecg.components.outputs import (
@@ -17,12 +18,16 @@ from torch_ecg.components.outputs import (
 )
 
 from utils.scoring_metrics import compute_challenge_metrics
-from cfg import TrainCfg, ModelCfg, BaseCfg, _BASE_DIR
+from cfg import TrainCfg, ModelCfg, BaseCfg, _BASE_DIR, set_entry_test_flag
 from data_reader import CINC2023Reader
 from dataset import CinC2023Dataset
 from outputs import CINC2023Outputs, cpc2outcome_map
 from models import CRNN_CINC2023
 from trainer import CINC2023Trainer, _set_task
+from truncate_data import run as truncate_data_run
+
+
+set_entry_test_flag(True)
 
 
 CINC2023Trainer.__DEBUG__ = False
@@ -47,6 +52,17 @@ dr._ls_rec()
 # when metadata files are not computed and cached yet,
 # which is exactly the case for the challenge
 dr.clear_cached_metadata_files()
+
+# truncate data
+truncate_cfg = CFG(
+    input_folder=str(dr._df_records.path.iloc[0].parents[1]),
+)
+
+for limit in [12, 24, 48, 72]:
+    truncate_cfg.hour_limit = limit
+    truncate_cfg.output_folder = str(_BASE_DIR / "tmp" / f"CINC2023_{limit}h")
+    truncate_data_run(truncate_cfg)
+
 
 del dr
 
@@ -209,3 +225,4 @@ if __name__ == "__main__":
     test_challenge_metrics()
     test_trainer()  # directly run test_entry
     # test_entry()
+    set_entry_test_flag(False)
