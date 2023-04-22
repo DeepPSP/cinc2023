@@ -100,10 +100,14 @@ def compute_challenge_metrics(
         )
         if outcome_labels.ndim == 2 and outcome_labels.shape[1] == len(BaseCfg.outcome):
             outcome_labels = outcome_labels.argmax(axis=1)
+        # outcome_prob_outputs <- probabilities of the "Poor" class
         outcome_prob_outputs = np.concatenate(
-            [item.outcome_output.prob for item in outputs]  # probability outputs
+            [
+                item.outcome_output.prob[:, item.outcome_output.classes.index("Poor")]
+                for item in outputs
+            ]  # probability outputs
         )
-        outcome_prob_outputs = outcome_prob_outputs.max(axis=1)
+        # outcome_prob_outputs = outcome_prob_outputs.max(axis=1)
         outcome_pred_outputs = np.concatenate(
             [item.outcome_output.pred for item in outputs]  # categorical outputs
         )
@@ -228,7 +232,7 @@ def compute_challenge_score(labels: np.ndarray, outputs: np.ndarray) -> float:
         The categorical ground truth labels for `outcome`,
         of shape ``(num_patients,)``.
     outputs : np.ndarray
-        The probability outputs (probabilities of the predicted class) for `outcome`,
+        The probability outputs (probabilities of the "Poor" class) for `outcome`,
         of shape ``(num_patients)``.
 
     Returns
@@ -307,7 +311,7 @@ def compute_auc(labels: np.ndarray, outputs: np.ndarray) -> Tuple[float, float]:
         The categorical ground truth labels for `outcome`,
         of shape ``(num_patients,)``.
     outputs : np.ndarray
-        The probability outputs (probabilities of the predicted class) for `outcome`,
+        The probability outputs (probabilities of the "Poor" class) for `outcome`,
         of shape ``(num_patients)``.
 
     Returns
