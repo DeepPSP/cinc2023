@@ -205,13 +205,27 @@ def test_entry() -> None:
 
     output_dir = _BASE_DIR / "tmp" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    print("run model for the original data")
+
     run_model(
-        TrainCfg.model_dir,
+        str(TrainCfg.model_dir),
         data_folder,
         str(output_dir),
         allow_failures=False,
         verbose=2,
     )
+
+    for limit in [12, 24, 48, 72]:
+        print(f"run model for the {limit}h data")
+        run_model(
+            str(TrainCfg.model_dir),
+            str(_BASE_DIR / "tmp" / f"CINC2023_{limit}h"),
+            str(output_dir),
+            allow_failures=False,
+            verbose=2,
+            limit=limit,
+        )
 
     print("entry test passed")
 
@@ -223,6 +237,6 @@ if __name__ == "__main__":
     # test_dataset()
     # test_models()
     test_challenge_metrics()
-    test_trainer()  # directly run test_entry
-    # test_entry()
+    # test_trainer()  # directly run test_entry
+    test_entry()
     set_entry_test_flag(False)

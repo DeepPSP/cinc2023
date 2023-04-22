@@ -23,7 +23,7 @@ if ModelCfg.torch_dtype == torch.float64:
 else:
     DTYPE = np.float32
 
-TASK = "classification"  # "multi_task"
+TASK = "classification"  # "classification" or "regression", etc.
 
 
 def test_entry():
