@@ -235,7 +235,6 @@ def test_entry() -> None:
             str(output_dir),
             allow_failures=False,
             verbose=2,
-            limit=limit,
         )
 
     print("entry test passed")
