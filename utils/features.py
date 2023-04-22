@@ -2,8 +2,6 @@
 features from metadata
 """
 
-import os
-
 import numpy as np
 
 from helper_code import (
@@ -15,14 +13,12 @@ from helper_code import (
     get_ttm,
     get_outcome,
     get_cpc,
-    load_text_file,
 )
 
 
 __all__ = [
     "get_features",
     "get_labels",
-    "load_challenge_metadata",
 ]
 
 
@@ -93,30 +89,3 @@ def get_labels(patient_metadata: str) -> dict:
     labels["cpc"] = get_cpc(patient_metadata)
 
     return labels
-
-
-def load_challenge_metadata(data_folder: str, patient_id: str) -> str:
-    """Load the patient metadata.
-
-    Adapted the load_challenge_data function from the official repo.
-
-    Parameters
-    ----------
-    data_folder : str
-        The data folder.
-    patient_id : str
-        The patient ID.
-
-    Returns
-    -------
-    str
-        The patient metadata.
-
-    """
-    # Define file location.
-    patient_metadata_file = os.path.join(data_folder, patient_id, patient_id + ".txt")
-
-    # Load non-recording data.
-    patient_metadata = load_text_file(patient_metadata_file)
-
-    return patient_metadata
