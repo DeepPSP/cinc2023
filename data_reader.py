@@ -59,6 +59,10 @@ _CINC2023_INFO = DataBaseInfo(
         |                |                                               |   True = out of hospital cardiac arrest |
         |                |                                               |   False = in-hospital cardiac arrest    |
         +----------------+-----------------------------------------------+-----------------------------------------+
+        |  VFib          |   ventricular fibrillation                    |   categorical (boolean)                 |
+        |                |                                               |   True = shockable rhythm               |
+        |                |                                               |   False = non-shockable rhythm          |
+        +----------------+-----------------------------------------------+-----------------------------------------+
         |  TTM           |   targeted temperature management,            |   categorical                           |
         |                |   in Celsius                                  |   3, 36, or NaN for no TTM              |
         +----------------+-----------------------------------------------+-----------------------------------------+
