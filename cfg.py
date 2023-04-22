@@ -145,7 +145,7 @@ elif TrainCfg.classification.output_target == "outcome":
 
 # preprocess configurations
 # NOTE that all EEG data was pre-processed with bandpass filtering (0.5-20Hz) and resampled to 100 Hz.
-TrainCfg.classification.resample = False
+TrainCfg.classification.resample = CFG(fs=TrainCfg.classification.fs)
 TrainCfg.classification.bandpass = False
 TrainCfg.classification.normalize = CFG(  # None or False for no normalization
     method="z-score",
