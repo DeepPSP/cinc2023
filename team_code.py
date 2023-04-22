@@ -150,7 +150,7 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
     else:
         train_config.n_epochs = 60
         train_config.freeze_backbone_at = 40
-        train_config.batch_size = 32  # 16G (Tesla T4)
+        # train_config.batch_size = 32  # 16G (Tesla T4)
         train_config.log_step = 50
         # train_config.max_lr = 1.5e-3
         train_config.early_stopping.patience = int(train_config.n_epochs * 0.6)
@@ -198,6 +198,7 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
 
     ###############################################################################
     # Train ML model using patient metadata.
+    # TODO: replace with grid searched model.
     ###############################################################################
     # Extract the features and labels.
     if verbose >= 1:
