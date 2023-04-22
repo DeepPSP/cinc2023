@@ -16,18 +16,20 @@ from pathlib import Path
 from typing import Dict, Union
 
 import numpy as np
+import torch
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.impute import SimpleImputer
-import torch
 from torch.nn.parallel import (  # noqa: F401
     DistributedDataParallel as DDP,
     DataParallel as DP,
 )  # noqa: F401
 from torch_ecg.cfg import CFG
 from torch_ecg._preprocessors import PreprocManager
+from tqdm.auto import tqdm
 
 from cfg import TrainCfg, ModelCfg
+from data_reader import CINC2023Reader
 from dataset import CinC2023Dataset
 from models import (
     CRNN_CINC2023,
@@ -39,6 +41,7 @@ from trainer import (  # noqa: F401
 from helper_code import (
     find_data_folders,
     load_challenge_data,
+    reorder_recording_channels,
 )
 from utils.features import get_features, get_labels, load_challenge_metadata
 
@@ -89,15 +92,15 @@ CINC2023Trainer.__DEBUG__ = False
 
 # Train your model.
 def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> None:
-    """
+    """Train models for the CinC2023 challenge.
 
     Parameters
     ----------
-    data_folder: str,
+    data_folder : str
         path to the folder containing the training data
-    model_folder: str,
+    model_folder : str
         path to the folder to save the trained model
-    verbose: int,
+    verbose : int
         verbosity level
 
     """
@@ -203,10 +206,17 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
     outcomes = list()
     cpcs = list()
 
-    for i in range(num_patients):
-        if verbose >= 2:
-            print("    {}/{}...".format(i + 1, num_patients))
-
+    # for i in range(num_patients):
+    #     if verbose >= 2:
+    #         print("    {}/{}...".format(i + 1, num_patients))
+    for i in tqdm(
+        range(num_patients),
+        desc="Extracting features and labels",
+        total=num_patients,
+        dynamic_ncols=True,
+        mininterval=1.0,
+        disable=verbose < 2,
+    ):
         # Load data.
         patient_id = patient_ids[i]
         patient_metadata = load_challenge_metadata(data_folder, patient_id)
@@ -263,13 +273,13 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
 def load_challenge_models(
     model_folder: str, verbose: int
 ) -> Dict[str, Union[CFG, torch.nn.Module, BaseEstimator]]:
-    """
+    """Load trained models.
 
     Parameters
     ----------
-    model_folder: str,
+    model_folder : str
         path to the folder containing the trained model
-    verbose: int,
+    verbose : int
         verbosity level
 
     Returns
@@ -277,8 +287,8 @@ def load_challenge_models(
     dict
         with items:
         - main_model: torch.nn.Module,
-            the loaded model, for murmur predictions,
-            or for both murmur and outcome predictions
+            the loaded model, for cpc predictions,
+            or for both cpc and outcome predictions
         - train_cfg: CFG,
             the training configuration,
             including the list of classes (the ordering is important),
@@ -321,22 +331,147 @@ def run_challenge_models(
     patient_id: str,
     verbose: int,
 ):
+    """Run trained models.
+
+    Parameters
+    ----------
+    models : dict
+        with items:
+        - main_model: torch.nn.Module,
+            the loaded model, for cpc predictions,
+            or for both cpc and outcome predictions
+        - train_cfg: CFG,
+            the training configuration,
+            including the list of classes (the ordering is important),
+            and the preprocessing configurations
+        - outcome_model: BaseEstimator,
+            the loaded model, for outcome predictions
+        - cpc_model: BaseEstimator,
+            the loaded model, for cpc predictions
+    data_folder : str
+        path to the folder containing the Challenge data
+    patient_id : str
+        the patient ID
+    verbose : int
+        verbosity level
+
+    Returns
+    -------
+    tuple
+        with items:
+        - outcome: int,
+            the predicted outcome
+        - outcome_probability: float,
+            the predicted outcome probability
+        - cpc: float,
+            the predicted cpc
+
+    """
     imputer = models["imputer"]
     outcome_model = models["outcome_model"]
     cpc_model = models["cpc_model"]
 
     main_model = models["main_model"]
-    main_model.to(device=DEVICE)
+    main_model = main_model.to(device=DEVICE).eval()
     train_cfg = models["train_cfg"]
     ppm_config = CFG(random=False)
     ppm_config.update(deepcopy(train_cfg[TASK]))
     ppm = PreprocManager.from_config(ppm_config)
 
     # Load data.
+    # patient_metadata: str
+    # recording_metadata: str
+    # recording_data: list of 3-tuples (signal, sampling_frequency, channel_names)
     patient_metadata, recording_metadata, recording_data = load_challenge_data(
         data_folder, patient_id
     )
+    recording_data = [rec for rec in recording_data if rec[0] is not None]
 
-    # TODO
+    if verbose >= 1:
+        print(f"Found {len(recording_data)} recordings for patient {patient_id}.")
 
-    # return outcome, outcome_probability, cpc
+    if len(recording_data) == 0:
+        # No available recordings.
+        # use the outcome_model and cpc_model to predict the outcome and cpc
+        features = get_features(patient_metadata).reshape(1, -1)
+        features = imputer.transform(features)
+        outcome = outcome_model.predict(features)[0]
+        # outcome_probability is the probability of the "Poor" (1) class
+        outcome_probability = outcome_model.predict_proba(features)[0, 1]
+        cpc = cpc_model.predict(features)[0]
+
+        return outcome, outcome_probability, cpc
+
+    # There are available recordings.
+
+    # Preprocess the recordings.
+    main_model_outputs = []
+    for signal, sampling_frequency, channel_names in recording_data:
+        # to correct dtype if necessary
+        signal = _to_dtype(signal, DTYPE)
+        # to channel first format if necessary
+        if signal.shape[0] != len(channel_names):
+            signal = signal.T
+        # reorder channels if necessary
+        signal = reorder_recording_channels(
+            signal, channel_names, CINC2023Reader.channel_names
+        )
+        # preprocess the signal
+        signal, _ = ppm(signal, sampling_frequency)
+
+        # Run the model.
+        with torch.no_grad():
+            main_model_output = main_model.inference(signal.copy().astype(DTYPE))
+            main_model_outputs.append(main_model_output)
+
+    # Aggregate the outputs.
+    # main_model_outputs is a list of instances of CINC2023Outputs, with attributes:
+    # - cpc_output, outcome_output: ClassificationOutput, with items:
+    #     - classes: list of str,
+    #         list of the class names
+    #     - prob: ndarray or DataFrame,
+    #         scalar (probability) predictions,
+    #         (and binary predictions if `class_names` is True)
+    #     - pred: ndarray,
+    #         the array of class number predictions
+    #     - bin_pred: ndarray,
+    #         the array of binary predictions
+    #     - forward_output: ndarray,
+    #         the array of output of the model's forward function,
+    #         useful for producing challenge result using
+    #         multiple recordings
+    # - cpc_value: List[float],
+    #     the list of cpc values
+    # - outcome: List[str],
+    #     the list of outcome classes
+
+    # Aggregate the CPC predictions.
+    cpc_outputs = np.array(
+        [output.cpc_value for output in main_model_outputs]
+    ).flatten()
+    cpc = cpc_outputs.mean()
+
+    # Aggregate the outcome predictions.
+    outcome_outputs = np.concatenate(
+        [output.outcome_output.prob for output in main_model_outputs]
+    )
+    outcome_outputs = outcome_outputs.mean(axis=0, keepdims=True)
+    # apply softmax to get the probabilities
+    outcome_outputs = np.exp(outcome_outputs) / np.exp(outcome_outputs).sum(
+        axis=1, keepdims=True
+    )
+    # get the predicted outcome
+    outcome = int(outcome_outputs.argmax(axis=1)[0])
+    # outcome_probability is the probability of the "Poor" class
+    outcome_probability = outcome_outputs[0, train_cfg.outcome.index("Poor")]
+
+    return outcome, outcome_probability, cpc
+
+
+def _to_dtype(data: np.ndarray, dtype: np.dtype = np.float32) -> np.ndarray:
+    """ """
+    if data.dtype == dtype:
+        return data
+    if data.dtype in (np.int8, np.uint8, np.int16, np.int32, np.int64):
+        data = data.astype(dtype) / (np.iinfo(data.dtype).max + 1)
+    return data
