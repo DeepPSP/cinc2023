@@ -4,16 +4,22 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/home/wenhao/Jupyter/wenhao/workspace/torch_ecg/")
-sys.path.insert(0, "/home/wenhao/Jupyter/wenhao/workspace/bib_lookup/")
+sys.path.insert(0, "/home/wenh06/Jupyter/wenhao/workspace/torch_ecg/")
+sys.path.insert(0, "/home/wenh06/Jupyter/wenhao/workspace/bib_lookup/")
 tmp_data_dir = Path("/home/wenh06/Jupyter/wenhao/data/CinC2023/")
 
 import numpy as np
 import torch
 
-from cfg import TrainCfg, ModelCfg, _BASE_DIR  # noqa: F401
-from train_model import train_challenge_model
+from utils.misc import func_indicator
+from cfg import TrainCfg, ModelCfg, _BASE_DIR, set_entry_test_flag
+
+# from train_model import train_challenge_model
+from team_code import train_challenge_model
 from run_model import run_model
+
+
+set_entry_test_flag(True)
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -23,27 +29,49 @@ if ModelCfg.torch_dtype == torch.float64:
 else:
     DTYPE = np.float32
 
+
 TASK = "classification"  # "classification" or "regression", etc.
 
 
+trunc_data_folder = {
+    limit: tmp_data_dir / f"trunc_subset_{limit}" for limit in [12, 24, 48, 72]
+}
+
+
+@func_indicator("testing challenge entry")
 def test_entry():
 
-    data_folder = str(tmp_data_dir / "training_subset")  # subset
-    # data_folder = str(tmp_data_dir / "training")  # full set
+    # data_folder = str(tmp_data_dir / "training_subset")  # subset
+    data_folder = str(tmp_data_dir / "training")  # full set
     train_challenge_model(data_folder, str(TrainCfg.model_dir), verbose=2)
 
     output_dir = _BASE_DIR / "tmp" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    print("run model for the original data")
+
     run_model(
-        TrainCfg.model_dir,
+        str(TrainCfg.model_dir),
         data_folder,
         str(output_dir),
         allow_failures=False,
         verbose=2,
     )
 
+    for limit in [12, 24, 48, 72]:
+        print(f"run model for the {limit}h data")
+        run_model(
+            str(TrainCfg.model_dir),
+            str(trunc_data_folder[limit]),
+            str(output_dir),
+            allow_failures=False,
+            verbose=2,
+        )
+
     print("entry test passed")
 
 
 if __name__ == "__main__":
-    pass
+    set_entry_test_flag(True)
+    test_entry()
+    set_entry_test_flag(False)

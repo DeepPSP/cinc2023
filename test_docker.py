@@ -5,11 +5,11 @@ from copy import deepcopy
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader  # noqa: F401
-from torch.nn.parallel import (  # noqa: F401
-    DistributedDataParallel as DDP,
+from torch.utils.data import DataLoader
+from torch.nn.parallel import (
+    # DistributedDataParallel as DDP,
     DataParallel as DP,
-)  # noqa: F401
+)
 from torch_ecg.cfg import CFG
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 from torch_ecg.utils.misc import dict_to_str
@@ -42,6 +42,7 @@ if ModelCfg.torch_dtype == torch.float64:
     DTYPE = np.float64
 else:
     DTYPE = np.float32
+
 
 tmp_data_dir = _BASE_DIR / "tmp" / "CINC2023"
 tmp_data_dir.mkdir(parents=True, exist_ok=True)

@@ -129,7 +129,7 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
 
     # Train the models.
     if verbose >= 1:
-        print("Training the Challenge models on the Challenge data...")
+        print("Training the neural network model on the Challenge data...")
 
     ###############################################################################
     # Train the model.
@@ -237,7 +237,7 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
 
     # Train the models.
     if verbose >= 1:
-        print("Training the Challenge models on the Challenge data...")
+        print("Training the RF models on the Challenge data...")
 
     # Define parameters for random forest classifier and regressor.
     n_estimators = 42  # Number of trees in the forest.

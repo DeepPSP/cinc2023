@@ -145,6 +145,8 @@ class CINC2023Reader(PhysioNetDataBase):
             verbose=verbose,
             **kwargs,
         )
+        self.fs = fs
+        self.backend = backend
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
 
         self._url_compressed = {
