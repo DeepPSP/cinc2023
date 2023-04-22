@@ -43,7 +43,26 @@ _CINC2023_INFO = DataBaseInfo(
         - **Quality**: a measure of quality of the EEG signal for the 5-minute epochs, based on how many 10-second epochs within a 5-minute EEG window are contaminated by artifacts, ranging from 0 (all artifacts) to 1 (no artifacts).
 
     9. Each patient has one .txt file containing patient information (ref. 10) and clinical outcome (ref. 11).
-    10. Patient information includes information recorded at the time of admission (age, sex), location of arrest (out or in-hospital), type of cardiac rhythm recorded at the time of resuscitation (shockable rhythms include ventricular fibrillation or ventricular tachycardia and non-shockable rhythms include asystole and pulseless electrical activity), and the time between cardiac arrest and ROSC (return of spontaneous circulation).
+    10. Patient information includes information recorded at the time of admission (age, sex), location of arrest (out or in-hospital), type of cardiac rhythm recorded at the time of resuscitation (shockable rhythms include ventricular fibrillation or ventricular tachycardia and non-shockable rhythms include asystole and pulseless electrical activity), and the time between cardiac arrest and ROSC (return of spontaneous circulation). The following table summarizes the patient information:
+
+        +----------------+-----------------------------------------------+-----------------------------------------+
+        |  info          |   meaning                                     |   type and values                       |
+        +================+===============================================+=========================================+
+        |  Age           |   Age (in years)                              |   continuous                            |
+        +----------------+-----------------------------------------------+-----------------------------------------+
+        |  Sex           |   Sex                                         |   categorical                           |
+        +----------------+-----------------------------------------------+-----------------------------------------+
+        |  ROSC          |   time from cardiac arrest to return of       |   continuous                            |
+        |                |   spontaneous circulation, in minutes         |                                         |
+        +----------------+-----------------------------------------------+-----------------------------------------+
+        |  OHCA          |   out-of-hospital cardiac arrest              |   categorical (boolean)                 |
+        |                |                                               |   True = out of hospital cardiac arrest |
+        |                |                                               |   False = in-hospital cardiac arrest    |
+        +----------------+-----------------------------------------------+-----------------------------------------+
+        |  TTM           |   targeted temperature management,            |   categorical                           |
+        |                |   in Celsius                                  |   3, 36, or NaN for no TTM              |
+        +----------------+-----------------------------------------------+-----------------------------------------+
+
     11. Clinical outcome was determined prospectively in two centers by phone interview (at 6 months from ROSC), and at the remaining hospitals retrospectively through chart review (at 3-6 months from ROSC). Neurological function was determined using the Cerebral Performance Category (CPC) scale. CPC is an ordinal scale ranging from 1 to 5:
 
         - CPC = 1: good neurological function and independent for activities of daily living.
