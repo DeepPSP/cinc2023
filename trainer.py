@@ -44,7 +44,7 @@ __all__ = [
 
 
 class CINC2023Trainer(BaseTrainer):
-    """
+    """Trainer for the CinC2023 challenge
 
     Parameters
     ----------
@@ -224,10 +224,11 @@ class CINC2023Trainer(BaseTrainer):
 
         """
         if (
-            self.config.reload_data_every > 0
+            self.train_config.reload_data_every > 0
             and self.epoch > 0
-            and self.epoch % self.config.reload_data_every == 0
+            and self.epoch % self.train_config.reload_data_every == 0
         ):
+            self.log_manager.log_message(f"Reloading data at epoch {self.epoch}...")
             del self.train_loader
             del self.val_loader
             del self.val_train_loader
