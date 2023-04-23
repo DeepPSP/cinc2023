@@ -231,11 +231,9 @@ class CINC2023Trainer(BaseTrainer):
             self.log_manager.log_message(f"Reloading data at epoch {self.epoch}...")
             # reload data of the `Dataset` instances
             self.train_loader.dataset.empty_cache()
-            self.train_loader.dataset.__set_task(
-                task=self.train_config.task, lazy=False
-            )
+            self.train_loader.dataset._load_all_data()
             self.val_loader.dataset.empty_cache()
-            self.val_loader.dataset.__set_task(task=self.train_config.task, lazy=False)
+            self.val_loader.dataset._load_all_data()
             self.log_manager.log_message("Reloading data finished.")
         for epoch_step, input_tensors in enumerate(self.train_loader):
             self.global_step += 1

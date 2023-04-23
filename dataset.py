@@ -109,7 +109,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
         ppm_config.update(deepcopy(self.config[self.task]))
         self.ppm = PreprocManager.from_config(ppm_config)
 
-        self.siglen = int(self.config[self.task].fs * self.config[self.task].siglen)
+        self.siglen = self.config[self.task].siglen
         self.classes = self.config[task].classes
         self.n_classes = len(self.config[task].classes)
         self.lazy = lazy
