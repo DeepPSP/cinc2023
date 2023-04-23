@@ -245,7 +245,7 @@ MLCfg.db_dir = None
 MLCfg.log_dir = BaseCfg.log_dir
 MLCfg.model_dir = BaseCfg.model_dir
 # MLCfg.task = "classification"  # "classification", "regression"
-# MLCfg.output_target = BaseCfg.output_target
+MLCfg.output_target = None
 # if MLCfg.output_target == "cpc":
 #     MLCfg.classes = deepcopy(BaseCfg.cpc)
 #     MLCfg.class_map = deepcopy(BaseCfg.cpc_map)
@@ -264,16 +264,16 @@ MLCfg.model_dir = BaseCfg.model_dir
 # ]
 # MLCfg.x_cols = MLCfg.x_cols_cate + MLCfg.x_cols_cont
 MLCfg.feature_list = [
-    "age",
-    "sex_female",
-    "sex_male",
-    "sex_other",
-    "rosc",
-    "ohca",
-    "vfib",
-    "ttm",
+    "age",  # continuous
+    "sex_female",  # binarized
+    "sex_male",  # binarized
+    "sex_other",  # binarized
+    "rosc",  # continuous
+    "ohca",  # binary
+    "vfib",  # binary
+    "ttm",  # continuous (indeed, categorical)
 ]
-MLCfg.cont_features = ["age", "rosc"]
+MLCfg.cont_features = ["age", "rosc", "ttm"]
 MLCfg.cont_scaler = "standard"  # "minmax", "standard"
 MLCfg.grids = CFG()
 MLCfg.grids.rf = ParameterGrid(

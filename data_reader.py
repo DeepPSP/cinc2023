@@ -63,8 +63,8 @@ _CINC2023_INFO = DataBaseInfo(
         |                |                                               |   True = shockable rhythm               |
         |                |                                               |   False = non-shockable rhythm          |
         +----------------+-----------------------------------------------+-----------------------------------------+
-        |  TTM           |   targeted temperature management,            |   categorical                           |
-        |                |   in Celsius                                  |   3, 36, or NaN for no TTM              |
+        |  TTM           |   targeted temperature management,            |   continuous (indeed, categorical)      |
+        |                |   in Celsius                                  |   33, 36, or NaN for no TTM             |
         +----------------+-----------------------------------------------+-----------------------------------------+
 
     11. Clinical outcome was determined prospectively in two centers by phone interview (at 6 months from ROSC), and at the remaining hospitals retrospectively through chart review (at 3-6 months from ROSC). Neurological function was determined using the Cerebral Performance Category (CPC) scale. CPC is an ordinal scale ranging from 1 to 5:

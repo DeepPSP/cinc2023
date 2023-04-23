@@ -49,7 +49,7 @@ class ML_Classifier_CINC2023(object):
 
     Parameters:
     -----------
-    config: CFG, optional,
+    config : CFG, optional
         configurations
 
     """
@@ -62,6 +62,10 @@ class ML_Classifier_CINC2023(object):
         **kwargs: Any,
     ) -> None:
         self.config = deepcopy(config)
+        assert self.config.get("output_target", None) in [
+            "cpc",
+            "outcome",
+        ], "`output_target` is not set or not supported in `config`."
         self.__imputer = SimpleImputer(missing_values=np.nan, strategy="mean")
         self.__scaler = StandardScaler()
 
@@ -80,21 +84,19 @@ class ML_Classifier_CINC2023(object):
 
     @property
     def y_col(self) -> str:
-        return BaseCfg.output_target
+        return self.config.output_target
 
     @property
     def feature_list(self) -> List[str]:
         return self.config.feature_list
 
     def _prepare_training_data(self, db_dir: Optional[Union[str, Path]] = None) -> None:
-        """
-        Prepares training data.
+        """Prepares training data.
 
         Parameters
         ----------
-        db_dir: str, optional,
-            database directory,
-            if None, do nothing
+        db_dir : str, optional
+            database directory; if is None, do nothing.
 
         """
         if db_dir is not None:
@@ -135,6 +137,16 @@ class ML_Classifier_CINC2023(object):
         self.__df_features.loc[:, "subject"] = self.reader.all_subjects
         self.__df_features = self.__df_features.set_index("subject")
 
+        # apply imputer and scaler
+        self.__df_features.loc[:, self.feature_list] = self.__imputer.fit_transform(
+            self.__df_features.loc[:, self.feature_list]
+        )
+        self.__df_features.loc[
+            :, self.config.cont_features
+        ] = self.__scaler.fit_transform(
+            self.__df_features.loc[:, self.config.cont_features]
+        )
+
         train_set, test_set = self._train_test_split()
         df_train = self.__df_features.loc[train_set]
         df_test = self.__df_features.loc[test_set]
@@ -146,19 +158,18 @@ class ML_Classifier_CINC2023(object):
     def get_model(
         self, model_name: str, params: Optional[dict] = None
     ) -> BaseEstimator:
-        """
-        Returns a model instance.
+        """Returns a model instance.
 
         Parameters
         ----------
-        model_name: str,
+        model_name : str
             model name, ref. `self.model_map`
-        params: dict, optional,
+        params : dict, optional
             model parameters
 
         Returns
         -------
-        BaseEstimator,
+        BaseEstimator
             model instance
 
         """
@@ -175,20 +186,19 @@ class ML_Classifier_CINC2023(object):
         config: CFG,
         model_path: Union[str, Path],
     ) -> None:
-        """
-        Saves a model to a file.
+        """Saves a model to a file.
 
         Parameters
         ----------
-        model: BaseEstimator,
+        model : BaseEstimator
             model instance to save
-        imputer: SimpleImputer,
+        imputer : SimpleImputer
             imputer instance to save
-        scaler: BaseEstimator,
+        scaler : BaseEstimator
             scaler instance to save
-        config: CFG,
+        config : CFG
             configurations of the model
-        model_path: str or Path,
+        model_path : str or pathlib.Path
             path to save the model
 
         """
@@ -206,12 +216,11 @@ class ML_Classifier_CINC2023(object):
         )
 
     def save_best_model(self, model_name: Optional[str] = None) -> None:
-        """
-        Saves the best model to a file.
+        """Saves the best model to a file.
 
         Parameters
         ----------
-        model_name: str, optional,
+        model_name : str, optional
             model name,
             defaults to f"{self.best_clf.__class__.__name__}_{self.best_score}.pkl"
 
@@ -228,17 +237,16 @@ class ML_Classifier_CINC2023(object):
 
     @classmethod
     def from_file(cls, path: Union[str, Path]) -> "ML_Classifier_CINC2023":
-        """
-        Loads a ML_Classifier_CINC2023 instance from a file.
+        """Loads a ML_Classifier_CINC2023 instance from a file.
 
         Parameters
         ----------
-        path: str or Path,
+        path : str or pathlib.Path
             path to the model file
 
         Returns
         -------
-        ML_Classifier_CINC2023,
+        ML_Classifier_CINC2023
             ML_Classifier_CINC2023 instance
 
         """
@@ -251,17 +259,16 @@ class ML_Classifier_CINC2023(object):
         return clf
 
     def inference(self, patient_metadata: str) -> ClassificationOutput:
-        """
-        Helper function to infer the cpc and/or outcome of a patient.
+        """Helper function to infer the cpc and/or outcome of a patient.
 
         Parameters
         ----------
-        patient_data: str,
+        patient_data : str
             patient metadata, read from a (.txt) file
 
         Returns
         -------
-        ClassificationOutput,
+        ClassificationOutput
             classification output, with the following items:
             - classes: list of str,
                 list of class names
@@ -281,27 +288,26 @@ class ML_Classifier_CINC2023(object):
         cv: Optional[int] = None,
         experiment_tag: Optional[str] = None,
     ) -> Tuple[BaseEstimator, dict, float]:
-        """
-        Performs a grid search on the model.
+        """Performs a grid search on the model.
 
         Parameters
         ----------
-        model_name: str,
+        model_name : str
             model name, ref. to self.config.model_map
-        cv: int, optional,
+        cv : int, optional
             number of cross-validation folds,
             None for no cross-validation
-        experiment_tag: str, optional,
+        experiment_tag : str, optional
             tag for the experiment,
             used to create key for the experiment to save in cache
 
         Returns
         -------
-        BaseEstimator,
+        BaseEstimator
             the best model instance
-        dict,
+        dict
             the best model parameters
-        float,
+        float
             the best model score
 
         """
@@ -371,31 +377,31 @@ class ML_Classifier_CINC2023(object):
         X_val: np.ndarray,
         y_val: np.ndarray,
     ) -> Tuple[BaseEstimator, dict, float]:
-        """
-        Performs a grid search on the given model and parameters without cross validation.
+        """Performs a grid search on the given model
+        and parameters without cross validation.
 
         Parameters
         ----------
-        model_name: str,
+        model_name : str
             model name, ref. to self.config.model_map
-        param_grid: ParameterGrid,
+        param_grid : ParameterGrid
             parameter grid for grid search
-        X_train: np.ndarray,
-            training features, of shape (n_samples, n_features)
-        y_train: np.ndarray,
-            training labels, of shape (n_samples, )
-        X_val: np.ndarray,
-            validation features, of shape (n_samples, n_features)
-        y_val: np.ndarray,
-            validation labels, of shape (n_samples, )
+        X_train : np.ndarray
+            training features, of shape ``(n_samples, n_features)``
+        y_train : np.ndarray
+            training labels, of shape ``(n_samples,)``
+        X_val : np.ndarray
+            validation features, of shape ``(n_samples, n_features)``
+        y_val : np.ndarray
+            validation labels, of shape ``(n_samples,)``
 
         Returns
         -------
-        BaseEstimator,
+        BaseEstimator
             the best model instance
-        dict,
+        dict
             the best model parameters
-        float,
+        float
             the best model score
 
         """
@@ -464,33 +470,33 @@ class ML_Classifier_CINC2023(object):
         y_val: np.ndarray,
         cv: int = 5,
     ) -> Tuple[BaseEstimator, dict, float]:
-        """
-        Performs a grid search on the given model and parameters with cross validation.
+        """Performs a grid search on the given model
+        and parameters with cross validation.
 
         Parameters
         ----------
-        model_name: str,
+        model_name : str
             model name, ref. to self.config.model_map
-        param_grid: ParameterGrid,
+        param_grid : ParameterGrid
             parameter grid for grid search
-        X_train: np.ndarray,
+        X_train : np.ndarray
             training features, of shape (n_samples, n_features)
-        y_train: np.ndarray,
+        y_train : np.ndarray
             training labels, of shape (n_samples, )
-        X_val: np.ndarray,
+        X_val : np.ndarray
             validation features, of shape (n_samples, n_features)
-        y_val: np.ndarray,
+        y_val : np.ndarray
             validation labels, of shape (n_samples, )
-        cv: int, default 5,
+        cv : int, default 5
             number of cross validation folds
 
         Returns
         -------
-        BaseEstimator,
+        BaseEstimator
             the best model instance
-        dict,
+        dict
             the best model parameters
-        float,
+        float
             the best model score
 
         """
@@ -547,22 +553,21 @@ class ML_Classifier_CINC2023(object):
         cv: Optional[int] = None,
         name: Optional[str] = None,
     ) -> dict:
-        """
-        Gets the cache for historical grid searches.
+        """Gets the cache for historical grid searches.
 
         Parameters
         ----------
-        model_name: str,
+        model_name : str
             model name, ref. to self.config.model_map
-        cv: int, default None,
+        cv : int, default None
             number of cross validation folds
             None for no cross validation
-        name: str, default None,
+        name : str, default None
             suffix name of the cache
 
         Returns
         -------
-        dict,
+        dict
             the cached grid search results
 
         """
@@ -575,22 +580,21 @@ class ML_Classifier_CINC2023(object):
         cv: Optional[int] = None,
         name: Optional[str] = None,
     ) -> str:
-        """
-        Gets the cache key for historical grid searches.
+        """Gets the cache key for historical grid searches.
 
         Parameters
         ----------
-        model_name: str,
+        model_name : str
             model name, ref. to self.config.model_map
-        cv: int, default None,
+        cv : int, default None
             number of cross validation folds
             None for no cross validation
-        name: str, default None,
+        name : str, default None
             suffix name of the cache
 
         Returns
         -------
-        str,
+        str
             the cache key
 
         """
@@ -619,9 +623,7 @@ class ML_Classifier_CINC2023(object):
 
     @property
     def model_map(self) -> Dict[str, BaseEstimator]:
-        """
-        Returns a map of model name to model class.
-        """
+        """Returns a map of model name to model class."""
         return {
             "svm": SVC,
             "svc": SVC,
@@ -638,21 +640,20 @@ class ML_Classifier_CINC2023(object):
     def _train_test_split(
         self, train_ratio: float = 0.8, force_recompute: bool = False
     ) -> Tuple[List[str], List[str]]:
-        """
-        Stratified train/test split.
+        """Stratified train/test split.
 
         Parameters
         ----------
-        train_ratio: float, default 0.8,
+        train_ratio : float, default 0.8
             ratio of training data to total data
-        force_recompute: bool, default False,
+        force_recompute : bool, default False
             if True, recompute the train/test split
 
         Returns
         -------
-        List[str],
+        List[str]
             list of training record names
-        List[str],
+        List[str]
             list of testing record names
 
         """
