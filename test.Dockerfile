@@ -40,13 +40,13 @@ RUN pip install torchaudio==0.13.1+cu116 --no-deps -f https://download.pytorch.o
 RUN pip install torch-ecg
 
 ## DO NOT EDIT the 3 lines.
-RUN mkdir /physionet
-COPY ./requirements-docker.txt /physionet
-WORKDIR /physionet
+RUN mkdir /challenge
+COPY ./requirements-docker.txt /challenge
+WORKDIR /challenge
 
 RUN pip install -r requirements-docker.txt
 
-COPY ./ /physionet
+COPY ./ /challenge
 
 # NOTE: also run test_local.py to test locally
 # since GitHub Actions does not have GPU,
@@ -57,7 +57,7 @@ RUN python test_docker.py
 # commands to run test with docker container:
 
 # sudo docker build -t image .
-# sudo docker run -it --shm-size=10240m --gpus all -v ~/Jupyter/temp/cinc2023_docker_test/model:/physionet/model -v ~/Jupyter/temp/cinc2023_docker_test/test_data:/physionet/test_data -v ~/Jupyter/temp/cinc2023_docker_test/test_outputs:/physionet/test_outputs -v ~/Jupyter/temp/cinc2023_docker_test/data:/physionet/training_data image bash
+# sudo docker run -it --shm-size=10240m --gpus all -v ~/Jupyter/temp/cinc2023_docker_test/model:/challenge/model -v ~/Jupyter/temp/cinc2023_docker_test/test_data:/challenge/test_data -v ~/Jupyter/temp/cinc2023_docker_test/test_outputs:/challenge/test_outputs -v ~/Jupyter/temp/cinc2023_docker_test/data:/challenge/training_data image bash
 
 
 # python train_model.py training_data model
