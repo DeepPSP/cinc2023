@@ -2,7 +2,10 @@
 features from metadata
 """
 
+from typing import Union
+
 import numpy as np
+import pandas as pd
 
 from helper_code import (
     get_age,
@@ -22,7 +25,9 @@ __all__ = [
 ]
 
 
-def get_features(patient_metadata: str) -> np.ndarray:
+def get_features(
+    patient_metadata: str, ret_type: str = "np"
+) -> Union[np.ndarray, pd.DataFrame, dict]:
     """Extract features from the patient metadata.
 
     Adapted from the official repo.
@@ -31,10 +36,12 @@ def get_features(patient_metadata: str) -> np.ndarray:
     ----------
     patient_metadata : str
         The patient metadata.
+    ret_type : {"np", "pd", "dict"}
+        The return type, by default "np".
 
     Returns
     -------
-    np.ndarray
+    np.ndarray or pd.DataFrame or dict
         The patient features.
 
     """
@@ -61,12 +68,40 @@ def get_features(patient_metadata: str) -> np.ndarray:
         other = 1
 
     # Combine the patient features.
-    patient_features = np.array([age, female, male, other, rosc, ohca, vfib, ttm])
+    if ret_type == "np":
+        patient_features = np.array([age, female, male, other, rosc, ohca, vfib, ttm])
+    elif ret_type == "pd":
+        patient_features = pd.DataFrame(
+            {
+                "age": age,
+                "sex_female": female,
+                "sex_male": male,
+                "sex_other": other,
+                "rosc": rosc,
+                "ohca": ohca,
+                "vfib": vfib,
+                "ttm": ttm,
+            },
+            index=[0],
+        )
+    elif ret_type == "dict":
+        patient_features = {
+            "age": age,
+            "sex_female": female,
+            "sex_male": male,
+            "sex_other": other,
+            "rosc": rosc,
+            "ohca": ohca,
+            "vfib": vfib,
+            "ttm": ttm,
+        }
 
     return patient_features
 
 
-def get_labels(patient_metadata: str) -> dict:
+def get_labels(
+    patient_metadata: str, ret_type: str = "dict"
+) -> Union[np.ndarray, pd.DataFrame, dict]:
     """Extract labels from the patient metadata.
 
     Adapted from the official repo.
@@ -75,10 +110,12 @@ def get_labels(patient_metadata: str) -> dict:
     ----------
     patient_metadata : str
         The patient metadata.
+    ret_type : {"np", "pd", "dict"}
+        The return type, by default "dict".
 
     Returns
     -------
-    dict
+    dict or np.ndarray or pd.DataFrame
         The patient labels, including
         - "outcome" (int)
         - "cpc" (float)
@@ -87,5 +124,12 @@ def get_labels(patient_metadata: str) -> dict:
     labels = {}
     labels["outcome"] = get_outcome(patient_metadata)
     labels["cpc"] = get_cpc(patient_metadata)
+
+    if ret_type == "dict":
+        pass
+    elif ret_type == "np":
+        labels = np.array([labels["outcome"], labels["cpc"]])
+    elif ret_type == "pd":
+        labels = pd.DataFrame(labels, index=[0])
 
     return labels
