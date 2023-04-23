@@ -81,6 +81,13 @@ TrainCfg.n_epochs = 60
 # https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
 TrainCfg.batch_size = 24
 
+# since the memory limit of the Challenge is 64GB,
+# loading all data into memory is not feasible,
+# each recording is randomly sampled a `input_len` segment
+# one can reload data every `reload_data_every` epochs
+# to sample different segments from the same recording
+TrainCfg.reload_data_every = -1  # -1 for no reloading, positive integer for reloading
+
 # configs of optimizers and lr_schedulers
 TrainCfg.optimizer = "adamw_amsgrad"  # "sgd", "adam", "adamw"
 TrainCfg.momentum = 0.949  # default values for corresponding PyTorch optimizers

@@ -223,6 +223,15 @@ class CINC2023Trainer(BaseTrainer):
             the progress bar for training
 
         """
+        if (
+            self.config.reload_data_every > 0
+            and self.epoch > 0
+            and self.epoch % self.config.reload_data_every == 0
+        ):
+            del self.train_loader
+            del self.val_loader
+            del self.val_train_loader
+            self._setup_dataloaders()
         for epoch_step, input_tensors in enumerate(self.train_loader):
             self.global_step += 1
             n_samples = input_tensors["waveforms"].shape[self.batch_dim]

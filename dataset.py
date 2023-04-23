@@ -226,8 +226,12 @@ class CinC2023Dataset(Dataset, ReprMixin):
         else:
             return test_set
 
+    def empty_cache(self) -> None:
+        """release memory"""
+        self.__cache.clear()
+
     @property
-    def cache(self) -> List[Dict[str, np.ndarray]]:
+    def cache(self) -> Dict[str, np.ndarray]:
         return self.__cache
 
     def extra_repr_keys(self) -> List[str]:
