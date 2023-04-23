@@ -153,7 +153,7 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
     else:
         train_config.n_epochs = 60
         # train_config.batch_size = 32  # 16G (Tesla T4)
-        # train_config.reload_data_every = 5
+        train_config.reload_data_every = 6
         # train_config[TASK].input_len = 180 * train_config[TASK].fs
         # train_config[TASK].siglen = train_config[TASK].input_len
         train_config.log_step = 50
