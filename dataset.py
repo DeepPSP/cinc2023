@@ -25,7 +25,22 @@ __all__ = [
 
 
 class CinC2023Dataset(Dataset, ReprMixin):
-    """ """
+    """Dataset for the CinC2023 Challenge.
+
+    Parameters
+    ----------
+    config : CFG
+        configuration for the dataset
+    task : str
+        task to be performed using the dataset
+    training : bool, default True
+        whether the dataset is for training or validation
+    lazy : bool, default True
+        whether to load all data into memory at initialization
+    reader_kwargs : dict, optional
+        keyword arguments for the data reader class
+
+    """
 
     __name__ = "CinC2023Dataset"
 
@@ -37,21 +52,6 @@ class CinC2023Dataset(Dataset, ReprMixin):
         lazy: bool = True,
         **reader_kwargs,
     ) -> None:
-        """
-        Parameters
-        ----------
-        config : CFG
-            configuration for the dataset
-        task : str
-            task to be performed using the dataset
-        training : bool, default True
-            whether the dataset is for training or validation
-        lazy : bool, default True
-            whether to load all data into memory at initialization
-        reader_kwargs : dict, optional
-            keyword arguments for the data reader class
-
-        """
         super().__init__()
         self.config = CFG(deepcopy(config))
         # self.task = task.lower()  # task will be set in self.__set_task
@@ -229,6 +229,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
     def empty_cache(self) -> None:
         """release memory"""
         self.__cache.clear()
+        self.__cache = None
 
     @property
     def cache(self) -> Dict[str, np.ndarray]:
