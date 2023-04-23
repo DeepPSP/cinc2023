@@ -2,6 +2,7 @@
 Currently NOT used, NOT tested.
 """
 
+import json
 import pickle
 import multiprocessing as mp
 from copy import deepcopy
@@ -23,7 +24,7 @@ from sklearn.ensemble import (
     BaggingClassifier,
 )
 from xgboost import XGBClassifier
-from torch_ecg.cfg import CFG
+from torch_ecg.cfg import CFG, DEFAULTS
 from torch_ecg.components.outputs import ClassificationOutput
 from torch_ecg.components.loggers import LoggerManager
 from torch_ecg.utils.utils_data import stratified_train_test_split  # noqa: F401
@@ -31,19 +32,10 @@ from torch_ecg.utils.utils_metrics import _cls_to_bin
 from tqdm.auto import tqdm
 
 from utils.scoring_metrics import compute_challenge_metrics
+from utils.features import get_features, get_labels
 from cfg import BaseCfg
 from data_reader import CINC2023Reader
 from outputs import CINC2023Outputs
-from helper_code import (
-    get_age,
-    get_sex,
-    get_rosc,
-    get_ohca,
-    get_vfib,
-    get_ttm,
-    get_outcome,
-    get_cpc,
-)
 
 
 __all__ = [
@@ -92,7 +84,7 @@ class ML_Classifier_CINC2023(object):
 
     @property
     def feature_list(self) -> List[str]:
-        return deepcopy(self.config.feature_list)
+        return self.config.feature_list
 
     def _prepare_training_data(self, db_dir: Optional[Union[str, Path]] = None) -> None:
         """
@@ -133,31 +125,23 @@ class ML_Classifier_CINC2023(object):
             metadata_string = self.reader.get_absolute_path(
                 subject, extension=self.reader.ann_ext
             ).read_text()
-            metadata = {
-                "subject": subject,
-                "Age": get_age(metadata_string),
-                "Sex": get_sex(metadata_string),
-                "ROSC": get_rosc(metadata_string),
-                "OHCA": get_ohca(metadata_string),
-                "VFIB": get_vfib(metadata_string),
-                "TTM": get_ttm(metadata_string),
-                "Outcome": get_outcome(metadata_string),
-                "CPC": get_cpc(metadata_string),
-            }
+            patient_features = get_features(metadata_string, ret_type="dict")
+            patient_features.update(get_labels(metadata_string, ret_type="dict"))
             self.__df_features = pd.concat(
-                [self.__df_features, pd.DataFrame(metadata, index=[0])],
+                [self.__df_features, patient_features],
                 axis=0,
                 ignore_index=True,
             )
+        self.__df_features.loc[:, "subject"] = self.reader.all_subjects
         self.__df_features = self.__df_features.set_index("subject")
 
         train_set, test_set = self._train_test_split()
         df_train = self.__df_features.loc[train_set]
         df_test = self.__df_features.loc[test_set]
-        self.X_train = df_train[self.config.feature_list].values
-        self.y_train = df_train[self.config.y_col].values
-        self.X_test = df_test[self.config.feature_list].values
-        self.y_test = df_test[self.config.y_col].values
+        self.X_train = df_train[self.feature_list].values
+        self.y_train = df_train[self.y_col].values
+        self.X_test = df_test[self.feature_list].values
+        self.y_test = df_test[self.y_col].values
 
     def get_model(
         self, model_name: str, params: Optional[dict] = None
@@ -653,7 +637,7 @@ class ML_Classifier_CINC2023(object):
 
     def _train_test_split(
         self, train_ratio: float = 0.8, force_recompute: bool = False
-    ) -> List[str]:
+    ) -> Tuple[List[str], List[str]]:
         """
         Stratified train/test split.
 
@@ -664,5 +648,75 @@ class ML_Classifier_CINC2023(object):
         force_recompute: bool, default False,
             if True, recompute the train/test split
 
+        Returns
+        -------
+        List[str],
+            list of training record names
+        List[str],
+            list of testing record names
+
         """
-        raise NotImplementedError
+        _train_ratio = int(train_ratio * 100)
+        _test_ratio = 100 - _train_ratio
+        assert _train_ratio * _test_ratio > 0
+
+        # let the data reader (re-)load the metadata dataframes
+        # in which case would be read from the disk via `pd.read_csv`
+        # and the string values parsed from the txt files
+        # are automatically converted to the correct data types
+        # e.g. "50" -> 50 or 50.0 depending on whether the column has nan values
+        # and "True" -> True or "False" -> False, "nan" -> np.nan, etc.
+        self.reader._ls_rec()
+
+        train_file = self.reader.db_dir / f"train_ratio_{_train_ratio}.json"
+        test_file = self.reader.db_dir / f"test_ratio_{_test_ratio}.json"
+        (BaseCfg.project_dir / "utils").mkdir(exist_ok=True)
+        aux_train_file = (
+            BaseCfg.project_dir / "utils" / f"train_ratio_{_train_ratio}.json"
+        )
+        aux_test_file = BaseCfg.project_dir / "utils" / f"test_ratio_{_test_ratio}.json"
+
+        if not force_recompute and train_file.exists() and test_file.exists():
+            return json.loads(train_file.read_text()), json.loads(test_file.read_text())
+
+        df = self.reader._df_subjects.copy()
+        df.loc[:, "Age"] = (
+            df["Age"].fillna(df["Age"].mean()).astype(int)
+        )  # only one nan
+        # to age group
+        df.loc[:, "Age"] = df["Age"].apply(lambda x: str(20 * (x // 20)))
+        for col in ["OHCA", "VFib"]:
+            df.loc[:, col] = df[col].apply(
+                lambda x: 1 if x is True else 0 if x is False else x
+            )
+            df.loc[:, col] = df[col].fillna(-1).astype(int)
+            df.loc[:, col] = df[col].astype(int).astype(str)
+
+        df_train, df_test = stratified_train_test_split(
+            df,
+            [
+                "Age",
+                "Sex",
+                "OHCA",
+                "VFib",
+                "CPC",
+            ],
+            test_ratio=1 - train_ratio,
+            reset_index=False,
+        )
+
+        train_set = df_train.index.tolist()
+        test_set = df_test.index.tolist()
+
+        if force_recompute or not train_file.exists():
+            train_file.write_text(json.dumps(train_set, ensure_ascii=False))
+            test_file.write_text(json.dumps(test_set, ensure_ascii=False))
+
+        if force_recompute or not aux_train_file.exists():
+            aux_train_file.write_text(json.dumps(train_set, ensure_ascii=False))
+            aux_test_file.write_text(json.dumps(test_set, ensure_ascii=False))
+
+        DEFAULTS.RNG.shuffle(train_set)
+        DEFAULTS.RNG.shuffle(test_set)
+
+        return train_set, test_set

@@ -131,8 +131,8 @@ TrainCfg.classification.input_config = InputConfig(
 )
 TrainCfg.classification.num_channels = TrainCfg.classification.input_config.n_channels
 TrainCfg.classification.input_len = int(
-    100 * TrainCfg.classification.fs
-)  # 100 seconds, to adjust
+    180 * TrainCfg.classification.fs
+)  # 180 seconds, to adjust
 TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
 TrainCfg.classification.sig_slice_tol = None  # None, do no slicing
 
@@ -237,23 +237,37 @@ MLCfg = CFG()
 MLCfg.db_dir = None
 MLCfg.log_dir = BaseCfg.log_dir
 MLCfg.model_dir = BaseCfg.model_dir
-MLCfg.y_col = "cpc"
-MLCfg.task = "classification"  # "classification", "regression"
-MLCfg.classes = deepcopy(BaseCfg.cpc)
-MLCfg.class_map = deepcopy(BaseCfg.cpc_map)
-MLCfg.x_cols_cate = [  # categorical features
-    "Sex",
-    "OHCA",
-    "VFib",
-    "TTM",
+# MLCfg.task = "classification"  # "classification", "regression"
+# MLCfg.output_target = BaseCfg.output_target
+# if MLCfg.output_target == "cpc":
+#     MLCfg.classes = deepcopy(BaseCfg.cpc)
+#     MLCfg.class_map = deepcopy(BaseCfg.cpc_map)
+# elif MLCfg.output_target == "outcome":
+#     MLCfg.classes = deepcopy(BaseCfg.outcome)
+#     MLCfg.class_map = deepcopy(BaseCfg.outcome_map)
+# MLCfg.x_cols_cate = [  # categorical features
+#     "Sex",
+#     "OHCA",
+#     "VFib",
+#     "TTM",
+# ]
+# MLCfg.x_cols_cont = [  # continuous features
+#     "Age",
+#     "ROSC",
+# ]
+# MLCfg.x_cols = MLCfg.x_cols_cate + MLCfg.x_cols_cont
+MLCfg.feature_list = [
+    "age",
+    "sex_female",
+    "sex_male",
+    "sex_other",
+    "rosc",
+    "ohca",
+    "vfib",
+    "ttm",
 ]
-MLCfg.x_cols_cont = [  # continuous features
-    "Age",
-    "ROSC",
-]
+MLCfg.cont_features = ["age", "rosc"]
 MLCfg.cont_scaler = "standard"  # "minmax", "standard"
-MLCfg.x_cols = MLCfg.x_cols_cate + MLCfg.x_cols_cont
-MLCfg.feature_list = deepcopy(MLCfg.x_cols)
 MLCfg.grids = CFG()
 MLCfg.grids.rf = ParameterGrid(
     {

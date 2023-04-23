@@ -137,6 +137,8 @@ class CinC2023Dataset(Dataset, ReprMixin):
         # for k in keys:
         #     if self.__cache[k].ndim == 1:
         #         self.__cache[k] = self.__cache[k]
+        # release memory
+        del tmp_cache
 
     def _load_all_data(self) -> None:
         """ """
