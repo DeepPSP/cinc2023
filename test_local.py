@@ -78,7 +78,8 @@ if __name__ == "__main__":
     TEST_FLAG = str2bool(TEST_FLAG)
     if not TEST_FLAG:
         raise RuntimeError(
-            "please set CINC2023_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test"
+            "please set CINC2023_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test, e.g."
+            "\n        CINC2023_REVENGER_TEST=1 python test_local.py   "
         )
     # set_entry_test_flag(True)
     test_entry()

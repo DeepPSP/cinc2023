@@ -6,6 +6,17 @@ on:
   pull_request:
     branches: [ master ]
 
+env:
+  CINC2023_REVENGER_TEST: 1
+  # revenger_data_dir: ${{ github.workspace }}/training_data
+  # revenger_model_dir: ${{ github.workspace }}/models
+  # revenger_test_dir: ${{ github.workspace }}/test
+  # revenger_output_dir: ${{ github.workspace }}/output
+  revenger_data_dir: /challenge/training_data
+  revenger_model_dir: /challenge/models
+  revenger_test_dir: /challenge/test
+  revenger_output_dir: /challenge/output
+
 jobs:
 
   build:
@@ -17,4 +28,15 @@ jobs:
       with:
         submodules: recursive
     - name: Build the Docker image and run test script
-      run: docker build . --file test.Dockerfile --tag deeppsp-cinc2023-docker-image:$(date +%s)
+      # run: docker build . --file test.Dockerfile --tag deeppsp-cinc2023-docker-image:latest
+      run: docker build . --file Dockerfile --tag deeppsp-cinc2023-docker-image:latest
+
+    - name: Run the Docker image
+      run: docker run \
+        -e CINC2023_REVENGER_TEST=1 \
+        -e revenger_data_dir=${{ env.revenger_data_dir }} \
+        -e revenger_model_dir=${{ env.revenger_model_dir }} \
+        -e revenger_test_dir=${{ env.revenger_test_dir }} \
+        -e revenger_output_dir=${{ env.revenger_output_dir }} \
+        deeppsp-cinc2023-docker-image:latest \
+        bash test_run_challenge.sh

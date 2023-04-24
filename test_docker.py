@@ -3,6 +3,7 @@
 
 import os
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -46,7 +47,9 @@ else:
     DTYPE = np.float32
 
 
-tmp_data_dir = _BASE_DIR / "tmp" / "CINC2023"
+tmp_data_dir = Path(
+    os.environ.get("revenger_data_dir", _BASE_DIR / "tmp" / "CINC2023")
+).resolve()
 tmp_data_dir.mkdir(parents=True, exist_ok=True)
 dr = CINC2023Reader(tmp_data_dir)
 dr.download(full=False)
@@ -67,13 +70,22 @@ truncate_cfg = CFG(
     input_folder=str(dr._df_records.path.iloc[0].parents[1]),
 )
 
+truncated_data_dir = {}
 for limit in [12, 24, 48, 72]:
     truncate_cfg.hour_limit = limit
-    truncate_cfg.output_folder = str(_BASE_DIR / "tmp" / f"CINC2023_{limit}h")
+    truncated_data_dir[limit] = str(tmp_data_dir.parent / f"CINC2023_{limit}h")
+    truncate_cfg.output_folder = truncated_data_dir[limit]
     truncate_data_run(truncate_cfg)
 
 
 del dr
+
+
+tmp_model_dir = Path(os.environ.get("revenger_model_dir", TrainCfg.model_dir)).resolve()
+
+tmp_output_dir = Path(
+    os.environ.get("revenger_output_dir", _BASE_DIR / "tmp" / "output")
+).resolve()
 
 
 TASK = "classification"
@@ -215,16 +227,16 @@ def test_entry() -> None:
     """ """
 
     data_folder = str(tmp_data_dir)
-    train_challenge_model(data_folder, str(TrainCfg.model_dir), verbose=2)
+    train_challenge_model(data_folder, str(tmp_model_dir), verbose=2)
 
-    output_dir = _BASE_DIR / "tmp" / "output"
+    output_dir = str(tmp_output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("run model for the original data")
 
     run_model(
-        str(TrainCfg.model_dir),
-        data_folder,
+        str(tmp_model_dir),
+        str(data_folder),
         str(output_dir),
         allow_failures=False,
         verbose=2,
@@ -233,8 +245,8 @@ def test_entry() -> None:
     for limit in [12, 24, 48, 72]:
         print(f"run model for the {limit}h data")
         run_model(
-            str(TrainCfg.model_dir),
-            str(_BASE_DIR / "tmp" / f"CINC2023_{limit}h"),
+            str(tmp_model_dir),
+            str(truncated_data_dir[limit]),
             str(output_dir),
             allow_failures=False,
             verbose=2,
@@ -253,6 +265,15 @@ if __name__ == "__main__":
         raise RuntimeError(
             "please set CINC2023_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test"
         )
+
+    print("#" * 80)
+    print("testing team code")
+    print("#" * 80)
+    print(f"tmp_data_dir: {str(tmp_data_dir)}")
+    print(f"tmp_model_dir: {str(tmp_model_dir)}")
+    print(f"tmp_output_dir: {str(tmp_output_dir)}")
+    print("#" * 80)
+
     # test_dataset()
     # test_models()
     test_challenge_metrics()
