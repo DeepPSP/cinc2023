@@ -16,6 +16,8 @@ env:
   revenger_model_dir: /challenge/models
   revenger_test_dir: /challenge/test
   revenger_output_dir: /challenge/output
+  # docker_filename: test.Dockerfile
+  docker_filename: Dockerfile
 
 jobs:
 
@@ -28,10 +30,11 @@ jobs:
       with:
         submodules: recursive
     - name: Build the Docker image and run test script
-      # run: docker build . --file test.Dockerfile --tag deeppsp-cinc2023-docker-image:latest
-      run: docker build . --file Dockerfile --tag deeppsp-cinc2023-docker-image:latest
+      run: docker build . --file ${{ env.docker_filename }} --tag deeppsp-cinc2023-docker-image:latest
 
     - name: Run the Docker image
+      # skip if env.docker_filename is 'test.Dockerfile'
+      if: ${{ env.docker_filename == 'Dockerfile' }}
       run: |
         docker run \
           -e CINC2023_REVENGER_TEST=1 \
