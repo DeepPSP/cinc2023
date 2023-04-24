@@ -9,6 +9,7 @@
 #
 ################################################################################
 
+import os
 import pickle
 import time
 from copy import deepcopy
@@ -25,6 +26,7 @@ from torch.nn.parallel import (  # noqa: F401
     DataParallel as DP,
 )  # noqa: F401
 from torch_ecg.cfg import CFG
+from torch_ecg.utils.misc import str2bool
 from torch_ecg._preprocessors import PreprocManager
 from tqdm.auto import tqdm
 
@@ -45,6 +47,15 @@ from helper_code import (
 )
 from utils.features import get_features, get_labels
 from utils.misc import load_challenge_metadata
+
+
+################################################################################
+# environment variables
+
+TEST_FLAG = os.environ.get("CINC2023_TEST", False)
+TEST_FLAG = str2bool(TEST_FLAG)
+
+################################################################################
 
 
 ################################################################################
@@ -140,7 +151,8 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
     train_config.model_dir = Path(model_folder).resolve().absolute()
     train_config.debug = False
 
-    if train_config.get("entry_test_flag", False):
+    # if train_config.get("entry_test_flag", False):
+    if TEST_FLAG:
         # to test in the file test_docker.py or in test_local.py
         train_config.n_epochs = 2
         train_config.batch_size = 8

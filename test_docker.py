@@ -1,6 +1,7 @@
 """
 """
 
+import os
 from copy import deepcopy
 
 import numpy as np
@@ -11,6 +12,7 @@ from torch.nn.parallel import (
     DataParallel as DP,
 )
 from torch_ecg.cfg import CFG
+from torch_ecg.utils.misc import str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 from torch_ecg.utils.misc import dict_to_str
 from torch_ecg.components.outputs import (
@@ -19,7 +21,7 @@ from torch_ecg.components.outputs import (
 
 from utils.scoring_metrics import compute_challenge_metrics
 from utils.misc import func_indicator
-from cfg import TrainCfg, ModelCfg, BaseCfg, _BASE_DIR, set_entry_test_flag
+from cfg import TrainCfg, ModelCfg, BaseCfg, _BASE_DIR
 from data_reader import CINC2023Reader
 from dataset import CinC2023Dataset
 from outputs import CINC2023Outputs, cpc2outcome_map
@@ -28,7 +30,7 @@ from trainer import CINC2023Trainer, _set_task
 from truncate_data import run as truncate_data_run
 
 
-set_entry_test_flag(True)
+# set_entry_test_flag(True)
 
 
 CINC2023Trainer.__DEBUG__ = False
@@ -245,9 +247,15 @@ test_team_code = test_entry  # alias
 
 
 if __name__ == "__main__":
+    TEST_FLAG = os.environ.get("CINC2023_TEST", False)
+    TEST_FLAG = str2bool(TEST_FLAG)
+    if not TEST_FLAG:
+        raise RuntimeError(
+            "please set CINC2023_TEST to true (1, y, yes, true, etc.) to run the test"
+        )
     # test_dataset()
     # test_models()
     test_challenge_metrics()
     # test_trainer()  # directly run test_entry
     test_entry()
-    set_entry_test_flag(False)
+    # set_entry_test_flag(False)

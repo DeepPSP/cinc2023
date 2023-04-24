@@ -1,6 +1,7 @@
 """
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -10,16 +11,17 @@ tmp_data_dir = Path("/home/wenh06/Jupyter/wenhao/data/CinC2023/")
 
 import numpy as np
 import torch
+from torch_ecg.utils.misc import str2bool
 
 from utils.misc import func_indicator
-from cfg import TrainCfg, ModelCfg, _BASE_DIR, set_entry_test_flag
+from cfg import TrainCfg, ModelCfg, _BASE_DIR
 
 # from train_model import train_challenge_model
 from team_code import train_challenge_model
 from run_model import run_model
 
 
-set_entry_test_flag(True)
+# set_entry_test_flag(True)
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -72,6 +74,12 @@ def test_entry():
 
 
 if __name__ == "__main__":
-    set_entry_test_flag(True)
+    TEST_FLAG = os.environ.get("CINC2023_TEST", False)
+    TEST_FLAG = str2bool(TEST_FLAG)
+    if not TEST_FLAG:
+        raise RuntimeError(
+            "please set CINC2023_TEST to true (1, y, yes, true, etc.) to run the test"
+        )
+    # set_entry_test_flag(True)
     test_entry()
-    set_entry_test_flag(False)
+    # set_entry_test_flag(False)
