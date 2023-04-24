@@ -226,10 +226,13 @@ from run_model import run_model
 def test_entry() -> None:
     """ """
 
-    data_folder = str(tmp_data_dir)
-    train_challenge_model(data_folder, str(tmp_model_dir), verbose=2)
+    # run the model training function (script)
+    print("run model training function")
+    data_folder = tmp_data_dir
+    train_challenge_model(str(data_folder), str(tmp_model_dir), verbose=2)
 
-    output_dir = str(tmp_output_dir)
+    # run the model inference function (script)
+    output_dir = tmp_output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("run model for the original data")
