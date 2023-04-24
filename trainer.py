@@ -16,7 +16,7 @@ from torch.nn.parallel import (  # noqa: F401
     DistributedDataParallel as DDP,
     DataParallel as DP,
 )  # noqa: F401
-from torch_ecg.cfg import CFG
+from torch_ecg.cfg import CFG, DEFAULTS
 from torch_ecg.components.trainer import BaseTrainer
 from torch_ecg.augmenters import AugmenterManager
 from torch_ecg.utils.misc import str2bool
@@ -231,6 +231,8 @@ class CINC2023Trainer(BaseTrainer):
             self.log_manager.log_message(f"Reloading data at epoch {self.epoch}...")
             # reload data of the `Dataset` instances
             self.train_loader.dataset.empty_cache()
+            # shuffle the list of records
+            DEFAULTS.RNG.shuffle(self.train_loader.dataset.records)
             self.train_loader.dataset._load_all_data()
             self.val_loader.dataset.empty_cache()
             self.val_loader.dataset._load_all_data()
