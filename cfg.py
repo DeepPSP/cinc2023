@@ -76,7 +76,7 @@ TrainCfg.tasks = ["classification"]
 TrainCfg.train_ratio = 0.8
 
 # configs of training epochs, batch, etc.
-TrainCfg.n_epochs = 60
+TrainCfg.n_epochs = 80
 # TODO: automatic adjust batch size according to GPU capacity
 # https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
 TrainCfg.batch_size = 24
@@ -94,13 +94,13 @@ TrainCfg.momentum = 0.949  # default values for corresponding PyTorch optimizers
 TrainCfg.betas = (0.9, 0.999)  # default values for corresponding PyTorch optimizers
 TrainCfg.decay = 1e-2  # default values for corresponding PyTorch optimizers
 
-TrainCfg.learning_rate = 1e-3  # 5e-4, 1e-3
+TrainCfg.learning_rate = 1.2e-3  # 5e-4, 1e-3
 TrainCfg.lr = TrainCfg.learning_rate
 
 TrainCfg.lr_scheduler = "one_cycle"  # "one_cycle", "plateau", "burn_in", "step", None
 TrainCfg.lr_step_size = 50
 TrainCfg.lr_gamma = 0.1
-TrainCfg.max_lr = 4e-3  # for "one_cycle" scheduler, to adjust via expriments
+TrainCfg.max_lr = 8e-3  # for "one_cycle" scheduler, to adjust via expriments
 
 # configs of callbacks, including early stopping, checkpoint, etc.
 TrainCfg.early_stopping = CFG()  # early stopping according to challenge metric
@@ -138,7 +138,7 @@ TrainCfg.classification.input_config = InputConfig(
 )
 TrainCfg.classification.num_channels = TrainCfg.classification.input_config.n_channels
 TrainCfg.classification.input_len = int(
-    160 * TrainCfg.classification.fs
+    128 * TrainCfg.classification.fs
 )  # units in seconds, to adjust
 TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
 TrainCfg.classification.sig_slice_tol = None  # None, do no slicing
