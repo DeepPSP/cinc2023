@@ -13,9 +13,8 @@ from torch.nn.parallel import (
     DataParallel as DP,
 )
 from torch_ecg.cfg import CFG
-from torch_ecg.utils.misc import str2bool
+from torch_ecg.utils.misc import str2bool, dict_to_str
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
-from torch_ecg.utils.misc import dict_to_str
 from torch_ecg.components.outputs import (
     ClassificationOutput,
 )
@@ -248,7 +247,26 @@ def test_entry() -> None:
 
     print("evaluate model for the original data")
 
-    evaluate_model(str(data_folder), str(output_dir))
+    (
+        challenge_score,
+        auroc_outcomes,
+        auprc_outcomes,
+        accuracy_outcomes,
+        f_measure_outcomes,
+        mse_cpcs,
+        mae_cpcs,
+    ) = evaluate_model(str(data_folder), str(output_dir))
+    eval_res = {
+        "challenge_score": challenge_score,
+        "auroc_outcomes": auroc_outcomes,
+        "auprc_outcomes": auprc_outcomes,
+        "accuracy_outcomes": accuracy_outcomes,
+        "f_measure_outcomes": f_measure_outcomes,
+        "mse_cpcs": mse_cpcs,
+        "mae_cpcs": mae_cpcs,
+    }
+
+    print(f"original data evaluation results: {dict_to_str(eval_res)}")
 
     for limit in [12, 24, 48, 72]:
         print(f"run model for the {limit}h data")
@@ -261,7 +279,27 @@ def test_entry() -> None:
         )
 
         print(f"evaluate model for the {limit}h data")
-        evaluate_model(str(truncated_data_dir[limit]), str(output_dir))
+
+        (
+            challenge_score,
+            auroc_outcomes,
+            auprc_outcomes,
+            accuracy_outcomes,
+            f_measure_outcomes,
+            mse_cpcs,
+            mae_cpcs,
+        ) = evaluate_model(str(truncated_data_dir[limit]), str(output_dir))
+        eval_res = {
+            "challenge_score": challenge_score,
+            "auroc_outcomes": auroc_outcomes,
+            "auprc_outcomes": auprc_outcomes,
+            "accuracy_outcomes": accuracy_outcomes,
+            "f_measure_outcomes": f_measure_outcomes,
+            "mse_cpcs": mse_cpcs,
+            "mae_cpcs": mae_cpcs,
+        }
+
+        print(f"{limit}h data evaluation results: {dict_to_str(eval_res)}")
 
     print("entry test passed")
 

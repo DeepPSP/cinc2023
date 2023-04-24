@@ -11,7 +11,7 @@ tmp_data_dir = Path("/home/wenh06/Jupyter/wenhao/data/CinC2023/")
 
 import numpy as np
 import torch
-from torch_ecg.utils.misc import str2bool
+from torch_ecg.utils.misc import str2bool, dict_to_str
 
 from utils.misc import func_indicator
 from cfg import TrainCfg, ModelCfg, _BASE_DIR
@@ -63,7 +63,26 @@ def test_entry():
 
     print("evaluate model for the original data")
 
-    evaluate_model(str(data_folder), str(output_dir))
+    (
+        challenge_score,
+        auroc_outcomes,
+        auprc_outcomes,
+        accuracy_outcomes,
+        f_measure_outcomes,
+        mse_cpcs,
+        mae_cpcs,
+    ) = evaluate_model(str(data_folder), str(output_dir))
+    eval_res = {
+        "challenge_score": challenge_score,
+        "auroc_outcomes": auroc_outcomes,
+        "auprc_outcomes": auprc_outcomes,
+        "accuracy_outcomes": accuracy_outcomes,
+        "f_measure_outcomes": f_measure_outcomes,
+        "mse_cpcs": mse_cpcs,
+        "mae_cpcs": mae_cpcs,
+    }
+
+    print(f"original data evaluation results: {dict_to_str(eval_res)}")
 
     for limit in [12, 24, 48, 72]:
         print(f"run model for the {limit}h data")
@@ -76,7 +95,27 @@ def test_entry():
         )
 
         print(f"evaluate model for the {limit}h data")
-        evaluate_model(str(trunc_data_folder[limit]), str(output_dir))
+
+        (
+            challenge_score,
+            auroc_outcomes,
+            auprc_outcomes,
+            accuracy_outcomes,
+            f_measure_outcomes,
+            mse_cpcs,
+            mae_cpcs,
+        ) = evaluate_model(str(trunc_data_folder[limit]), str(output_dir))
+        eval_res = {
+            "challenge_score": challenge_score,
+            "auroc_outcomes": auroc_outcomes,
+            "auprc_outcomes": auprc_outcomes,
+            "accuracy_outcomes": accuracy_outcomes,
+            "f_measure_outcomes": f_measure_outcomes,
+            "mse_cpcs": mse_cpcs,
+            "mae_cpcs": mae_cpcs,
+        }
+
+        print(f"{limit}h data evaluation results: {dict_to_str(eval_res)}")
 
     print("entry test passed")
 
