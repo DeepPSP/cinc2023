@@ -166,7 +166,7 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
         # train_config.max_lr = 1.5e-3
         train_config.early_stopping.patience = 20
     else:
-        train_config.n_epochs = 60
+        train_config.n_epochs = 80
         # train_config.batch_size = 32  # 16G (Tesla T4)
         train_config.reload_data_every = 6
         # train_config[TASK].input_len = 180 * train_config[TASK].fs
@@ -417,10 +417,10 @@ def run_challenge_models(
         # use the outcome_model and cpc_model to predict the outcome and cpc
         features = get_features(patient_metadata).reshape(1, -1)
         features = imputer.transform(features)
-        outcome = outcome_model.predict(features)[0]
+        outcome = outcome_model.predict(features)[0].item()
         # outcome_probability is the probability of the "Poor" (1) class
-        outcome_probability = outcome_model.predict_proba(features)[0, 1]
-        cpc = cpc_model.predict(features)[0]
+        outcome_probability = outcome_model.predict_proba(features)[0, 1].item()
+        cpc = cpc_model.predict(features)[0].item()
 
         return outcome, outcome_probability, cpc
 
@@ -471,7 +471,7 @@ def run_challenge_models(
     cpc_outputs = np.array(
         [output.cpc_value for output in main_model_outputs]
     ).flatten()
-    cpc = cpc_outputs.mean()
+    cpc = cpc_outputs.mean().item()
 
     # Aggregate the outcome predictions.
     outcome_outputs = np.concatenate(
@@ -483,9 +483,9 @@ def run_challenge_models(
         axis=1, keepdims=True
     )
     # get the predicted outcome
-    outcome = int(outcome_outputs.argmax(axis=1)[0])
+    outcome = outcome_outputs.argmax(axis=1)[0].item()
     # outcome_probability is the probability of the "Poor" class
-    outcome_probability = outcome_outputs[0, train_cfg.outcome.index("Poor")]
+    outcome_probability = outcome_outputs[0, train_cfg.outcome.index("Poor")].item()
 
     return outcome, outcome_probability, cpc
 
