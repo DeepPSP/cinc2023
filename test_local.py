@@ -74,11 +74,11 @@ def test_entry():
 
 
 if __name__ == "__main__":
-    TEST_FLAG = os.environ.get("CINC2023_TEST", False)
+    TEST_FLAG = os.environ.get("CINC2023_REVENGER_TEST", False)
     TEST_FLAG = str2bool(TEST_FLAG)
     if not TEST_FLAG:
         raise RuntimeError(
-            "please set CINC2023_TEST to true (1, y, yes, true, etc.) to run the test"
+            "please set CINC2023_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test"
         )
     # set_entry_test_flag(True)
     test_entry()

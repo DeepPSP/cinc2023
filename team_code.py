@@ -52,7 +52,7 @@ from utils.misc import load_challenge_metadata
 ################################################################################
 # environment variables
 
-TEST_FLAG = os.environ.get("CINC2023_TEST", False)
+TEST_FLAG = os.environ.get("CINC2023_REVENGER_TEST", False)
 TEST_FLAG = str2bool(TEST_FLAG)
 
 ################################################################################
