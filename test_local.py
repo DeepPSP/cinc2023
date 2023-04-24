@@ -19,6 +19,7 @@ from cfg import TrainCfg, ModelCfg, _BASE_DIR
 # from train_model import train_challenge_model
 from team_code import train_challenge_model
 from run_model import run_model
+from evaluate_model import evaluate_model
 
 
 # set_entry_test_flag(True)
@@ -44,8 +45,8 @@ trunc_data_folder = {
 def test_entry():
 
     # data_folder = str(tmp_data_dir / "training_subset")  # subset
-    data_folder = str(tmp_data_dir / "training")  # full set
-    train_challenge_model(data_folder, str(TrainCfg.model_dir), verbose=2)
+    data_folder = tmp_data_dir / "training"  # full set
+    train_challenge_model(str(data_folder), str(TrainCfg.model_dir), verbose=2)
 
     output_dir = _BASE_DIR / "tmp" / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -54,11 +55,15 @@ def test_entry():
 
     run_model(
         str(TrainCfg.model_dir),
-        data_folder,
+        str(data_folder),
         str(output_dir),
         allow_failures=False,
         verbose=2,
     )
+
+    print("evaluate model for the original data")
+
+    evaluate_model(str(data_folder), str(output_dir))
 
     for limit in [12, 24, 48, 72]:
         print(f"run model for the {limit}h data")
@@ -69,6 +74,9 @@ def test_entry():
             allow_failures=False,
             verbose=2,
         )
+
+        print(f"evaluate model for the {limit}h data")
+        evaluate_model(str(trunc_data_folder[limit]), str(output_dir))
 
     print("entry test passed")
 

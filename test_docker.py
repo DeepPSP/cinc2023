@@ -220,6 +220,7 @@ def test_trainer() -> None:
 # from train_model import train_challenge_model
 from team_code import train_challenge_model
 from run_model import run_model
+from evaluate_model import evaluate_model
 
 
 @func_indicator("testing challenge entry")
@@ -245,6 +246,10 @@ def test_entry() -> None:
         verbose=2,
     )
 
+    print("evaluate model for the original data")
+
+    evaluate_model(str(data_folder), str(output_dir))
+
     for limit in [12, 24, 48, 72]:
         print(f"run model for the {limit}h data")
         run_model(
@@ -254,6 +259,9 @@ def test_entry() -> None:
             allow_failures=False,
             verbose=2,
         )
+
+        print(f"evaluate model for the {limit}h data")
+        evaluate_model(str(truncated_data_dir[limit]), str(output_dir))
 
     print("entry test passed")
 
