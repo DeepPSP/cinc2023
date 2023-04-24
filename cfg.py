@@ -192,10 +192,6 @@ TrainCfg.classification.monitor = "outcome_score"
 # TODO: consider a regression task for cpc
 
 
-def set_entry_test_flag(test_flag: bool):
-    TrainCfg.entry_test_flag = test_flag
-
-
 ###############################################################################
 # configurations for building deep learning models
 # terminologies of stanford ecg repo. will be adopted
