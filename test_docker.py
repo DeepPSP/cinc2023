@@ -262,9 +262,14 @@ if __name__ == "__main__":
     TEST_FLAG = os.environ.get("CINC2023_REVENGER_TEST", False)
     TEST_FLAG = str2bool(TEST_FLAG)
     if not TEST_FLAG:
-        raise RuntimeError(
-            "please set CINC2023_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test"
+        # raise RuntimeError(
+        #     "please set CINC2023_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test"
+        # )
+        print("Test is skipped.")
+        print(
+            "Please set CINC2023_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test"
         )
+        exit(0)
 
     print("#" * 80)
     print("testing team code")

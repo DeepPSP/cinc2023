@@ -32,11 +32,14 @@ jobs:
       run: docker build . --file Dockerfile --tag deeppsp-cinc2023-docker-image:latest
 
     - name: Run the Docker image
-      run: docker run \
-        -e CINC2023_REVENGER_TEST=1 \
-        -e revenger_data_dir=${{ env.revenger_data_dir }} \
-        -e revenger_model_dir=${{ env.revenger_model_dir }} \
-        -e revenger_test_dir=${{ env.revenger_test_dir }} \
-        -e revenger_output_dir=${{ env.revenger_output_dir }} \
-        deeppsp-cinc2023-docker-image:latest \
-        bash test_run_challenge.sh
+      run: |
+        docker run \
+          -e CINC2023_REVENGER_TEST=1 \
+          -e revenger_data_dir=${{ env.revenger_data_dir }} \
+          -e revenger_model_dir=${{ env.revenger_model_dir }} \
+          -e revenger_test_dir=${{ env.revenger_test_dir }} \
+          -e revenger_output_dir=${{ env.revenger_output_dir }} \
+          deeppsp-cinc2023-docker-image:latest \
+          bash -c "bash test_run_challenge.sh"
+        docker ps -a
+        docker stop $(docker ps -a -q)
