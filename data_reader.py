@@ -685,7 +685,7 @@ class CINC2023Reader(PhysioNetDataBase):
             http_get(url, self.db_dir, extract=True)
         else:
             gdown.download(url, dl_file, quiet=False)
-        _untar_file(dl_file, self.db_dir)
+            _untar_file(dl_file, self.db_dir)
         self._ls_rec()
 
     @property
