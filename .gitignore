@@ -139,6 +139,7 @@ tmp
 temp
 checkpoints
 log
+saved_models
 
 
 *.ipynb
@@ -147,7 +148,5 @@ log
 !plot_figures.ipynb
 
 *.npy
-
-saved_models/
 
 !images/*.pdf
