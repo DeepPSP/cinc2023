@@ -9,9 +9,10 @@ FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime has python version 3.10.9
 
 # NOTE: The GPU provided by the Challenge is nvidia Tesla T4
-# running on a g4ad.4xlarge instance on AWS,
+# running on a g4ad.4xlarge (or g4dn.4xlarge?) instance on AWS,
 # which has 16 vCPUs, 64 GB RAM, 300 GB of local storage.
-# nvidiaDriverVersion: 470.82.01 (to be confirmed).
+# nvidiaDriverVersion: 525.85.12
+# CUDA Version: 12.0
 # Check via:
 # https://aws.amazon.com/ec2/instance-types/g4/
 # https://aws.amazon.com/about-aws/whats-new/2021/07/introducing-new-amazon-ec2-g4ad-instance-sizes/
