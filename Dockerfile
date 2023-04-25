@@ -6,10 +6,17 @@ FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # NOTE:
 # pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8
 # pytorch/pytorch:1.10.1-cuda11.3-cudnn8-runtime has python version 3.7.x
+# pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime has python version 3.10.9
 
-# NOTE: The GPU provided by the Challenge is GPU Tesla T4 with nvidiaDriverVersion: 470.82.01
-# by checking https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
-# and https://download.pytorch.org/whl/torch_stable.html
+# NOTE: The GPU provided by the Challenge is nvidia Tesla T4
+# running on a g4ad.4xlarge instance on AWS,
+# which has 16 vCPUs, 64 GB RAM, 300 GB of local storage.
+# nvidiaDriverVersion: 470.82.01 (to be confirmed).
+# Check via:
+# https://aws.amazon.com/ec2/instance-types/g4/
+# https://aws.amazon.com/about-aws/whats-new/2021/07/introducing-new-amazon-ec2-g4ad-instance-sizes/
+# https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
+# https://download.pytorch.org/whl/torch_stable.html
 
 ## The MAINTAINER instruction sets the author field of the generated images.
 LABEL maintainer="wenh06@gmail.com"
