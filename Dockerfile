@@ -1,12 +1,10 @@
-# FROM python:3.8.6-slim
-# https://hub.docker.com/r/nvidia/cuda/
-# FROM nvidia/cuda:11.1.1-devel
-# FROM nvidia/cuda:11.1.1-devel-ubuntu20.04
+# https://hub.docker.com/r/pytorch/pytorch
 FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # NOTE:
 # pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8
 # pytorch/pytorch:1.10.1-cuda11.3-cudnn8-runtime has python version 3.7.x
 # pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime has python version 3.10.9
+
 
 # NOTE: The GPU provided by the Challenge is nvidia Tesla T4
 # running on a g4ad.4xlarge (or g4dn.4xlarge?) instance on AWS,
@@ -16,13 +14,14 @@ FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # Check via:
 # https://aws.amazon.com/ec2/instance-types/g4/
 # https://aws.amazon.com/about-aws/whats-new/2021/07/introducing-new-amazon-ec2-g4ad-instance-sizes/
+# https://github.com/awsdocs/amazon-ec2-user-guide/blob/master/doc_source/accelerated-computing-instances.md#gpu-instances
 # https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
 # https://download.pytorch.org/whl/torch_stable.html
+
 
 ## The MAINTAINER instruction sets the author field of the generated images.
 LABEL maintainer="wenh06@gmail.com"
 
-## Install your dependencies here using apt install, etc.
 
 # latest version of biosppy uses opencv
 # https://stackoverflow.com/questions/55313610/importerror-libgl-so-1-cannot-open-shared-object-file-no-such-file-or-directo
@@ -47,14 +46,20 @@ RUN pip install torchaudio==0.13.1+cu116 --no-deps -f https://download.pytorch.o
 
 RUN pip install torch-ecg
 
+
 ## DO NOT EDIT the 3 lines.
 RUN mkdir /challenge
 COPY ./requirements-docker.txt /challenge
 WORKDIR /challenge
 
+
+# install dependencies other than torch-related packages
 RUN pip install -r requirements-docker.txt
 
+
+# copy the whole project to the docker container
 COPY ./ /challenge
+
 
 # NOTE: also run test_local.py to test locally
 # since GitHub Actions does not have GPU,
@@ -69,4 +74,5 @@ COPY ./ /challenge
 
 
 # python train_model.py training_data model
-# python test_model.py model test_data test_outputs
+# python run_model.py model test_data test_outputs
+# python evaluate_model.py labels outputs scores.csv
