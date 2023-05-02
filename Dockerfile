@@ -1,9 +1,9 @@
 # https://hub.docker.com/r/pytorch/pytorch
 FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # NOTE:
-# pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8
+# pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8, system version Ubuntu 18.04.6 LTS
 # pytorch/pytorch:1.10.1-cuda11.3-cudnn8-runtime has python version 3.7.x
-# pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime has python version 3.10.9
+# pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime has python version 3.10.9, system version Ubuntu 18.04.6 LTS
 
 
 # check distribution of the base image
@@ -34,9 +34,7 @@ RUN apt install build-essential -y
 RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 -y
 
 
-# check if redis is installed
-RUN which redis-server
-
+# NOTE that redis is not installed in the base image
 # install redis
 # https://redis.io/docs/getting-started/installation/install-redis-on-linux/
 RUN apt install lsb-release curl -y
