@@ -1,9 +1,13 @@
 # https://hub.docker.com/r/pytorch/pytorch
 FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # NOTE:
-# pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8
+# pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8, system version Ubuntu 18.04.6 LTS
 # pytorch/pytorch:1.10.1-cuda11.3-cudnn8-runtime has python version 3.7.x
-# pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime has python version 3.10.9
+# pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime has python version 3.10.9, system version Ubuntu 18.04.6 LTS
+
+
+# check distribution of the base image
+RUN cat /etc/issue
 
 
 # NOTE: The GPU provided by the Challenge is nvidia Tesla T4
@@ -28,6 +32,18 @@ LABEL maintainer="wenh06@gmail.com"
 RUN apt update
 RUN apt install build-essential -y
 RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 -y
+
+
+# NOTE that redis is not installed in the base image
+# install redis
+# https://redis.io/docs/getting-started/installation/install-redis-on-linux/
+RUN apt install lsb-release curl -y
+RUN curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
+RUN echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/redis.list
+RUN apt update && apt install redis -y
+# check redis version
+RUN redis-server --version
+
 
 RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 
