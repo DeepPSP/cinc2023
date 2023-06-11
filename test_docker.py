@@ -72,6 +72,7 @@ truncate_cfg = CFG(
 truncated_data_dir = {}
 for limit in [12, 24, 48, 72]:
     truncate_cfg.time_limit = limit
+    truncate_cfg.patient_ids = []
     truncated_data_dir[limit] = str(tmp_data_dir.parent / f"CINC2023_{limit}h")
     truncate_cfg.output_folder = truncated_data_dir[limit]
     truncate_data_run(truncate_cfg)
