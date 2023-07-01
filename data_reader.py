@@ -14,7 +14,7 @@ import scipy.signal as SS
 from tqdm.auto import tqdm
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.databases.base import PhysioNetDataBase, DataBaseInfo
-from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring, list_sum
+from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring
 from torch_ecg.utils.download import _untar_file
 
 from cfg import BaseCfg
@@ -33,12 +33,23 @@ _CINC2023_INFO = DataBaseInfo(
     1. The goal of the Challenge is to use longitudinal EEG recordings to predict good and poor patient outcomes after cardiac arrest.
     2. The data originates from seven academic hospitals.
     3. The database consists of clinical, EEG, and ECG data from adult patients with out-of-hospital or in-hospital cardiac arrest who had return of heart function (i.e., return of spontaneous circulation [ROSC]) but remained comatose - defined as the inability to follow verbal commands and a Glasgow Coma Score <= 8.
-    4. All EEG data was pre-processed with bandpass filtering (0.5-20Hz) and resampled to 100 Hz.
+    4. EEG data (and also other types of data) have varying sampling rates (500, 512, 256, 2048, 250, 200, 1024).
     5. Each recording contains an array of a duration of 5 minutes with EEG signals from 18 bipolar channel pairs.
     6. The EEG recordings for one patient continue for several hours to days, so the EEG signals are prone to quality deterioration from non-physiological artifacts. ~~Only the **cleanest 5 minutes** of EEG data per hour are provided.~~
     7. There might be gaps in the EEG data, since patients may have EEG started several hours after the arrest or need to have brain monitoring interrupted transiently while in the ICU.
     8. Pattern for the data files: <patient_id>_<segment_id>_<hour>_<signal_type>.mat
-    9. 4 types (groups) of signals were collected. In addition to EEG data, there are 3 other groups: ECG, REF, OTHER
+    9. 4 types (groups) of signals were collected. In addition to EEG data, there are 3 (optional) other groups: ECG, REF, OTHER. The signals have the following channels:
+
+        - EEG: Fp1, Fp2, F7, F8, F3, F4, T3, T4, C3, C4, T5, T6, P3, P4, O1, O2, Fz, Cz, Pz, Fpz, Oz, F9
+        - ECG: ECG, ECG1, ECG2, ECGL, ECGR
+        - REF: RAT1, RAT2, REF, C2, A1, A2, BIP1, BIP2, BIP3, BIP4, Cb2, M1, M2, In1-Ref2, In1-Ref3
+        - OTHER: SpO2, EMG1, EMG2, EMG3, LAT1, LAT2, LOC, ROC, LEG1, LEG2
+
+    Note that the following channels do not appear in the public training set:
+
+        - EEG: Oz
+        - REF: A1, A2, BIP1, BIP2, BIP3, BIP4, C2, Cb2, In1-Ref2
+
     10. Each patient has one .txt file containing patient information (ref. 11) and clinical outcome (ref. 12).
     11. Patient information includes information recorded at the time of admission (age, sex), identifier of the hospital where the data was collected (hospital), location of arrest (out or in-hospital), type of cardiac rhythm recorded at the time of resuscitation (shockable rhythms include ventricular fibrillation or ventricular tachycardia and non-shockable rhythms include asystole and pulseless electrical activity), and the time between cardiac arrest and ROSC (return of spontaneous circulation). The following table summarizes the patient information:
 
@@ -120,13 +131,27 @@ class CINC2023Reader(PhysioNetDataBase):
     __name__ = "CINC2023Reader"
 
     # fmt: off
-    channel_names = [
-        "Fp1-F7", "F7-T3", "T3-T5", "T5-O1", "Fp2-F8", "F8-T4",
-        "T4-T6", "T6-O2", "Fp1-F3", "F3-C3", "C3-P3", "P3-O1",
-        "Fp2-F4", "F4-C4", "C4-P4", "P4-O2", "Fz-Cz", "Cz-Pz",
+    channel_names = {
+        "EEG": [
+            "Fp1", "Fp2", "F7", "F8", "F3", "F4", "T3", "T4", "C3", "C4",
+            "T5", "T6", "P3", "P4", "O1", "O2", "Fz", "Cz", "Pz", "Fpz", "Oz", "F9",
+        ],
+        "ECG": [
+            "ECG", "ECG1", "ECG2", "ECGL", "ECGR",
+        ],
+        "REF": [
+            "RAT1", "RAT2", "REF", "C2", "A1", "A2", "BIP1", "BIP2", "BIP3", "BIP4",
+            "Cb2", "M1", "M2", "In1-Ref2", "In1-Ref3",
+        ],
+        "OTHER": [
+            "SpO2", "EMG1", "EMG2", "EMG3", "LAT1", "LAT2", "LOC", "ROC", "LEG1", "LEG2",
+        ],
+    }
+    common_eeg_channels = [
+        "Fp1", "Fp2", "F7", "F8", "F3", "F4", "T3", "T4", "C3", "C4",
+        "T5", "T6", "P3", "P4", "O1", "O2", "Fz", "Cz", "Pz",
     ]
     # fmt: on
-    electrode_names = sorted(set(list_sum([chn.split("-") for chn in channel_names])))
 
     def __init__(
         self,
@@ -152,7 +177,7 @@ class CINC2023Reader(PhysioNetDataBase):
 
         self._url_compressed = {
             "full": "https://physionet.org/static/published-projects/i-care/i-care-international-cardiac-arrest-research-consortium-database-2.0.zip",
-            "subset": "https://drive.google.com/u/0/uc?id=10ML4iU8eVZ_434-FoMUUAKJNSksz9Siy",
+            "subset": "https://drive.google.com/u/0/uc?id=13IAz0mZIyT4X18izeSClj2veE9E09vop",
         }
 
         self._rec_pattern = "(?P<sbj>[\\d]{4})\\_(?P<seg>[\\d]{3})\\_(?P<hour>[\\d]{3})\\_(?P<sig>EEG|ECG|REF|OTHER)"
@@ -165,7 +190,10 @@ class CINC2023Reader(PhysioNetDataBase):
         self.records_metadata_file = self.db_dir / "RECORDS.csv"
         self.subjects_metadata_file = self.db_dir / "SUBJECTS.csv"
 
+        self._df_records_all = None
+        self._df_records = None
         self._df_subjects = None
+        self._all_records_all = None
         self._all_records = None
         self._all_subjects = None
         self._subject_records = None
@@ -186,7 +214,8 @@ class CINC2023Reader(PhysioNetDataBase):
         # fmt: off
         records_index = "record"
         records_cols = [
-            "subject", "path", "hour", "time", "quality",
+            "subject", "path", "sig_type",
+            # "hour", "time", "quality",
             "fs", "sig_len", "n_sig", "sig_name",
         ]
         subjects_index = "subject"
@@ -196,7 +225,7 @@ class CINC2023Reader(PhysioNetDataBase):
             "Outcome", "CPC",
         ]
         # fmt: on
-        self._df_records = pd.DataFrame(columns=[records_index] + records_cols)
+        self._df_records_all = pd.DataFrame(columns=[records_index] + records_cols)
         self._df_subjects = pd.DataFrame(columns=[subjects_index] + subjects_cols)
 
         cache_exists = (
@@ -207,16 +236,16 @@ class CINC2023Reader(PhysioNetDataBase):
         write_files = False
 
         if cache_exists:
-            self._df_records = pd.read_csv(
+            self._df_records_all = pd.read_csv(
                 self.records_metadata_file, index_col="record"
             )
-            self._df_records["subject"] = self._df_records["subject"].apply(
+            self._df_records_all["subject"] = self._df_records_all["subject"].apply(
                 lambda x: f"{x:04d}"
             )
-            self._df_records["path"] = self._df_records["path"].apply(
+            self._df_records_all["path"] = self._df_records_all["path"].apply(
                 lambda x: Path(x).resolve()
             )
-            self._df_records["sig_name"] = self._df_records["sig_name"].apply(
+            self._df_records_all["sig_name"] = self._df_records_all["sig_name"].apply(
                 literal_eval
             )
             self._df_subjects = pd.read_csv(
@@ -230,39 +259,45 @@ class CINC2023Reader(PhysioNetDataBase):
         elif self._subsample is None:
             write_files = True
 
-        if not self._df_records.empty:
+        if not self._df_records_all.empty:
             data_suffix = f".{self.data_ext}"
-            self._df_records = self._df_records[
-                self._df_records["path"].apply(
+            self._df_records_all = self._df_records_all[
+                self._df_records_all["path"].apply(
                     lambda x: Path(x).with_suffix(data_suffix).exists()
                 )
             ]
 
-        if len(self._df_records) == 0:
+        if len(self._df_records_all) == 0:
             if self._subsample is None:
                 write_files = True
-            self._df_records["path"] = get_record_list_recursive3(
+            self._df_records_all["path"] = get_record_list_recursive3(
                 self.db_dir, f"{self._rec_pattern}\\.{self.data_ext}", relative=False
             )
-            self._df_records["path"] = self._df_records["path"].apply(lambda x: Path(x))
+            self._df_records_all["path"] = self._df_records_all["path"].apply(
+                lambda x: Path(x)
+            )
 
-            self._df_records["record"] = self._df_records["path"].apply(
+            self._df_records_all["record"] = self._df_records_all["path"].apply(
                 lambda x: x.stem
             )
-            self._df_records["subject"] = self._df_records["record"].apply(
+            self._df_records_all["subject"] = self._df_records_all["record"].apply(
                 lambda x: re.match(self._rec_pattern, x).group("sbj")
             )
+            self._df_records_all["sig_type"] = self._df_records_all["record"].apply(
+                lambda x: re.match(self._rec_pattern, x).group("sig")
+            )
 
-            self._df_records = self._df_records.sort_values(by="record")
-            self._df_records.set_index("record", inplace=True)
+            self._df_records_all = self._df_records_all.sort_values(by="record")
+            self._df_records_all.set_index("record", inplace=True)
 
-            for extra_col in ["hour", "quality", "fs", "sig_len", "n_sig", "sig_name"]:
-                self._df_records[extra_col] = None
+            # for extra_col in ["hour", "quality", "fs", "sig_len", "n_sig", "sig_name"]:
+            for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
+                self._df_records_all[extra_col] = None
 
-            if not self._df_records.empty:
+            if not self._df_records_all.empty:
                 with tqdm(
-                    self._df_records.iterrows(),
-                    total=len(self._df_records),
+                    self._df_records_all.iterrows(),
+                    total=len(self._df_records_all),
                     dynamic_ncols=True,
                     mininterval=1.0,
                     desc="Collecting recording metadata",
@@ -270,13 +305,13 @@ class CINC2023Reader(PhysioNetDataBase):
                     for idx, row in pbar:
                         header = wfdb.rdheader(str(row.path))
                         for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
-                            self._df_records.at[idx, extra_col] = getattr(
+                            self._df_records_all.at[idx, extra_col] = getattr(
                                 header, extra_col
                             )
 
-        if len(self._df_records) > 0:
+        if len(self._df_records_all) > 0:
             if self._subsample is not None:
-                all_subjects = self._df_records["subject"].unique().tolist()
+                all_subjects = self._df_records_all["subject"].unique().tolist()
                 size = min(
                     len(all_subjects),
                     max(1, int(round(self._subsample * len(all_subjects)))),
@@ -287,14 +322,21 @@ class CINC2023Reader(PhysioNetDataBase):
                 all_subjects = DEFAULTS.RNG.choice(
                     all_subjects, size=size, replace=False
                 )
-                self._df_records = self._df_records.loc[
-                    self._df_records["subject"].isin(all_subjects)
+                self._df_records_all = self._df_records_all.loc[
+                    self._df_records_all["subject"].isin(all_subjects)
                 ].sort_values(by="record")
 
-        self._all_records = self._df_records.index.tolist()
-        self._all_subjects = self._df_records["subject"].unique().tolist()
+        self._all_records_all = {
+            sig_type: self._df_records_all[
+                self._df_records_all.sig_type == sig_type
+            ].index.tolist()
+            for sig_type in self._df_records_all.sig_type.unique().tolist()
+        }
+        self._all_subjects = self._df_records_all["subject"].unique().tolist()
         self._subject_records = {
-            sbj: self._df_records.loc[self._df_records["subject"] == sbj].index.tolist()
+            sbj: self._df_records_all.loc[
+                self._df_records_all["subject"] == sbj
+            ].index.tolist()
             for sbj in self._all_subjects
         }
 
@@ -311,7 +353,7 @@ class CINC2023Reader(PhysioNetDataBase):
             ) as pbar:
                 for sbj in pbar:
                     file_path = (
-                        self._df_records.loc[self._df_records["subject"] == sbj]
+                        self._df_records_all.loc[self._df_records_all["subject"] == sbj]
                         .iloc[0]["path"]
                         .parent
                         / f"{sbj}.txt"
@@ -359,24 +401,40 @@ class CINC2023Reader(PhysioNetDataBase):
         #         .dropna(subset=["record"])
         #         .set_index("record")
         #     )
-        #     self._df_records.drop(columns=["hour", "time", "quality"], inplace=True)
-        #     self._df_records = self._df_records.join(df_quality)
-        #     self._df_records = self._df_records[records_cols]
+        #     self._df_records_all.drop(columns=["hour", "time", "quality"], inplace=True)
+        #     self._df_records_all = self._df_records_all.join(df_quality)
+        #     self._df_records_all = self._df_records_all[records_cols]
         # del df_quality
 
-        if self._df_records.empty or self._df_subjects.empty:
+        if self._df_records_all.empty or self._df_subjects.empty:
             write_files = False
 
         if write_files:
             self.records_file.write_text(
                 "\n".join(
-                    self._df_records["path"]
+                    self._df_records_all["path"]
                     .apply(lambda x: x.relative_to(self.db_dir).as_posix())
                     .tolist()
                 )
             )
-            self._df_records.to_csv(self.records_metadata_file)
+            self._df_records_all.to_csv(self.records_metadata_file)
             self._df_subjects.to_csv(self.subjects_metadata_file)
+
+        self._df_records = self._df_records_all[
+            self._df_records_all["sig_type"] == "EEG"
+        ]
+        for aux_sig in ["ECG", "REF", "OTHER"]:
+            df_tmp = self._df_records_all[self._df_records_all["sig_type"] == aux_sig]
+            df_tmp.index = df_tmp.index.map(lambda x: x.replace(aux_sig, "EEG"))
+            df_tmp = df_tmp.assign(aux_sig=True)
+            df_tmp = df_tmp[["aux_sig"]]
+            df_tmp.columns = [aux_sig]
+            # merge self._df_records and df_tmp
+            self._df_records = self._df_records.join(df_tmp, how="outer")
+            # fill NaNs with False
+            self._df_records[aux_sig].fillna(False, inplace=True)
+            del df_tmp
+        self._all_records = self._df_records.index.tolist()
 
     def clear_cached_metadata_files(self) -> None:
         """Remove the cached metadata files if they exist."""
@@ -415,7 +473,7 @@ class CINC2023Reader(PhysioNetDataBase):
     def get_absolute_path(
         self,
         rec_or_sbj: Union[str, int],
-        signal_type: str = "EEG",
+        signal_type: Optional[str] = None,
         extension: Optional[str] = None,
     ) -> Path:
         """Get the absolute path of the record.
@@ -425,8 +483,9 @@ class CINC2023Reader(PhysioNetDataBase):
         rec_or_sbj : str or int
             Record name or index of the record in :attr:`all_records`
             or subject name.
-        signal_type : {"EEG", "ECG", "REF", "OTHER"},
+        signal_type : {"EEG", "ECG", "REF", "OTHER"}, optional
             Type of the signal.
+            Can be directly passed as a part of the record name.
         extension : str, optional
             Extension of the file.
 
@@ -438,12 +497,16 @@ class CINC2023Reader(PhysioNetDataBase):
         """
         if isinstance(rec_or_sbj, int):
             rec_or_sbj = self[rec_or_sbj]
-        if rec_or_sbj in self.all_records:
-            path = self._df_records.loc[rec_or_sbj, "path"]
-        else:
+            if signal_type is not None:
+                rec_or_sbj = rec_or_sbj.replace("EEG", signal_type)
+        if rec_or_sbj in self._df_records_all.index:
+            path = self._df_records_all.loc[rec_or_sbj, "path"]
+        elif rec_or_sbj in self.all_subjects:
             path = self._df_subjects.loc[rec_or_sbj, "Directory"]
             if extension is not None:
                 path = path / f"{rec_or_sbj}"
+        else:
+            raise ValueError(f"record or subject `{rec_or_sbj}` not found")
         if extension is not None and not extension.startswith("."):
             extension = f".{extension}"
         return path.with_suffix(extension or "").resolve()
@@ -549,6 +612,48 @@ class CINC2023Reader(PhysioNetDataBase):
             data = data.flatten()
 
         return data
+
+    def load_aux_data(
+        self,
+        rec: Union[str, int],
+        data_type: str,
+        channels: Optional[Union[str, int, Sequence[Union[str, int]]]] = None,
+        sampfrom: Optional[int] = None,
+        sampto: Optional[int] = None,
+        data_format: str = "channel_first",
+        fs: Optional[int] = None,
+    ) -> np.ndarray:
+        """Load auxiliary data from the record.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or the index of the record in :attr:`all_records`.
+        data_type : {"ECG", "REF", "OTHER"}
+            Type of the auxiliary data.
+        channels : str or int or Sequence[str] or Sequence[int], optional
+            Names or indices of the channel(s) to load.
+            If is None, all channels will be loaded.
+        sampfrom : int, optional
+            Start index of the data to be loaded.
+        sampto : int, optional
+            End index of the data to be loaded.
+        data_format : str, default "channel_first"
+            Format of the data, can be one of
+            "channel_first", "channel_last",
+            or "flat" (alias "plain") if `channels` is a single channel.
+            case insensitive.
+        fs : int, optional
+            Sampling frequency of the record,
+            defaults to the raw sampling frequency of the record.
+
+        Returns
+        -------
+        data : numpy.ndarray
+            The loaded auxiliary data.
+
+        """
+        raise NotImplementedError
 
     def load_ann(self, rec_or_sbj: Union[str, int]) -> Dict[str, Union[str, int]]:
         """Load classification annotation corresponding to
