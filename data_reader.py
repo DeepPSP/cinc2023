@@ -15,7 +15,7 @@ from tqdm.auto import tqdm
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.databases.base import PhysioNetDataBase, DataBaseInfo
 from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring, list_sum
-from torch_ecg.utils.download import http_get, _untar_file
+from torch_ecg.utils.download import _untar_file
 
 from cfg import BaseCfg
 
@@ -32,22 +32,22 @@ _CINC2023_INFO = DataBaseInfo(
     about="""
     1. The goal of the Challenge is to use longitudinal EEG recordings to predict good and poor patient outcomes after cardiac arrest.
     2. The data originates from seven academic hospitals.
-    3. All EEG data was pre-processed with bandpass filtering (0.5-20Hz) and resampled to 100 Hz.
-    4. Each recording contains an array of a duration of 5 minutes with EEG signals from 18 bipolar channel pairs.
-    5. The EEG recordings for one patient continue for several hours to days, so the EEG signals are prone to quality deterioration from non-physiological artifacts. Only the **cleanest 5 minutes** of EEG data per hour are provided.
-    6. There might be gaps in the EEG data, since patients may have EEG started several hours after the arrest or need to have brain monitoring interrupted transiently while in the ICU.
-    7. Pattern for the EEG data files: ICARE_<patient_id>_<hour>.mat
-    8. In addition to EEG data, one additional .tsv file includes artifact scores for each hour, containing
-
-        - **Time**: the timestamp for the start of each EEG signal file in relation to the time of cardiac arrest (under the column “Time”).
-        - **Quality**: a measure of quality of the EEG signal for the 5-minute epochs, based on how many 10-second epochs within a 5-minute EEG window are contaminated by artifacts, ranging from 0 (all artifacts) to 1 (no artifacts).
-
-    9. Each patient has one .txt file containing patient information (ref. 10) and clinical outcome (ref. 11).
-    10. Patient information includes information recorded at the time of admission (age, sex), location of arrest (out or in-hospital), type of cardiac rhythm recorded at the time of resuscitation (shockable rhythms include ventricular fibrillation or ventricular tachycardia and non-shockable rhythms include asystole and pulseless electrical activity), and the time between cardiac arrest and ROSC (return of spontaneous circulation). The following table summarizes the patient information:
+    3. The database consists of clinical, EEG, and ECG data from adult patients with out-of-hospital or in-hospital cardiac arrest who had return of heart function (i.e., return of spontaneous circulation [ROSC]) but remained comatose - defined as the inability to follow verbal commands and a Glasgow Coma Score <= 8.
+    4. All EEG data was pre-processed with bandpass filtering (0.5-20Hz) and resampled to 100 Hz.
+    5. Each recording contains an array of a duration of 5 minutes with EEG signals from 18 bipolar channel pairs.
+    6. The EEG recordings for one patient continue for several hours to days, so the EEG signals are prone to quality deterioration from non-physiological artifacts. ~~Only the **cleanest 5 minutes** of EEG data per hour are provided.~~
+    7. There might be gaps in the EEG data, since patients may have EEG started several hours after the arrest or need to have brain monitoring interrupted transiently while in the ICU.
+    8. Pattern for the data files: <patient_id>_<segment_id>_<hour>_<signal_type>.mat
+    9. 4 types (groups) of signals were collected. In addition to EEG data, there are 3 other groups: ECG, REF, OTHER
+    10. Each patient has one .txt file containing patient information (ref. 11) and clinical outcome (ref. 12).
+    11. Patient information includes information recorded at the time of admission (age, sex), identifier of the hospital where the data was collected (hospital), location of arrest (out or in-hospital), type of cardiac rhythm recorded at the time of resuscitation (shockable rhythms include ventricular fibrillation or ventricular tachycardia and non-shockable rhythms include asystole and pulseless electrical activity), and the time between cardiac arrest and ROSC (return of spontaneous circulation). The following table summarizes the patient information:
 
         +----------------+-----------------------------------------------+-----------------------------------------+
         |  info          |   meaning                                     |   type and values                       |
         +================+===============================================+=========================================+
+        |  Hospital      |   identifier of the hospital where the data   |   categorical                           |
+        |                |   is collected                                |   A, B, C, D, E, F, G                   |
+        +----------------+-----------------------------------------------+-----------------------------------------+
         |  Age           |   Age (in years)                              |   continuous                            |
         +----------------+-----------------------------------------------+-----------------------------------------+
         |  Sex           |   Sex                                         |   categorical                           |
@@ -59,15 +59,15 @@ _CINC2023_INFO = DataBaseInfo(
         |                |                                               |   True = out of hospital cardiac arrest |
         |                |                                               |   False = in-hospital cardiac arrest    |
         +----------------+-----------------------------------------------+-----------------------------------------+
-        |  VFib          |   ventricular fibrillation                    |   categorical (boolean)                 |
-        |                |                                               |   True = shockable rhythm               |
+        |  Shockable     |   ventricular fibrillation                    |   categorical (boolean)                 |
+        |  Rhythm        |                                               |   True = shockable rhythm               |
         |                |                                               |   False = non-shockable rhythm          |
         +----------------+-----------------------------------------------+-----------------------------------------+
         |  TTM           |   targeted temperature management,            |   continuous (indeed, categorical)      |
         |                |   in Celsius                                  |   33, 36, or NaN for no TTM             |
         +----------------+-----------------------------------------------+-----------------------------------------+
 
-    11. Clinical outcome was determined prospectively in two centers by phone interview (at 6 months from ROSC), and at the remaining hospitals retrospectively through chart review (at 3-6 months from ROSC). Neurological function was determined using the Cerebral Performance Category (CPC) scale. CPC is an ordinal scale ranging from 1 to 5:
+    12. Clinical outcome was determined prospectively in two centers by phone interview (at 6 months from ROSC), and at the remaining hospitals retrospectively through chart review (at 3-6 months from ROSC). Neurological function was determined using the Cerebral Performance Category (CPC) scale. CPC is an ordinal scale ranging from 1 to 5:
 
         - CPC = 1: good neurological function and independent for activities of daily living.
         - CPC = 2: moderate neurological disability but independent for activities of daily living.
@@ -75,7 +75,7 @@ _CINC2023_INFO = DataBaseInfo(
         - CPC = 4: unresponsive wakefulness syndrome [previously known as vegetative state].
         - CPC = 5: dead.
 
-    12. The CPC scores are grouped into two categories:
+    13. The CPC scores are grouped into two categories:
 
         - Good: CPC = 1 or 2.
         - Poor: CPC = 3, 4, or 5.
@@ -92,7 +92,8 @@ _CINC2023_INFO = DataBaseInfo(
         "https://moody-challenge.physionet.org/2023/",
         "https://physionet.org/content/i-care/",
     ],
-    doi=["https://doi.org/10.13026/rjbz-cq89"],
+    # doi=["https://doi.org/10.13026/rjbz-cq89"],
+    doi=["https://doi.org/10.13026/avek-0p97"],
 )
 
 
@@ -150,14 +151,14 @@ class CINC2023Reader(PhysioNetDataBase):
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
 
         self._url_compressed = {
-            "full": "https://physionet.org/static/published-projects/i-care/i-care-international-cardiac-arrest-research-consortium-database-1.0.zip",
+            "full": "https://physionet.org/static/published-projects/i-care/i-care-international-cardiac-arrest-research-consortium-database-2.0.zip",
             "subset": "https://drive.google.com/u/0/uc?id=10ML4iU8eVZ_434-FoMUUAKJNSksz9Siy",
         }
 
-        self._rec_pattern = "ICARE\\_(?P<sbj>[\\d]+)\\_(?P<hour>[\\d]+)"
+        self._rec_pattern = "(?P<sbj>[\\d]{4})\\_(?P<seg>[\\d]{3})\\_(?P<hour>[\\d]{3})\\_(?P<sig>EEG|ECG|REF|OTHER)"
         self.data_ext = "mat"
         self.header_ext = "hea"
-        self.quality_ext = "tsv"
+        # self.quality_ext = "tsv"
         self.ann_ext = "txt"
 
         self.records_file = self.db_dir / "RECORDS-NEW"
@@ -191,7 +192,7 @@ class CINC2023Reader(PhysioNetDataBase):
         subjects_index = "subject"
         subjects_cols = [
             "Directory",
-            "Age", "Sex", "ROSC", "OHCA", "VFib", "TTM",
+            "Hospital", "Age", "Sex", "ROSC", "OHCA", "Shockable Rhythm", "TTM",
             "Outcome", "CPC",
         ]
         # fmt: on
@@ -299,7 +300,7 @@ class CINC2023Reader(PhysioNetDataBase):
 
         # collect subject metadata from the .txt files
         if self._df_subjects.empty and len(self._all_subjects) > 0:
-            df_quality = pd.DataFrame(columns=["Record", "Hour", "Time", "Quality"])
+            # df_quality = pd.DataFrame(columns=["Record", "Hour", "Time", "Quality"])
             metadata_list = []
             with tqdm(
                 self._all_subjects,
@@ -313,7 +314,7 @@ class CINC2023Reader(PhysioNetDataBase):
                         self._df_records.loc[self._df_records["subject"] == sbj]
                         .iloc[0]["path"]
                         .parent
-                        / f"ICARE_{sbj}.txt"
+                        / f"{sbj}.txt"
                     )
                     metadata = {
                         k.strip(): v.strip()
@@ -325,15 +326,15 @@ class CINC2023Reader(PhysioNetDataBase):
                     metadata["subject"] = sbj
                     metadata["Directory"] = file_path.parent
                     metadata_list.append(metadata)
-                    df_quality = pd.concat(
-                        [
-                            df_quality,
-                            pd.read_csv(
-                                file_path.with_suffix(f".{self.quality_ext}"), sep="\t"
-                            ),
-                        ],
-                        ignore_index=True,
-                    )
+                    # df_quality = pd.concat(
+                    #     [
+                    #         df_quality,
+                    #         pd.read_csv(
+                    #             file_path.with_suffix(f".{self.quality_ext}"), sep="\t"
+                    #         ),
+                    #     ],
+                    #     ignore_index=True,
+                    # )
             self._df_subjects = pd.DataFrame(
                 metadata_list, columns=["subject"] + subjects_cols
             )
@@ -343,25 +344,25 @@ class CINC2023Reader(PhysioNetDataBase):
             self._df_subjects = self._df_subjects[
                 self._df_subjects.index.isin(self._all_subjects)
             ]
-            df_quality = None
+            # df_quality = None
 
-        if df_quality is not None:
-            df_quality = (
-                df_quality.rename(
-                    columns={
-                        "Record": "record",
-                        "Hour": "hour",
-                        "Time": "time",
-                        "Quality": "quality",
-                    }
-                )
-                .dropna(subset=["record"])
-                .set_index("record")
-            )
-            self._df_records.drop(columns=["hour", "time", "quality"], inplace=True)
-            self._df_records = self._df_records.join(df_quality)
-            self._df_records = self._df_records[records_cols]
-        del df_quality
+        # if df_quality is not None:
+        #     df_quality = (
+        #         df_quality.rename(
+        #             columns={
+        #                 "Record": "record",
+        #                 "Hour": "hour",
+        #                 "Time": "time",
+        #                 "Quality": "quality",
+        #             }
+        #         )
+        #         .dropna(subset=["record"])
+        #         .set_index("record")
+        #     )
+        #     self._df_records.drop(columns=["hour", "time", "quality"], inplace=True)
+        #     self._df_records = self._df_records.join(df_quality)
+        #     self._df_records = self._df_records[records_cols]
+        # del df_quality
 
         if self._df_records.empty or self._df_subjects.empty:
             write_files = False
@@ -412,7 +413,10 @@ class CINC2023Reader(PhysioNetDataBase):
             raise ValueError(f"record or subject `{rec_or_sbj}` not found")
 
     def get_absolute_path(
-        self, rec_or_sbj: Union[str, int], extension: Optional[str] = None
+        self,
+        rec_or_sbj: Union[str, int],
+        signal_type: str = "EEG",
+        extension: Optional[str] = None,
     ) -> Path:
         """Get the absolute path of the record.
 
@@ -421,6 +425,8 @@ class CINC2023Reader(PhysioNetDataBase):
         rec_or_sbj : str or int
             Record name or index of the record in :attr:`all_records`
             or subject name.
+        signal_type : {"EEG", "ECG", "REF", "OTHER"},
+            Type of the signal.
         extension : str, optional
             Extension of the file.
 
@@ -437,7 +443,7 @@ class CINC2023Reader(PhysioNetDataBase):
         else:
             path = self._df_subjects.loc[rec_or_sbj, "Directory"]
             if extension is not None:
-                path = path / f"ICARE_{rec_or_sbj}"
+                path = path / f"{rec_or_sbj}"
         if extension is not None and not extension.startswith("."):
             extension = f".{extension}"
         return path.with_suffix(extension or "").resolve()
@@ -639,14 +645,16 @@ class CINC2023Reader(PhysioNetDataBase):
             The quality table of the subject.
 
         """
-        if isinstance(sbj, int):
-            sbj = self.all_subjects[sbj]
-        fp = self.get_absolute_path(sbj, self.quality_ext)
-        df_quality = (
-            pd.read_csv(fp, sep="\t").dropna(subset=["Record"]).set_index("Record")
-        )
-        df_quality.index.name = "record"
-        return df_quality
+        # if isinstance(sbj, int):
+        #     sbj = self.all_subjects[sbj]
+        # fp = self.get_absolute_path(sbj, self.quality_ext)
+        # df_quality = (
+        #     pd.read_csv(fp, sep="\t").dropna(subset=["Record"]).set_index("Record")
+        # )
+        # df_quality.index.name = "record"
+        # return df_quality
+        print("Quality tables are removed from the database starting from version 2.")
+        return pd.DataFrame()
 
     @property
     def all_subjects(self) -> List[str]:
@@ -678,16 +686,38 @@ class CINC2023Reader(PhysioNetDataBase):
 
     def download(self, full: bool = True) -> None:
         """Download the database from PhysioNet or Google Drive."""
-        url = self._url_compressed["full" if full else "subset"]
-        dl_file = "training.tar.gz" if full else "training_subset.tar.gz"
-        dl_file = str(self.db_dir / dl_file)
+        # url = self._url_compressed["full" if full else "subset"]
+        # dl_file = "training.tar.gz" if full else "training_subset.tar.gz"
+        # dl_file = str(self.db_dir / dl_file)
+        # if full:
+        #     http_get(url, self.db_dir, extract=True)
+        # else:
+        #     gdown.download(url, dl_file, quiet=False)
+        #     _untar_file(dl_file, self.db_dir)
+        # self._ls_rec()
         if full:
-            http_get(url, self.db_dir, extract=True)
+            print("The full database is too large.")
+            print(
+                "Please download from PhysioNet or Google Cloud Platform "
+                "manually or using tools like `wget`, `gsutil`."
+            )
+            print(f"Webpage of the database at PhysioNet: {self.webpage}")
+            print(
+                f"Webpage of the database at Google Cloud Platform: {self.gcp_webpage}"
+            )
         else:
+            url = self._url_compressed["subset"]
+            dl_file = str(self.db_dir / "training_subset.tar.gz")
             gdown.download(url, dl_file, quiet=False)
             _untar_file(dl_file, self.db_dir)
-        self._ls_rec()
+            self._ls_rec()
 
     @property
     def database_info(self) -> DataBaseInfo:
         return _CINC2023_INFO
+
+    @property
+    def gcp_webpage(self) -> str:
+        return (
+            "https://console.cloud.google.com/storage/browser/i-care-2.0.physionet.org/"
+        )
