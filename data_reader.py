@@ -218,7 +218,7 @@ class CINC2023Reader(PhysioNetDataBase):
         # fmt: off
         records_index = "record"
         records_cols = [
-            "subject", "path", "sig_type",
+            "subject", "path", "sig_type", "hour",
             # "hour", "time", "quality",
             "fs", "sig_len", "n_sig", "sig_name",
         ]
@@ -290,6 +290,11 @@ class CINC2023Reader(PhysioNetDataBase):
             self._df_records_all["sig_type"] = self._df_records_all["record"].apply(
                 lambda x: re.match(self._rec_pattern, x).group("sig")
             )
+            self._df_records_all["hour"] = (
+                self._df_records_all["record"]
+                .apply(lambda x: re.match(self._rec_pattern, x).group("hour"))
+                .astype(int)
+            )
 
             self._df_records_all = self._df_records_all.sort_values(by="record")
             self._df_records_all.set_index("record", inplace=True)
@@ -312,6 +317,10 @@ class CINC2023Reader(PhysioNetDataBase):
                             self._df_records_all.at[idx, extra_col] = getattr(
                                 header, extra_col
                             )
+                for extra_col in ["fs", "sig_len", "n_sig"]:
+                    self._df_records_all[extra_col] = self._df_records_all[
+                        extra_col
+                    ].astype(int)
 
         if len(self._df_records_all) > 0:
             if self._subsample is not None:
