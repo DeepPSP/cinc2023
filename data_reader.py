@@ -121,6 +121,9 @@ class CINC2023Reader(PhysioNetDataBase):
         Backend to use, by default "wfdb", case insensitive.
     working_dir : str, optional
         Working directory, to store intermediate files and log files.
+    hour_limit : int, optional
+        If not None, only the recordings recorded within the first
+        `hour_limit` hours will be visiable to the reader.
     verbose: int, default 2
         Verbosity level for logging.
     kwargs : dict, optional
@@ -163,6 +166,7 @@ class CINC2023Reader(PhysioNetDataBase):
         fs: int = 100,
         backend: str = "wfdb",
         working_dir: Optional[str] = None,
+        hour_limit: Optional[int] = None,
         verbose: int = 2,
         **kwargs: Any,
     ) -> None:
@@ -175,8 +179,8 @@ class CINC2023Reader(PhysioNetDataBase):
             verbose=verbose,
             **kwargs,
         )
-        self.fs = fs
         self.backend = backend
+        self.hour_limit = hour_limit
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
 
         self._url_compressed = {
@@ -194,7 +198,9 @@ class CINC2023Reader(PhysioNetDataBase):
         self.records_metadata_file = self.db_dir / "RECORDS.csv"
         self.subjects_metadata_file = self.db_dir / "SUBJECTS.csv"
 
+        self._df_records_all_bak = None
         self._df_records_all = None
+        self._df_records_bak = None
         self._df_records = None
         self._df_subjects = None
         self._all_records_all = None
@@ -210,6 +216,35 @@ class CINC2023Reader(PhysioNetDataBase):
     def _reset_fs(self, new_fs: int) -> None:
         """Reset the default sampling frequency of the database."""
         self.fs = new_fs
+
+    def _reset_hour_limit(self, new_hour_limit: Union[int, None]) -> None:
+        """Reset the hour limit of the database."""
+        self.hour_limit = new_hour_limit
+
+        if self.hour_limit is not None:
+            self._df_records_all = self._df_records_all_bak[
+                self._df_records_all_bak.hour <= self.hour_limit
+            ]
+            self._df_records = self._df_records_bak[
+                self._df_records_bak.hour <= self.hour_limit
+            ]
+        else:
+            self._df_records_all = self._df_records_all_bak.copy()
+            self._df_records = self._df_records_bak.copy()
+
+        self._all_records_all = {
+            sig_type: self._df_records_all[
+                self._df_records_all.sig_type == sig_type
+            ].index.tolist()
+            for sig_type in self._df_records_all.sig_type.unique().tolist()
+        }
+        self._subject_records = {
+            sbj: self._df_records_all.loc[
+                self._df_records_all["subject"] == sbj
+            ].index.tolist()
+            for sbj in self._all_subjects
+        }
+        self._all_records = self._df_records.index.tolist()
 
     def _ls_rec(self) -> None:
         """Find all records in the database directory
@@ -239,6 +274,7 @@ class CINC2023Reader(PhysioNetDataBase):
         )
         write_files = False
 
+        # load from cache if exists
         if cache_exists:
             self._df_records_all = pd.read_csv(
                 self.records_metadata_file, index_col="record"
@@ -264,6 +300,7 @@ class CINC2023Reader(PhysioNetDataBase):
             write_files = True
 
         if not self._df_records_all.empty:
+            # filter out records that do not have data files
             data_suffix = f".{self.data_ext}"
             self._df_records_all = self._df_records_all[
                 self._df_records_all["path"].apply(
@@ -271,6 +308,8 @@ class CINC2023Reader(PhysioNetDataBase):
                 )
             ]
 
+        # collect all records in the database directory recursively
+        # if cache does not exist
         if len(self._df_records_all) == 0:
             if self._subsample is None:
                 write_files = True
@@ -322,36 +361,19 @@ class CINC2023Reader(PhysioNetDataBase):
                         extra_col
                     ].astype(int)
 
-        if len(self._df_records_all) > 0:
-            if self._subsample is not None:
-                all_subjects = self._df_records_all["subject"].unique().tolist()
-                size = min(
-                    len(all_subjects),
-                    max(1, int(round(self._subsample * len(all_subjects)))),
-                )
-                self.logger.debug(
-                    f"subsample `{size}` subjects from `{len(all_subjects)}`"
-                )
-                all_subjects = DEFAULTS.RNG.choice(
-                    all_subjects, size=size, replace=False
-                )
-                self._df_records_all = self._df_records_all.loc[
-                    self._df_records_all["subject"].isin(all_subjects)
-                ].sort_values(by="record")
+        if len(self._df_records_all) > 0 and self._subsample is not None:
+            all_subjects = self._df_records_all["subject"].unique().tolist()
+            size = min(
+                len(all_subjects),
+                max(1, int(round(self._subsample * len(all_subjects)))),
+            )
+            self.logger.debug(f"subsample `{size}` subjects from `{len(all_subjects)}`")
+            all_subjects = DEFAULTS.RNG.choice(all_subjects, size=size, replace=False)
+            self._df_records_all = self._df_records_all.loc[
+                self._df_records_all["subject"].isin(all_subjects)
+            ].sort_values(by="record")
 
-        self._all_records_all = {
-            sig_type: self._df_records_all[
-                self._df_records_all.sig_type == sig_type
-            ].index.tolist()
-            for sig_type in self._df_records_all.sig_type.unique().tolist()
-        }
         self._all_subjects = self._df_records_all["subject"].unique().tolist()
-        self._subject_records = {
-            sbj: self._df_records_all.loc[
-                self._df_records_all["subject"] == sbj
-            ].index.tolist()
-            for sbj in self._all_subjects
-        }
 
         # collect subject metadata from the .txt files
         if self._df_subjects.empty and len(self._all_subjects) > 0:
@@ -418,7 +440,11 @@ class CINC2023Reader(PhysioNetDataBase):
             # fill NaNs with False
             self._df_records[aux_sig].fillna(False, inplace=True)
             del df_tmp
-        self._all_records = self._df_records.index.tolist()
+
+        self._df_records_all_bak = self._df_records_all.copy()
+        self._df_records_bak = self._df_records.copy()
+        # restrict to the records with "hour" column <= self.hour_limit
+        self._reset_hour_limit(self.hour_limit)
 
     def clear_cached_metadata_files(self) -> None:
         """Remove the cached metadata files if they exist."""
