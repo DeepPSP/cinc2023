@@ -2,6 +2,7 @@
 """
 
 import re
+import warnings
 from ast import literal_eval
 from pathlib import Path
 from typing import Union, Optional, Any, List, Dict, Sequence, Tuple
@@ -34,11 +35,12 @@ _CINC2023_INFO = DataBaseInfo(
     2. The data originates from seven academic hospitals.
     3. The database consists of clinical, EEG, and ECG data from adult patients with out-of-hospital or in-hospital cardiac arrest who had return of heart function (i.e., return of spontaneous circulation [ROSC]) but remained comatose - defined as the inability to follow verbal commands and a Glasgow Coma Score <= 8.
     4. EEG data (and also other types of data) have varying sampling rates (500, 512, 256, 2048, 250, 200, 1024).
-    5. Each recording contains an array of a duration of 5 minutes with EEG signals from 18 bipolar channel pairs.
-    6. The EEG recordings for one patient continue for several hours to days, so the EEG signals are prone to quality deterioration from non-physiological artifacts. ~~Only the **cleanest 5 minutes** of EEG data per hour are provided.~~
-    7. There might be gaps in the EEG data, since patients may have EEG started several hours after the arrest or need to have brain monitoring interrupted transiently while in the ICU.
-    8. Pattern for the data files: <patient_id>_<segment_id>_<hour>_<signal_type>.mat
-    9. 4 types (groups) of signals were collected. In addition to EEG data, there are 3 (optional) other groups: ECG, REF, OTHER. The signals have the following channels:
+    5. Each recording contains an array of varying length EEG signals from 19-21 channels. The public training data share a common set of 19 channels.
+    6. The voltage values of the each EEG signals are relative to a **unknown** reference potential. Therefore, one has to use the differences between pairs of channels. For a system (surface potential field) of N channels, the minimum number of channels required to reconstruct the EEG signals is N-1, hence a deep learning model for CinC2023 which accepts raw EEG signals as input should have at least 18 input channels. One can use the 18 pairs from the unofficial phase or choose a common reference channel from the 19 common channels (e.g. Pz) and use the 18 pairs of differences between the reference channel and the other 18 channels.
+    7. The EEG recordings for one patient continue for several hours to days, so the EEG signals are prone to quality deterioration from non-physiological artifacts. ~~Only the **cleanest 5 minutes** of EEG data per hour are provided.~~
+    8. There might be gaps in the EEG data, since patients may have EEG started several hours after the arrest or need to have brain monitoring interrupted transiently while in the ICU.
+    9. Pattern for the data files: <patient_id>_<segment_id>_<hour>_<signal_type>.mat
+    10. 4 types (groups) of signals were collected. In addition to EEG data, there are 3 (optional) other groups: ECG, REF, OTHER. The signals have the following channels:
 
         - EEG: Fp1, Fp2, F7, F8, F3, F4, T3, T4, C3, C4, T5, T6, P3, P4, O1, O2, Fz, Cz, Pz, Fpz, Oz, F9
         - ECG: ECG, ECG1, ECG2, ECGL, ECGR
@@ -50,8 +52,8 @@ _CINC2023_INFO = DataBaseInfo(
         - EEG: Oz
         - REF: A1, A2, BIP1, BIP2, BIP3, BIP4, C2, Cb2, In1-Ref2
 
-    10. Each patient has one .txt file containing patient information (ref. 11) and clinical outcome (ref. 12).
-    11. Patient information includes information recorded at the time of admission (age, sex), identifier of the hospital where the data was collected (hospital), location of arrest (out or in-hospital), type of cardiac rhythm recorded at the time of resuscitation (shockable rhythms include ventricular fibrillation or ventricular tachycardia and non-shockable rhythms include asystole and pulseless electrical activity), and the time between cardiac arrest and ROSC (return of spontaneous circulation). The following table summarizes the patient information:
+    11. Each patient has one .txt file containing patient information (ref. 12) and clinical outcome (ref. 13).
+    12. Patient information includes information recorded at the time of admission (age, sex), identifier of the hospital where the data was collected (hospital), location of arrest (out or in-hospital), type of cardiac rhythm recorded at the time of resuscitation (shockable rhythms include ventricular fibrillation or ventricular tachycardia and non-shockable rhythms include asystole and pulseless electrical activity), and the time between cardiac arrest and ROSC (return of spontaneous circulation). The following table summarizes the patient information:
 
         +----------------+-----------------------------------------------+-----------------------------------------+
         |  info          |   meaning                                     |   type and values                       |
@@ -78,7 +80,7 @@ _CINC2023_INFO = DataBaseInfo(
         |                |   in Celsius                                  |   33, 36, or NaN for no TTM             |
         +----------------+-----------------------------------------------+-----------------------------------------+
 
-    12. Clinical outcome was determined prospectively in two centers by phone interview (at 6 months from ROSC), and at the remaining hospitals retrospectively through chart review (at 3-6 months from ROSC). Neurological function was determined using the Cerebral Performance Category (CPC) scale. CPC is an ordinal scale ranging from 1 to 5:
+    13. Clinical outcome was determined prospectively in two centers by phone interview (at 6 months from ROSC), and at the remaining hospitals retrospectively through chart review (at 3-6 months from ROSC). Neurological function was determined using the Cerebral Performance Category (CPC) scale. CPC is an ordinal scale ranging from 1 to 5:
 
         - CPC = 1: good neurological function and independent for activities of daily living.
         - CPC = 2: moderate neurological disability but independent for activities of daily living.
@@ -86,7 +88,7 @@ _CINC2023_INFO = DataBaseInfo(
         - CPC = 4: unresponsive wakefulness syndrome [previously known as vegetative state].
         - CPC = 5: dead.
 
-    13. The CPC scores are grouped into two categories:
+    14. The CPC scores are grouped into two categories:
 
         - Good: CPC = 1 or 2.
         - Poor: CPC = 3, 4, or 5.
@@ -154,6 +156,12 @@ class CINC2023Reader(PhysioNetDataBase):
         "Fp1", "Fp2", "F7", "F8", "F3", "F4", "T3", "T4", "C3", "C4",
         "T5", "T6", "P3", "P4", "O1", "O2", "Fz", "Cz", "Pz",
     ]
+    default_eeg_channel_pairs = [  # from the unofficial phase
+        "Fp1-F7", "F7-T3", "T3-T5", "T5-O1", "Fp2-F8", "F8-T4",
+        "T4-T6", "T6-O2", "Fp1-F3", "F3-C3", "C3-P3", "P3-O1",
+        "Fp2-F4", "F4-C4", "C4-P4", "P4-O2", "Fz-Cz", "Cz-Pz",
+    ]
+    default_eeg_reference_channel = None
     # fmt: on
 
     _channel_names_to_signal_types = {
@@ -165,6 +173,8 @@ class CINC2023Reader(PhysioNetDataBase):
         db_dir: str,
         fs: int = 100,
         backend: str = "wfdb",
+        eeg_channel_pairs: Optional[List[str]] = None,
+        eeg_reference_channel: Optional[str] = None,
         working_dir: Optional[str] = None,
         hour_limit: Optional[int] = None,
         verbose: int = 2,
@@ -181,6 +191,25 @@ class CINC2023Reader(PhysioNetDataBase):
         )
         self.backend = backend
         self.hour_limit = hour_limit
+        self.eeg_channel_pairs = eeg_channel_pairs
+        if self.eeg_channel_pairs is not None:
+            if eeg_reference_channel is not None:
+                warnings.warn(
+                    "Both `eeg_channel_pairs` and `eeg_reference_channel` are provided, "
+                    "the latter will be ignored.",
+                    RuntimeWarning,
+                )
+            self.eeg_reference_channel = None
+        elif eeg_reference_channel is not None:
+            self.eeg_reference_channel = eeg_reference_channel
+            self.eeg_channel_pairs = [
+                f"{ch}-{eeg_reference_channel}"
+                for ch in self.common_eeg_channels
+                if ch != eeg_reference_channel
+            ]
+        else:
+            self.eeg_reference_channel = self.default_eeg_reference_channel
+            self.eeg_channel_pairs = self.default_eeg_channel_pairs
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
 
         self._url_compressed = {
@@ -256,6 +285,7 @@ class CINC2023Reader(PhysioNetDataBase):
             "subject", "path", "sig_type", "hour",
             # "hour", "time", "quality",
             "fs", "sig_len", "n_sig", "sig_name",
+            "diff_inds",
         ]
         subjects_index = "subject"
         subjects_cols = [
@@ -264,6 +294,11 @@ class CINC2023Reader(PhysioNetDataBase):
             "Outcome", "CPC",
         ]
         # fmt: on
+        eeg_channel_pairs = [
+            [pair.split("-")[0] for pair in self.eeg_channel_pairs],
+            [pair.split("-")[1] for pair in self.eeg_channel_pairs],
+        ]
+
         self._df_records_all = pd.DataFrame(columns=[records_index] + records_cols)
         self._df_subjects = pd.DataFrame(columns=[subjects_index] + subjects_cols)
 
@@ -356,6 +391,15 @@ class CINC2023Reader(PhysioNetDataBase):
                             self._df_records_all.at[idx, extra_col] = getattr(
                                 header, extra_col
                             )
+                        # assign "diff-inds" column for EEG records
+                        if row.sig_type != "EEG":
+                            diff_inds = []
+                        else:
+                            diff_inds = [
+                                [header.sig_name.index(item) for item in lst]
+                                for lst in eeg_channel_pairs
+                            ]
+                        self._df_records_all.at[idx, "diff_inds"] = diff_inds
                 for extra_col in ["fs", "sig_len", "n_sig"]:
                     self._df_records_all[extra_col] = self._df_records_all[
                         extra_col
