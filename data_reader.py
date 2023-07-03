@@ -4,7 +4,7 @@
 import re
 from ast import literal_eval
 from pathlib import Path
-from typing import Union, Optional, Any, List, Dict, Sequence
+from typing import Union, Optional, Any, List, Dict, Sequence, Tuple
 
 import gdown
 import numpy as np
@@ -152,6 +152,10 @@ class CINC2023Reader(PhysioNetDataBase):
         "T5", "T6", "P3", "P4", "O1", "O2", "Fz", "Cz", "Pz",
     ]
     # fmt: on
+
+    _channel_names_to_signal_types = {
+        item: name for name, items in channel_names.items() for item in items
+    }
 
     def __init__(
         self,
@@ -342,7 +346,6 @@ class CINC2023Reader(PhysioNetDataBase):
 
         # collect subject metadata from the .txt files
         if self._df_subjects.empty and len(self._all_subjects) > 0:
-            # df_quality = pd.DataFrame(columns=["Record", "Hour", "Time", "Quality"])
             metadata_list = []
             with tqdm(
                 self._all_subjects,
@@ -368,15 +371,6 @@ class CINC2023Reader(PhysioNetDataBase):
                     metadata["subject"] = sbj
                     metadata["Directory"] = file_path.parent
                     metadata_list.append(metadata)
-                    # df_quality = pd.concat(
-                    #     [
-                    #         df_quality,
-                    #         pd.read_csv(
-                    #             file_path.with_suffix(f".{self.quality_ext}"), sep="\t"
-                    #         ),
-                    #     ],
-                    #     ignore_index=True,
-                    # )
             self._df_subjects = pd.DataFrame(
                 metadata_list, columns=["subject"] + subjects_cols
             )
@@ -386,25 +380,6 @@ class CINC2023Reader(PhysioNetDataBase):
             self._df_subjects = self._df_subjects[
                 self._df_subjects.index.isin(self._all_subjects)
             ]
-            # df_quality = None
-
-        # if df_quality is not None:
-        #     df_quality = (
-        #         df_quality.rename(
-        #             columns={
-        #                 "Record": "record",
-        #                 "Hour": "hour",
-        #                 "Time": "time",
-        #                 "Quality": "quality",
-        #             }
-        #         )
-        #         .dropna(subset=["record"])
-        #         .set_index("record")
-        #     )
-        #     self._df_records_all.drop(columns=["hour", "time", "quality"], inplace=True)
-        #     self._df_records_all = self._df_records_all.join(df_quality)
-        #     self._df_records_all = self._df_records_all[records_cols]
-        # del df_quality
 
         if self._df_records_all.empty or self._df_subjects.empty:
             write_files = False
@@ -506,7 +481,7 @@ class CINC2023Reader(PhysioNetDataBase):
             if extension is not None:
                 path = path / f"{rec_or_sbj}"
         else:
-            raise ValueError(f"record or subject `{rec_or_sbj}` not found")
+            raise FileNotFoundError(f"record or subject `{rec_or_sbj}` not found")
         if extension is not None and not extension.startswith("."):
             extension = f".{extension}"
         return path.with_suffix(extension or "").resolve()
@@ -544,7 +519,9 @@ class CINC2023Reader(PhysioNetDataBase):
             "mV", "uV" (with alias "muV", "μV"), case insensitive.
             None for digital data, without digital-to-physical conversion.
         fs : int, optional
-            Sampling frequency of the record, defaults to `self.fs`.
+            Sampling frequency of the record,
+            defaults to `self.fs` if `self.fs` is set
+            else defaults to the raw sampling frequency of the record.
 
         Returns
         -------
@@ -603,8 +580,11 @@ class CINC2023Reader(PhysioNetDataBase):
         elif units is None:
             data = wfdb_rec.d_signal
 
-        if fs is not None and fs != self.fs:
-            data = SS.resample_poly(data, fs, self.fs, axis=0).astype(data.dtype)
+        fs = fs or self.fs
+        if fs is not None and fs != wfdb_rec.fs:
+            data = SS.resample_poly(data, fs, wfdb_rec.fs, axis=0).astype(data.dtype)
+        else:
+            fs = wfdb_rec.fs
 
         if data_format.lower() == "channel_first":
             data = data.T
@@ -616,21 +596,27 @@ class CINC2023Reader(PhysioNetDataBase):
     def load_aux_data(
         self,
         rec: Union[str, int],
-        data_type: str,
+        signal_type: Optional[str] = None,
         channels: Optional[Union[str, int, Sequence[Union[str, int]]]] = None,
         sampfrom: Optional[int] = None,
         sampto: Optional[int] = None,
         data_format: str = "channel_first",
         fs: Optional[int] = None,
-    ) -> np.ndarray:
-        """Load auxiliary data from the record.
+    ) -> Tuple[np.ndarray, List[str], int]:
+        """Load auxiliary (physical) data from the record.
 
         Parameters
         ----------
         rec : str or int
             Record name or the index of the record in :attr:`all_records`.
-        data_type : {"ECG", "REF", "OTHER"}
+            Note that if `rec` is of type int, then the recording
+            would be inferred from the `signal_type` and `channels` that
+            corresponds to the EEG recording, which might not exist.
+        signal_type : {"ECG", "REF", "OTHER"}
             Type of the auxiliary data.
+            If is None, `channels` should be provided,
+            and `signal_type` will be inferred from the channel names;
+            or `rec` is of type str, and `signal_type` will be inferred
         channels : str or int or Sequence[str] or Sequence[int], optional
             Names or indices of the channel(s) to load.
             If is None, all channels will be loaded.
@@ -646,14 +632,89 @@ class CINC2023Reader(PhysioNetDataBase):
         fs : int, optional
             Sampling frequency of the record,
             defaults to the raw sampling frequency of the record.
+            NOTE the behavior of `fs` is different from that of :meth:`load_data`
+            for loading EEG data.
 
         Returns
         -------
         data : numpy.ndarray
             The loaded auxiliary data.
+        channels : list of str
+            Names of the loaded channels.
+        fs : int
+            Sampling frequency of the loaded data.
 
         """
-        raise NotImplementedError
+        if isinstance(rec, int):
+            rec = self[rec]
+        else:
+            signal_type = self._df_records_all.loc[rec, "sig_type"].index[0]
+        if signal_type is None:
+            assert (
+                channels is not None
+            ), "`signal_type` should be provided when `channels` is None"
+            if isinstance(channels, str):
+                signal_type = self._channel_names_to_signal_types[channels]
+            elif isinstance(channels, (list, tuple)):
+                signal_type = self._channel_names_to_signal_types[channels[0]]
+            else:
+                raise TypeError(
+                    f"Could not determine `signal_type` from `channels` of type `{type(channels)}`"
+                )
+        else:
+            # if rec is obtained from the index of all_records
+            rec = rec.replace("EEG", signal_type)
+        fp = str(self.get_absolute_path(rec, signal_type))
+        rec = Path(fp).stem
+        rdrecord_kwargs = dict()
+        # normalize channels
+        if channels is not None:
+            if isinstance(channels, (str, int)):
+                channels = [channels]
+            channels = [
+                self._df_records_all.loc[rec, "sig_name"].index(chn)
+                if isinstance(chn, str)
+                else chn
+                for chn in channels
+            ]
+            rdrecord_kwargs["channels"] = channels
+            n_channels = len(channels)
+        else:
+            n_channels = self._df_records_all.loc[rec, "n_sig"]
+        allowed_data_format = ["channel_first", "channel_last", "flat", "plain"]
+        assert (
+            data_format.lower() in allowed_data_format
+        ), f"`data_format` should be one of `{allowed_data_format}`, but got `{data_format}`"
+        if n_channels > 1:
+            assert data_format.lower() in ["channel_first", "channel_last"], (
+                "`data_format` should be one of `['channel_first', 'channel_last']` "
+                f"when the passed number of `channels` is larger than 1, but got `{data_format}`"
+            )
+
+        rdrecord_kwargs.update(
+            dict(
+                sampfrom=sampfrom or 0,
+                sampto=sampto,
+                physical=True,
+                return_res=DEFAULTS.DTYPE.INT,
+            )
+        )
+        wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
+
+        data = wfdb_rec.p_signal
+        if fs is not None and fs != wfdb_rec.fs:
+            data = SS.resample_poly(data, fs, wfdb_rec.fs, axis=0).astype(data.dtype)
+        else:
+            fs = wfdb_rec.fs
+
+        if data_format.lower() == "channel_first":
+            data = data.T
+        elif data_format.lower() in ["flat", "plain"]:
+            data = data.flatten()
+
+        channels = wfdb_rec.sig_name
+
+        return data, channels, fs
 
     def load_ann(self, rec_or_sbj: Union[str, int]) -> Dict[str, Union[str, int]]:
         """Load classification annotation corresponding to
