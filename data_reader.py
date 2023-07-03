@@ -322,7 +322,10 @@ class CINC2023Reader(PhysioNetDataBase):
             )
             self._df_records_all["sig_name"] = self._df_records_all["sig_name"].apply(
                 literal_eval
-            )
+            )  # cells from str to list
+            self._df_records_all["diff_inds"] = self._df_records_all["diff_inds"].apply(
+                literal_eval
+            )  # cells from str to list
             self._df_subjects = pd.read_csv(
                 self.subjects_metadata_file, index_col="subject"
             )
@@ -588,11 +591,10 @@ class CINC2023Reader(PhysioNetDataBase):
             Start index of the data to be loaded.
         sampto : int, optional
             End index of the data to be loaded.
-        data_format : str, default "channel_first"
-            Format of the data, can be one of
-            "channel_first", "channel_last",
-            or "flat" (alias "plain") if `channels` is a single channel.
-            case insensitive.
+        data_format : {"channel_first", "channel_last", "flat", "plain"}
+            Format of the data, default "channel_first".
+            Can be "flat" (alias "plain") if `channels` is a single channel.
+            Case insensitive.
         units : str or None, default "uV"
             Units of the data, can be one of
             "mV", "uV" (with alias "muV", "μV"), case insensitive.
@@ -672,6 +674,92 @@ class CINC2023Reader(PhysioNetDataBase):
 
         return data
 
+    def load_bipolar_data(
+        self,
+        rec: Union[str, int],
+        sampfrom: Optional[int] = None,
+        sampto: Optional[int] = None,
+        data_format: str = "channel_first",
+        units: Union[str, type(None)] = "uV",
+        fs: Optional[int] = None,
+    ) -> np.ndarray:
+        """Load bipolar EEG data from the record.
+
+        Bipolar EEG is the difference between two channels.
+        Ref. `self.eeg_channel_pairs`.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or the index of the record in :attr:`all_records`.
+        sampfrom : int, optional
+            Start index of the data to be loaded.
+        sampto : int, optional
+            End index of the data to be loaded.
+        data_format : {"channel_first", "channel_last"}
+            Format of the data, default "channel_first".
+            Case insensitive.
+        units : str or None, default "uV"
+            Units of the data, can be one of
+            "mV", "uV" (with alias "muV", "μV"), case insensitive.
+            None for digital data, without digital-to-physical conversion.
+        fs : int, optional
+            Sampling frequency of the record,
+            defaults to `self.fs` if `self.fs` is set
+            else defaults to the raw sampling frequency of the record.
+
+        Returns
+        -------
+        data : numpy.ndarray
+            The loaded EEG data.
+
+        """
+        if isinstance(rec, int):
+            rec = self[rec]
+        fp = str(self.get_absolute_path(rec))
+        metadata_row = self._df_records.loc[rec]
+        allowed_data_format = ["channel_first", "channel_last"]
+        assert (
+            data_format.lower() in allowed_data_format
+        ), f"`data_format` should be one of `{allowed_data_format}`, but got `{data_format}`"
+
+        allowed_units = ["mv", "uv", "μv", "muv"]
+        assert (
+            units is None or units.lower() in allowed_units
+        ), f"`units` should be one of `{allowed_units}` or None, but got `{units}`"
+
+        rdrecord_kwargs = dict(
+            sampfrom=sampfrom or 0,
+            sampto=sampto,
+            physical=units is not None,
+            return_res=DEFAULTS.DTYPE.INT,
+        )
+        wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
+
+        # p_signal or d_signal is in the format of "channel_last", and with units in "μV"
+        if units.lower() in ["μv", "uv", "muv"]:
+            data = wfdb_rec.p_signal
+        elif units.lower() == "mv":
+            data = wfdb_rec.p_signal / 1000
+        elif units is None:
+            data = wfdb_rec.d_signal
+
+        data = (
+            data[:, metadata_row["diff_inds"][0]]
+            - data[:, metadata_row["diff_inds"][1]]
+        )
+
+        fs = fs or self.fs
+        if fs is not None and fs != wfdb_rec.fs:
+            data = SS.resample_poly(data, fs, wfdb_rec.fs, axis=0).astype(data.dtype)
+        else:
+            fs = wfdb_rec.fs
+
+        if data_format.lower() == "channel_first":
+            data = data.T
+
+        return data
+
     def load_aux_data(
         self,
         rec: Union[str, int],
@@ -703,11 +791,10 @@ class CINC2023Reader(PhysioNetDataBase):
             Start index of the data to be loaded.
         sampto : int, optional
             End index of the data to be loaded.
-        data_format : str, default "channel_first"
-            Format of the data, can be one of
-            "channel_first", "channel_last",
-            or "flat" (alias "plain") if `channels` is a single channel.
-            case insensitive.
+        data_format : {"channel_first", "channel_last", "flat", "plain"}
+            Format of the data, default "channel_first".
+            Can be "flat" (alias "plain") if `channels` is a single channel.
+            Case insensitive.
         fs : int, optional
             Sampling frequency of the record,
             defaults to the raw sampling frequency of the record.
