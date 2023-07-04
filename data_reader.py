@@ -290,8 +290,9 @@ class CINC2023Reader(PhysioNetDataBase):
         # fmt: off
         records_index = "record"
         records_cols = [
-            "subject", "path", "sig_type", "hour",
+            "subject", "path", "sig_type",
             # "hour", "time", "quality",
+            "hour", "start_sec",  # end_sec is always the last second of the hour
             "fs", "sig_len", "n_sig", "sig_name",
             "diff_inds",
         ]
@@ -415,6 +416,9 @@ class CINC2023Reader(PhysioNetDataBase):
                     self._df_records_all[extra_col] = self._df_records_all[
                         extra_col
                     ].astype(int)
+                self._df_records_all["start_sec"] = (
+                    3600 - self._df_records_all["sig_len"] / self._df_records_all["fs"]
+                )
 
         if len(self._df_records_all) > 0 and self._subsample is not None:
             all_subjects = self._df_records_all["subject"].unique().tolist()
@@ -1004,6 +1008,7 @@ class CINC2023Reader(PhysioNetDataBase):
         Metadata of the record includes the following fields:
 
         - "hour": the hour after cardiac arrest when the recording was recorded.
+        - "start_sec": the start time of the recording in seconds in the hour.
         - "fs": the sampling frequency of the recording.
         - "sig_len": the length of the recording in samples.
         - "n_sig": the number of signals (channels) in the recording.

@@ -37,7 +37,15 @@ BaseCfg.model_dir = _BASE_DIR / "saved_models"
 BaseCfg.log_dir.mkdir(exist_ok=True)
 BaseCfg.model_dir.mkdir(exist_ok=True)
 BaseCfg.fs = 100
-BaseCfg.n_channels = 18
+# fmt: off
+BaseCfg.eeg_channel_pairs = [  # from the unofficial phase
+    "Fp1-F7", "F7-T3", "T3-T5", "T5-O1", "Fp2-F8", "F8-T4",
+    "T4-T6", "T6-O2", "Fp1-F3", "F3-C3", "C3-P3", "P3-O1",
+    "Fp2-F4", "F4-C4", "C4-P4", "P4-O2", "Fz-Cz", "Cz-Pz",
+]
+# fmt: on
+BaseCfg.hour_limit = 72
+BaseCfg.n_channels = len(BaseCfg.eeg_channel_pairs)
 BaseCfg.torch_dtype = torch.float32  # "double"
 BaseCfg.np_dtype = np.float32
 BaseCfg.ignore_index = -100
