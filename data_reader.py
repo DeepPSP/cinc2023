@@ -121,6 +121,14 @@ class CINC2023Reader(PhysioNetDataBase):
         (Re-)sampling frequency of the recordings.
     backend : {"scipy",  "wfdb"}, optional
         Backend to use, by default "wfdb", case insensitive.
+    eeg_channel_pairs : list of str, optional
+        List of EEG channel pairs for bipolar referencing.
+        Each element is a string of two channel names separated by a hyphen.
+    eeg_reference_channel: str, optional
+        Name of the channel to use as reference for EEG channels.
+        Valid if `eeg_channel_pairs` is None.
+        If both `eeg_channel_pairs` and `eeg_reference_channel` are None,
+        `self.default_eeg_channel_pairs` will be used.
     working_dir : str, optional
         Working directory, to store intermediate files and log files.
     hour_limit : int, optional
@@ -987,6 +995,45 @@ class CINC2023Reader(PhysioNetDataBase):
         # return df_quality
         print("Quality tables are removed from the database starting from version 2.")
         return pd.DataFrame()
+
+    def get_metadata(
+        self, rec: Union[str, int], field: Optional[str] = None
+    ) -> Union[Dict[str, Any], Any]:
+        """Get metadata of the record.
+
+        Metadata of the record includes the following fields:
+
+        - "hour": the hour after cardiac arrest when the recording was recorded.
+        - "fs": the sampling frequency of the recording.
+        - "sig_len": the length of the recording in samples.
+        - "n_sig": the number of signals (channels) in the recording.
+        - "sig_name": the names of the signals (channels) in the recording.
+        - "ECG": whether or not the recording has simultaneous ECG signal.
+        - "REF": whether or not the recording has simultaneous reference signal.
+        - "OTHER": whether or not the recording has simultaneous other signal.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or the index of the record in :attr:`all_records`.
+        field : str, optional
+            The field to return. If None, the whole metadata dictionary will be returned.
+
+        Returns
+        -------
+        metadata : dict or any
+            The metadata of the record.
+
+        """
+        if isinstance(rec, int):
+            rec = self.all_records[rec]
+        metadata = self._df_records.loc[rec].to_dict()
+        for item in ["path", "sig_type"]:
+            metadata.pop(item)
+        if field is None:
+            return metadata
+        else:
+            return metadata[field]
 
     @property
     def all_subjects(self) -> List[str]:
