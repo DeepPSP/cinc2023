@@ -27,13 +27,13 @@ def load_challenge_data(data_folder, patient_id):
 
 # Find the record names.
 def find_recording_files(data_folder, patient_id):
-    record_names = list()
+    record_names = set()
     patient_folder = os.path.join(data_folder, patient_id)
     for file_name in sorted(os.listdir(patient_folder)):
         if not file_name.startswith('.') and file_name.endswith('.hea'):
             root, ext = os.path.splitext(file_name)
             record_name = '_'.join(root.split('_')[:-1])
-            record_names.append(record_name)
+            record_names.add(record_name)
     return sorted(record_names)
 
 # Load the WFDB data for the Challenge (but not all possible WFDB files).
@@ -113,7 +113,7 @@ def load_recording_data(record_name, check_values=True):
             if data[i, 0]!=initial_values[i]:
                 raise ValueError('The initial value in header file {}'.format(header_file) \
                     + ' is inconsistent with the initial value for channel {} in the signal data'.format(channels[i]))
-            if np.sum(data[i, :])!=checksums[i]:
+            if np.sum(np.asarray(data[i, :], dtype=np.int64))!=checksums[i]:
                 raise ValueError('The checksum in header file {}'.format(header_file) \
                     + ' is inconsistent with the checksum value for channel {} in the signal data'.format(channels[i]))
 
