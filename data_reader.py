@@ -611,6 +611,9 @@ class CINC2023Reader(PhysioNetDataBase):
             Units of the data, can be one of
             "mV", "uV" (with alias "muV", "μV"), case insensitive.
             None for digital data, without digital-to-physical conversion.
+            NOTE: non-null `units` are treated identically to get the physical values,
+            since the physical units for the data are missing
+            because some of the data had already been scaled by the data sources
         fs : int, optional
             Sampling frequency of the record,
             defaults to `self.fs` if `self.fs` is set
@@ -666,12 +669,14 @@ class CINC2023Reader(PhysioNetDataBase):
         wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
 
         # p_signal or d_signal is in the format of "channel_last", and with units in "μV"
-        if units.lower() in ["μv", "uv", "muv"]:
-            data = wfdb_rec.p_signal
-        elif units.lower() == "mv":
-            data = wfdb_rec.p_signal / 1000
-        elif units is None:
+        if units is None:
             data = wfdb_rec.d_signal
+        else:
+            data = wfdb_rec.p_signal
+        # elif units.lower() in ["μv", "uv", "muv"]:
+        #     data = wfdb_rec.p_signal
+        # elif units.lower() == "mv":
+        #     data = wfdb_rec.p_signal / 1000
 
         fs = fs or self.fs
         if fs is not None and fs != wfdb_rec.fs:
@@ -715,6 +720,9 @@ class CINC2023Reader(PhysioNetDataBase):
             Units of the data, can be one of
             "mV", "uV" (with alias "muV", "μV"), case insensitive.
             None for digital data, without digital-to-physical conversion.
+            NOTE: non-null `units` are treated identically to get the physical values,
+            since the physical units for the data are missing
+            because some of the data had already been scaled by the data sources
         fs : int, optional
             Sampling frequency of the record,
             defaults to `self.fs` if `self.fs` is set
@@ -749,12 +757,14 @@ class CINC2023Reader(PhysioNetDataBase):
         wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
 
         # p_signal or d_signal is in the format of "channel_last", and with units in "μV"
-        if units.lower() in ["μv", "uv", "muv"]:
-            data = wfdb_rec.p_signal
-        elif units.lower() == "mv":
-            data = wfdb_rec.p_signal / 1000
-        elif units is None:
+        if units is None:
             data = wfdb_rec.d_signal
+        else:
+            data = wfdb_rec.p_signal
+        # elif units.lower() in ["μv", "uv", "muv"]:
+        #     data = wfdb_rec.p_signal
+        # elif units.lower() == "mv":
+        #     data = wfdb_rec.p_signal / 1000
 
         data = (
             data[:, metadata_row["diff_inds"][0]]
@@ -782,7 +792,7 @@ class CINC2023Reader(PhysioNetDataBase):
         data_format: str = "channel_first",
         fs: Optional[int] = None,
     ) -> Tuple[np.ndarray, List[str], int]:
-        """Load auxiliary (physical) data from the record.
+        """Load auxiliary (**physical**) data from the record.
 
         Parameters
         ----------
