@@ -22,8 +22,10 @@ def main():
     for filename in files:
         src = official_dir / filename
         dst = project_dir / filename
+        if src.read_text() == dst.read_text():
+            continue
         print(
-            f"copying **{src.relative_to(project_dir)}** to **{dst.relative_to(project_dir)}**"
+            f"Copying **{src.relative_to(project_dir)}** to **{dst.relative_to(project_dir)}**"
         )
         dst.write_text(src.read_text())
 
