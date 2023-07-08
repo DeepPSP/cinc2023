@@ -19,6 +19,7 @@ from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring
 from torch_ecg.utils.download import _untar_file
 
 from cfg import BaseCfg
+from utils.misc import load_unofficial_phase_metadata
 
 
 __all__ = [
@@ -245,6 +246,7 @@ class CINC2023Reader(PhysioNetDataBase):
         self._all_records = None
         self._all_subjects = None
         self._subject_records = None
+        self._df_unofficial_phase_metadata = None
         self._ls_rec()
 
     def _auto_infer_units(self) -> None:
@@ -528,6 +530,8 @@ class CINC2023Reader(PhysioNetDataBase):
         self._df_records_bak = self._df_records.copy()
         # restrict to the records with "hour" column <= self.hour_limit
         self._reset_hour_limit(self.hour_limit)
+
+        self._df_unofficial_phase_metadata = load_unofficial_phase_metadata()
 
     def clear_cached_metadata_files(self) -> None:
         """Remove the cached metadata files if they exist."""
