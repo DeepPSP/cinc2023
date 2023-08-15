@@ -37,12 +37,12 @@ RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 -y
 # NOTE that redis is not installed in the base image
 # install redis
 # https://redis.io/docs/getting-started/installation/install-redis-on-linux/
-RUN apt install lsb-release curl -y
-RUN curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
-RUN echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/redis.list
-RUN apt update && apt install redis -y
-# check redis version
-RUN redis-server --version
+# RUN apt install lsb-release curl -y
+# RUN curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
+# RUN echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/redis.list
+# RUN apt update && apt install redis -y
+# # check redis version
+# RUN redis-server --version
 
 
 RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
