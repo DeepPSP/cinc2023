@@ -187,7 +187,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
         )  # only one nan
         # to age group
         df.loc[:, "Age"] = df["Age"].apply(lambda x: str(20 * (x // 20)))
-        for col in ["OHCA", "VFib"]:
+        for col in ["OHCA", "Shockable Rhythm"]:
             df.loc[:, col] = df[col].apply(
                 lambda x: 1 if x is True else 0 if x is False else x
             )
@@ -200,7 +200,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
                 "Age",
                 "Sex",
                 "OHCA",
-                "VFib",
+                "Shockable Rhythm",
                 "CPC",
             ],
             test_ratio=1 - train_ratio,

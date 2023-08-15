@@ -12,7 +12,8 @@ from helper_code import (
     get_sex,
     get_rosc,
     get_ohca,
-    get_vfib,
+    # get_vfib,
+    get_shockable_rhythm,
     get_ttm,
     get_outcome,
     get_cpc,
@@ -49,7 +50,7 @@ def get_features(
     sex = get_sex(patient_metadata)
     rosc = get_rosc(patient_metadata)
     ohca = get_ohca(patient_metadata)
-    vfib = get_vfib(patient_metadata)
+    vfib = get_shockable_rhythm(patient_metadata)
     ttm = get_ttm(patient_metadata)
 
     # Use one-hot encoding for sex; add more variables

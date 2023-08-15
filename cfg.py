@@ -274,7 +274,7 @@ MLCfg.feature_list = [
     "sex_other",  # binarized
     "rosc",  # continuous
     "ohca",  # binary
-    "vfib",  # binary
+    "vfib",  # binary, from "Shockable Rhythm" (official phase)
     "ttm",  # continuous (indeed, categorical)
 ]
 MLCfg.cont_features = ["age", "rosc", "ttm"]
