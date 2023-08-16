@@ -25,6 +25,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - uses: actions/cache@v3
+      id: cache
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('requirements.txt') }}
@@ -38,5 +39,5 @@ jobs:
         python -m pip install black==22.3.0 flake8 # Testing packages
     - name: Check code format with black and flake8
       run: |
-        black . --check -v --exclude="/build|dist|official_baseline_classifier|official_scoring_metric/|helper_code\.py|run_model\.py|train_model\.py|evaluate_model\.py|remove_data\.py|remove_labels\.py|truncate_data\.py|\.ipynb_checkpoints"
-        flake8 . --count --ignore="E501 W503 E203 F841 E402" --show-source --statistics --exclude=./.*,build,dist,official*,helper_code.py,run_model.py,train_model.py,evaluate_model.py,remove_data.py,remove_labels.py,truncate_data.py,*.ipynb
+        black . --check -v --exclude="/build|dist|official_baseline_classifier|official_scoring_metric|artifact_pipeline|helper_code\.py|run_model\.py|train_model\.py|evaluate_model\.py|remove_data\.py|remove_labels\.py|truncate_data\.py|\.ipynb_checkpoints"
+        flake8 . --count --ignore="E501 W503 E203 F841 E402" --show-source --statistics --exclude=./.*,build,dist,official*,artifact_pipeline,helper_code.py,run_model.py,train_model.py,evaluate_model.py,remove_data.py,remove_labels.py,truncate_data.py,*.ipynb
