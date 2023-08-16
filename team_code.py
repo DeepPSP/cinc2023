@@ -33,13 +33,8 @@ from tqdm.auto import tqdm
 from cfg import TrainCfg, ModelCfg
 from data_reader import CINC2023Reader
 from dataset import CinC2023Dataset
-from models import (
-    CRNN_CINC2023,
-)
-from trainer import (  # noqa: F401
-    CINC2023Trainer,
-    _set_task,
-)  # noqa: F401
+from models import CRNN_CINC2023
+from trainer import CINC2023Trainer, _set_task
 from helper_code import (
     find_data_folders,
     load_challenge_data,

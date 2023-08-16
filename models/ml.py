@@ -33,7 +33,7 @@ from tqdm.auto import tqdm
 
 from utils.scoring_metrics import compute_challenge_metrics
 from utils.features import get_features, get_labels
-from cfg import BaseCfg
+from cfg import BaseCfg, MLCfg
 from data_reader import CINC2023Reader
 from outputs import CINC2023Outputs
 from helper_code import get_hospital
@@ -50,7 +50,10 @@ class ML_Classifier_CINC2023(object):
     Parameters:
     -----------
     config : CFG, optional
-        configurations
+        Configurations, defaults to `cfg.MLCfg`.
+    **kwargs: dict, optional
+        Keyword arguments that override
+        corresponding attributes in `config`.
 
     """
 
@@ -61,7 +64,9 @@ class ML_Classifier_CINC2023(object):
         config: Optional[CFG] = None,
         **kwargs: Any,
     ) -> None:
-        self.config = deepcopy(config)
+        self.config = deepcopy(MLCfg)
+        self.config.update(config or {})
+        self.config.update(kwargs)
         assert self.config.get("output_target", None) in [
             "cpc",
             "outcome",
@@ -72,8 +77,8 @@ class ML_Classifier_CINC2023(object):
         self.logger_manager = None
         self.reader = None
         self.__df_features = None
-        self.x_train, self.y_train = None, None
-        self.x_test, self.y_test = None, None
+        self.X_train, self.y_train = None, None
+        self.X_test, self.y_test = None, None
         self.train_hospitals, self.test_hospitals = None, None
         self._prepare_training_data()
 
@@ -132,7 +137,10 @@ class ML_Classifier_CINC2023(object):
             patient_features.update(get_labels(metadata_string, ret_type="dict"))
             patient_features["hospital"] = get_hospital(metadata_string)
             self.__df_features = pd.concat(
-                [self.__df_features, patient_features],
+                [
+                    self.__df_features,
+                    pd.DataFrame.from_dict(patient_features, orient="index").T,
+                ],
                 axis=0,
                 ignore_index=True,
             )
@@ -274,14 +282,14 @@ class ML_Classifier_CINC2023(object):
         -------
         ClassificationOutput
             classification output, with the following items:
-            - classes: list of str,
-                list of class names
-            - prob: ndarray,
-                probability array of each class, of shape (1, n_classes)
-            - pred: ndarray,
-                predicted class index, of shape (1,)
-            - bin_pred: ndarray,
-                binarized prediction (one-hot), of shape (1, n_classes)
+                - classes: list of str,
+                  list of class names.
+                - prob: ndarray,
+                  probability array of each class, of shape ``(1, n_classes)``.
+                - pred: ndarray,
+                  predicted class index, of shape ``(1,)``.
+                - bin_pred: ndarray,
+                  binarized prediction (one-hot), of shape ``(1, n_classes)``.
 
         """
         raise NotImplementedError

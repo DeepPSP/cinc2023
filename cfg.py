@@ -18,6 +18,7 @@ __all__ = [
     "BaseCfg",
     "TrainCfg",
     "ModelCfg",
+    "MLCfg",
 ]
 
 
@@ -249,7 +250,8 @@ MLCfg.db_dir = None
 MLCfg.log_dir = BaseCfg.log_dir
 MLCfg.model_dir = BaseCfg.model_dir
 # MLCfg.task = "classification"  # "classification", "regression"
-MLCfg.output_target = None
+# MLCfg.output_target = None
+MLCfg.output_target = BaseCfg.output_target
 # if MLCfg.output_target == "cpc":
 #     MLCfg.classes = deepcopy(BaseCfg.cpc)
 #     MLCfg.class_map = deepcopy(BaseCfg.cpc_map)
