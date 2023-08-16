@@ -7,7 +7,7 @@ import pickle
 import multiprocessing as mp
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, List, Union, Tuple
+from typing import Any, Dict, Optional, List, Union, Tuple, Sequence
 
 import pandas as pd
 import numpy as np
@@ -36,6 +36,7 @@ from utils.features import get_features, get_labels
 from cfg import BaseCfg
 from data_reader import CINC2023Reader
 from outputs import CINC2023Outputs
+from helper_code import get_hospital
 
 
 __all__ = [
@@ -44,8 +45,7 @@ __all__ = [
 
 
 class ML_Classifier_CINC2023(object):
-    """
-    Classifier for CINC2023 using sklearn and/or xgboost.
+    """Classifier for CINC2023 using sklearn and/or xgboost.
 
     Parameters:
     -----------
@@ -74,6 +74,7 @@ class ML_Classifier_CINC2023(object):
         self.__df_features = None
         self.x_train, self.y_train = None, None
         self.x_test, self.y_test = None, None
+        self.train_hospitals, self.test_hospitals = None, None
         self._prepare_training_data()
 
         self.__cache = {}
@@ -129,6 +130,7 @@ class ML_Classifier_CINC2023(object):
             ).read_text()
             patient_features = get_features(metadata_string, ret_type="dict")
             patient_features.update(get_labels(metadata_string, ret_type="dict"))
+            patient_features["hospital"] = get_hospital(metadata_string)
             self.__df_features = pd.concat(
                 [self.__df_features, patient_features],
                 axis=0,
@@ -154,6 +156,8 @@ class ML_Classifier_CINC2023(object):
         self.y_train = df_train[self.y_col].values
         self.X_test = df_test[self.feature_list].values
         self.y_test = df_test[self.y_col].values
+        self.train_hospitals = df_train["hospital"].values
+        self.test_hospitals = df_test["hospital"].values
 
     def get_model(
         self, model_name: str, params: Optional[dict] = None
@@ -328,6 +332,8 @@ class ML_Classifier_CINC2023(object):
                 self.y_train,
                 self.X_test,
                 self.y_test,
+                self.train_hospitals,
+                self.test_hospitals,
             )
 
             # save in self.__cache
@@ -354,6 +360,8 @@ class ML_Classifier_CINC2023(object):
                 self.y_train,
                 self.X_test,
                 self.y_test,
+                self.train_hospitals,
+                self.test_hospitals,
                 cv,
             )
 
@@ -376,6 +384,8 @@ class ML_Classifier_CINC2023(object):
         y_train: np.ndarray,
         X_val: np.ndarray,
         y_val: np.ndarray,
+        train_hospitals: Sequence[str],
+        val_hospitals: Sequence[str],
     ) -> Tuple[BaseEstimator, dict, float]:
         """Performs a grid search on the given model
         and parameters without cross validation.
@@ -383,26 +393,30 @@ class ML_Classifier_CINC2023(object):
         Parameters
         ----------
         model_name : str
-            model name, ref. to self.config.model_map
+            Model name, ref. to ``self.config.model_map``.
         param_grid : ParameterGrid
-            parameter grid for grid search
+            Parameter grid for grid search.
         X_train : np.ndarray
-            training features, of shape ``(n_samples, n_features)``
+            Training features, of shape ``(n_samples, n_features)``.
         y_train : np.ndarray
-            training labels, of shape ``(n_samples,)``
+            Training labels, of shape ``(n_samples,)``.
         X_val : np.ndarray
-            validation features, of shape ``(n_samples, n_features)``
+            Validation features, of shape ``(n_samples, n_features)``.
         y_val : np.ndarray
-            validation labels, of shape ``(n_samples,)``
+            Validation labels, of shape ``(n_samples,)``.
+        train_hospitals : Sequence[str]
+            List of hospitals of the samples in ``X_train``.
+        val_hospitals : Sequence[str]
+            List of hospitals of the samples in ``X_val``.
 
         Returns
         -------
         BaseEstimator
-            the best model instance
+            The best model instance
         dict
-            the best model parameters
+            The best model parameters
         float
-            the best model score
+            The best model score
 
         """
         best_score = np.inf
@@ -437,6 +451,7 @@ class ML_Classifier_CINC2023(object):
                 val_metrics = compute_challenge_metrics(
                     labels=[{"outcome": y_val}],
                     outputs=[outputs],
+                    hospitals=[val_hospitals],
                 )
 
                 msg = (
@@ -468,6 +483,8 @@ class ML_Classifier_CINC2023(object):
         y_train: np.ndarray,
         X_val: np.ndarray,
         y_val: np.ndarray,
+        train_hospitals: Sequence[str],
+        val_hospitals: Sequence[str],
         cv: int = 5,
     ) -> Tuple[BaseEstimator, dict, float]:
         """Performs a grid search on the given model
@@ -476,28 +493,32 @@ class ML_Classifier_CINC2023(object):
         Parameters
         ----------
         model_name : str
-            model name, ref. to self.config.model_map
+            Model name, ref. to ``self.config.model_map``.
         param_grid : ParameterGrid
-            parameter grid for grid search
+            Parameter grid for grid search.
         X_train : np.ndarray
-            training features, of shape (n_samples, n_features)
+            Training features, of shape ``(n_samples, n_features)``.
         y_train : np.ndarray
-            training labels, of shape (n_samples, )
+            Training labels, of shape ``(n_samples,)``.
         X_val : np.ndarray
-            validation features, of shape (n_samples, n_features)
+            Validation features, of shape ``(n_samples, n_features)``.
         y_val : np.ndarray
-            validation labels, of shape (n_samples, )
+            Validation labels, of shape ``(n_samples,)``.
+        train_hospitals : Sequence[str]
+            List of hospitals of the samples in ``X_train``.
+        val_hospitals : Sequence[str]
+            List of hospitals of the samples in ``X_val``.
         cv : int, default 5
-            number of cross validation folds
+            Number of cross validation folds.
 
         Returns
         -------
         BaseEstimator
-            the best model instance
+            The best model instance.
         dict
-            the best model parameters
+            The best model parameters.
         float
-            the best model score
+            The best model score.
 
         """
         gscv = GridSearchCV(
@@ -526,10 +547,9 @@ class ML_Classifier_CINC2023(object):
         )
 
         val_metrics = compute_challenge_metrics(
-            labels={
-                "outcome": y_val,
-            },
-            outputs=outputs,
+            labels=[{"outcome": y_val}],
+            outputs=[outputs],
+            hospitals=[val_hospitals],
         )
         best_score = val_metrics[self.config.monitor]
 
@@ -651,9 +671,9 @@ class ML_Classifier_CINC2023(object):
 
         Returns
         -------
-        List[str]
+        train_set : List[str]
             list of training record names
-        List[str]
+        test_set: List[str]
             list of testing record names
 
         """
