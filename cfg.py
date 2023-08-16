@@ -160,9 +160,12 @@ elif TrainCfg.classification.output_target == "outcome":
     TrainCfg.classification.class_map = deepcopy(BaseCfg.outcome_map)
 
 # preprocess configurations
-# NOTE that all EEG data was pre-processed with bandpass filtering (0.5-20Hz) and resampled to 100 Hz.
+# NOTE: (only unofficial phase):
+# all EEG data was pre-processed with bandpass filtering (0.5-20Hz) and resampled to 100 Hz.
 TrainCfg.classification.resample = CFG(fs=TrainCfg.classification.fs)
-TrainCfg.classification.bandpass = False
+TrainCfg.classification.bandpass = CFG(
+    lowcut=0.5, highcut=20, filter_type="butter", filter_order=4
+)
 TrainCfg.classification.normalize = CFG(  # None or False for no normalization
     method="z-score",
     mean=0.0,
