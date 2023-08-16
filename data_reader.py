@@ -178,6 +178,21 @@ class CINC2023Reader(PhysioNetDataBase):
         item: name for name, items in channel_names.items() for item in items
     }
 
+    _rec_pattern = (
+        "(?P<sbj>[\\d]{4})\\_"
+        "(?P<seg>[\\d]{3})\\_"
+        "(?P<hour>[\\d]{3})\\_"
+        "(?P<sig>EEG|ECG|REF|OTHER)"
+    )
+
+    _url_compressed = {
+        "full": (
+            "https://physionet.org/static/published-projects/i-care/"
+            "i-care-international-cardiac-arrest-research-consortium-database-2.0.zip"
+        ),
+        "subset": "https://drive.google.com/u/0/uc?id=13IAz0mZIyT4X18izeSClj2veE9E09vop",
+    }
+
     def __init__(
         self,
         db_dir: str,
@@ -223,20 +238,6 @@ class CINC2023Reader(PhysioNetDataBase):
             self.eeg_channel_pairs = self.default_eeg_channel_pairs
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
 
-        self._url_compressed = {
-            "full": (
-                "https://physionet.org/static/published-projects/i-care/"
-                "i-care-international-cardiac-arrest-research-consortium-database-2.0.zip"
-            ),
-            "subset": "https://drive.google.com/u/0/uc?id=13IAz0mZIyT4X18izeSClj2veE9E09vop",
-        }
-
-        self._rec_pattern = (
-            "(?P<sbj>[\\d]{4})\\_"
-            "(?P<seg>[\\d]{3})\\_"
-            "(?P<hour>[\\d]{3})\\_"
-            "(?P<sig>EEG|ECG|REF|OTHER)"
-        )
         self.data_ext = "mat"
         self.header_ext = "hea"
         # self.quality_ext = "tsv"
