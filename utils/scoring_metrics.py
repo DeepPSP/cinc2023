@@ -20,9 +20,9 @@ __all__ = [
 def compute_challenge_metrics(
     labels: Sequence[Dict[str, np.ndarray]],
     outputs: Sequence[CINC2023Outputs],
+    hospitals: Sequence[Sequence[str]],
 ) -> Dict[str, float]:
-    """
-    Compute the challenge metrics
+    """Compute the challenge metrics.
 
     Parameters
     ----------
@@ -65,11 +65,14 @@ def compute_challenge_metrics(
                   multiple recordings
             - outcome: Sequence[str],
                 the array of outcome predictions (class names)
+    hospitals : Sequence[Sequence[str]]
+        The hospital names for each patient,
+        each of shape ``(n_samples,)``.
 
     Returns
     -------
     dict
-        a dict of the following metrics:
+        A dict of the following metrics:
             - outcome_score: float,
             the Challenge score for the outcome predictions
             - outcome_auroc: float,
@@ -112,9 +115,10 @@ def compute_challenge_metrics(
         outcome_pred_outputs = np.concatenate(
             [item.outcome_output.pred for item in outputs]  # categorical outputs
         )
+        hospitals = np.concatenate(hospitals)
         metrics.update(
             compute_outcome_metrics(
-                outcome_labels, outcome_prob_outputs, outcome_pred_outputs
+                outcome_labels, outcome_prob_outputs, outcome_pred_outputs, hospitals
             )
         )
 
@@ -137,6 +141,7 @@ def compute_outcome_metrics(
     outcome_labels: np.ndarray,
     outcome_prob_outputs: np.ndarray,
     outcome_pred_outputs: np.ndarray,
+    hospitals: Sequence[str],
 ) -> Dict[str, float]:
     """Compute the outcome metrics.
 
@@ -150,6 +155,9 @@ def compute_outcome_metrics(
         of shape ``(num_patients, num_classes)``.
     outcome_pred_outputs : np.ndarray
         The categorical (class number) outputs for `outcome`,
+        of shape ``(num_patients,)``.
+    hospitals : Sequence[str]
+        The hospital names for each patient,
         of shape ``(num_patients,)``.
 
     Returns
@@ -170,7 +178,7 @@ def compute_outcome_metrics(
     """
     metrics = {}
     metrics["outcome_score"] = compute_challenge_score(
-        outcome_labels, outcome_prob_outputs
+        outcome_labels, outcome_prob_outputs, hospitals
     )
     auroc, auprc = compute_auc(outcome_labels, outcome_prob_outputs)
     metrics["outcome_auroc"] = auroc
@@ -292,42 +300,42 @@ def compute_challenge_score(
 
         # Update the TPs, FPs, FNs, and TNs using the values at the previous threshold.
         k = 0
-        for l in range(1, num_thresholds):
-            tp[l] = tp[l - 1]
-            fp[l] = fp[l - 1]
-            fn[l] = fn[l - 1]
-            tn[l] = tn[l - 1]
+        for idx in range(1, num_thresholds):
+            tp[idx] = tp[idx - 1]
+            fp[idx] = fp[idx - 1]
+            fn[idx] = fn[idx - 1]
+            tn[idx] = tn[idx - 1]
 
-            while k < num_instances and current_outputs[idx[k]] >= thresholds[l]:
+            while k < num_instances and current_outputs[idx[k]] >= thresholds[idx]:
                 if current_labels[idx[k]] == 1:
-                    tp[l] += 1
-                    fn[l] -= 1
+                    tp[idx] += 1
+                    fn[idx] -= 1
                 else:
-                    fp[l] += 1
-                    tn[l] -= 1
+                    fp[idx] += 1
+                    tn[idx] -= 1
                 k += 1
 
-            # Compute the FPRs.
-            fpr = np.zeros(num_thresholds)
-            for l in range(num_thresholds):
-                if tp[l] + fn[l] > 0:
-                    fpr[l] = float(fp[l]) / float(tp[l] + fn[l])
-                else:
-                    fpr[l] = float("nan")
-
-            # Find the threshold such that FPR <= 0.05.
-            max_fpr = 0.05
-            if np.any(fpr <= max_fpr):
-                l = max(l for l, x in enumerate(fpr) if x <= max_fpr)
-                tps[i] = tp[l]
-                fps[i] = fp[l]
-                fns[i] = fn[l]
-                tns[i] = tn[l]
+        # Compute the FPRs.
+        fpr = np.zeros(num_thresholds)
+        for idx in range(num_thresholds):
+            if tp[idx] + fn[idx] > 0:
+                fpr[idx] = float(fp[idx]) / float(tp[idx] + fn[idx])
             else:
-                tps[i] = tp[0]
-                fps[i] = fp[0]
-                fns[i] = fn[0]
-                tns[i] = tn[0]
+                fpr[idx] = float("nan")
+
+        # Find the threshold such that FPR <= 0.05.
+        max_fpr = 0.05
+        if np.any(fpr <= max_fpr):
+            idx = max(idx for idx, x in enumerate(fpr) if x <= max_fpr)
+            tps[i] = tp[idx]
+            fps[i] = fp[idx]
+            fns[i] = fn[idx]
+            tns[i] = tn[idx]
+        else:
+            tps[i] = tp[0]
+            fps[i] = fp[0]
+            fns[i] = fn[0]
+            tns[i] = tn[0]
 
     # Compute the TPR at FPR <= 0.05 for each hospital.
     tp = np.sum(tps)
