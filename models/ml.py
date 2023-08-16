@@ -27,7 +27,7 @@ from xgboost import XGBClassifier
 from torch_ecg.cfg import CFG, DEFAULTS
 from torch_ecg.components.outputs import ClassificationOutput
 from torch_ecg.components.loggers import LoggerManager
-from torch_ecg.utils.utils_data import stratified_train_test_split  # noqa: F401
+from torch_ecg.utils.utils_data import stratified_train_test_split
 from torch_ecg.utils.utils_metrics import _cls_to_bin
 from tqdm.auto import tqdm
 

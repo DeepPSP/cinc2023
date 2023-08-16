@@ -47,7 +47,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
     def __init__(
         self,
         config: CFG,
-        task: str,
+        task: str = "classification",
         training: bool = True,
         lazy: bool = True,
         **reader_kwargs,
@@ -65,7 +65,50 @@ class CinC2023Dataset(Dataset, ReprMixin):
             reader_kwargs.pop("db_dir", None)
         self.config.db_dir = Path(self.config.db_dir).expanduser().resolve()
 
+        # updates reader_kwargs with the config
+        for kw in ["fs", "hour_limit"]:
+            if kw not in reader_kwargs and hasattr(self.config, kw):
+                reader_kwargs[kw] = getattr(self.config, kw)
+
         self.reader = CINC2023Reader(db_dir=self.config.db_dir, **reader_kwargs)
+
+        # let the data reader (re-)load the metadata dataframes
+        # in which case would be read from the disk via `pd.read_csv`
+        # and the string values parsed from the txt files
+        # are automatically converted to the correct data types
+        # e.g. "50" -> 50 or 50.0 depending on whether the column has nan values
+        # and "True" -> True or "False" -> False, "nan" -> np.nan, etc.
+        self.reader._ls_rec()
+
+        ############################################################################
+        # workaround for training data selection
+        # part 1: select recordings from the unofficial phase
+        #         whose signal quality index (SQI) is present
+        # TODO: remove this workaround when the SQI computation is implemented
+        ############################################################################
+
+        self.reader._df_records = self.reader._df_records[
+            self.reader._df_records.index.isin(
+                self.reader._df_unofficial_phase_metadata[
+                    ~self.reader._df_unofficial_phase_metadata["record"].isna()
+                ].record.values
+            )
+        ]
+        self.reader._all_records = self.reader._df_records.index.tolist()
+        self.reader._df_subjects[
+            self.reader._df_subjects.index.isin(self.reader._df_records.subject)
+        ]
+        self.reader._all_subjects = self.reader._df_subjects.index.tolist()
+        self.reader._subject_records = {
+            sbj: self.reader._df_records.loc[
+                self.reader._df_records["subject"] == sbj
+            ].index.tolist()
+            for sbj in self.reader._all_subjects
+        }
+
+        ############################################################################
+        # end of workaround
+        ############################################################################
 
         self.subjects = self._train_test_split()
         self.records = list_sum(
@@ -73,6 +116,36 @@ class CinC2023Dataset(Dataset, ReprMixin):
         )
         if self.training:
             DEFAULTS.RNG.shuffle(self.records)
+
+        ############################################################################
+        # workaround for training data selection
+        # part 2: find the intervals with SQI computed for each recording
+        # TODO: remove this workaround when the SQI computation is implemented
+        ############################################################################
+
+        self.start_indices = []
+        self.end_indices = []
+        # the start and end indices will eventually be passed to
+        # :meth:`wfdb.rdrecord` to read the data from the disk
+        with tqdm(
+            self.records,
+            desc="Finding intervals with SQI computed",
+            unit="record",
+        ) as pbar:
+            for rec in pbar:
+                official_phase_row = self.reader._df_records.loc[rec]
+                unofficial_phase_row = self.reader._df_unofficial_phase_metadata[
+                    self.reader._df_unofficial_phase_metadata.record == rec
+                ].iloc[0]
+                rec_fs = official_phase_row.fs
+                rec_start_sec = unofficial_phase_row.start_sec
+                rec_end_sec = unofficial_phase_row.end_sec
+                self.start_indices.append(int(rec_fs * rec_start_sec))
+                self.end_indices.append(int(rec_fs * rec_end_sec))
+
+        ############################################################################
+        # end of workaround
+        ############################################################################
 
         if self.config.torch_dtype == torch.float64:
             self.dtype = np.float64
@@ -94,7 +167,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
         return {k: v[index] for k, v in self.cache.items()}
 
     def __set_task(self, task: str, lazy: bool) -> None:
-        """ """
+        """Set the task and load the data."""
         assert task.lower() in TrainCfg.tasks, f"illegal task \042{task}\042"
         if (
             hasattr(self, "task")
@@ -116,7 +189,13 @@ class CinC2023Dataset(Dataset, ReprMixin):
 
         if self.task in ["classification"]:
             self.fdr = FastDataReader(
-                self.reader, self.records, self.config, self.task, self.ppm
+                self.reader,
+                self.records,
+                self.start_indices,
+                self.end_indices,
+                self.config,
+                self.task,
+                self.ppm,
             )
         # elif self.task in ["multi_task"]:
         #     self.fdr = MutiTaskFastDataReader(
@@ -141,24 +220,16 @@ class CinC2023Dataset(Dataset, ReprMixin):
         del tmp_cache
 
     def _load_all_data(self) -> None:
-        """ """
+        """Load all data into memory."""
         self.__set_task(self.task, lazy=False)
 
     def _train_test_split(
         self, train_ratio: float = 0.8, force_recompute: bool = False
     ) -> List[str]:
-        """ """
+        """Train-test split the subjects."""
         _train_ratio = int(train_ratio * 100)
         _test_ratio = 100 - _train_ratio
         assert _train_ratio * _test_ratio > 0
-
-        # let the data reader (re-)load the metadata dataframes
-        # in which case would be read from the disk via `pd.read_csv`
-        # and the string values parsed from the txt files
-        # are automatically converted to the correct data types
-        # e.g. "50" -> 50 or 50.0 depending on whether the column has nan values
-        # and "True" -> True or "False" -> False, "nan" -> np.nan, etc.
-        self.reader._ls_rec()
 
         train_file = self.reader.db_dir / f"train_ratio_{_train_ratio}.json"
         test_file = self.reader.db_dir / f"test_ratio_{_test_ratio}.json"
@@ -240,19 +311,20 @@ class CinC2023Dataset(Dataset, ReprMixin):
 
 
 class FastDataReader(ReprMixin, Dataset):
-    """ """
-
     def __init__(
         self,
         reader: CINC2023Reader,
         records: Sequence[str],
+        start_indices: Sequence[int],
+        end_indices: Sequence[int],
         config: CFG,
         task: str,
         ppm: Optional[PreprocManager] = None,
     ) -> None:
-        """ """
         self.reader = reader
         self.records = records
+        self.start_indices = start_indices
+        self.end_indices = end_indices
         self.config = config
         self.task = task
         self.ppm = ppm
@@ -276,12 +348,23 @@ class FastDataReader(ReprMixin, Dataset):
         rec = self.records[index]
         sampfrom = DEFAULTS.RNG_randint(0, 300 * 100 - self.config[self.task].input_len)
         sampto = sampfrom + self.config[self.task].input_len
-        waveforms = self.reader.load_data(
+        # waveforms = self.reader.load_data(
+        #     rec,
+        #     data_format=self.config[self.task].data_format,
+        #     sampfrom=sampfrom,
+        #     sampto=sampto,
+        # )[np.newaxis, ...]
+        waveforms = self.reader.load_bipolar_data(
             rec,
+            sampfrom=self.start_indices[index],
+            sampto=self.end_indices[index],
             data_format=self.config[self.task].data_format,
-            sampfrom=sampfrom,
-            sampto=sampto,
-        )[np.newaxis, ...]
+            fs=self.config[self.task].fs,
+        )
+        # usually the data_format is "channel_first",
+        # we do not distinguish the data_format here for acceleration
+        waveforms = waveforms[..., sampfrom:sampto]
+        waveforms = waveforms[np.newaxis, ...]
         if self.ppm:
             waveforms, _ = self.ppm(waveforms, self.reader.fs)
         ann = self.reader.load_ann(rec)
