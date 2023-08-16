@@ -199,6 +199,7 @@ class CINC2023Reader(PhysioNetDataBase):
             verbose=verbose,
             **kwargs,
         )
+        self.fs = fs
         self.backend = backend
         self.hour_limit = hour_limit
         self.eeg_channel_pairs = eeg_channel_pairs
@@ -223,11 +224,19 @@ class CINC2023Reader(PhysioNetDataBase):
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
 
         self._url_compressed = {
-            "full": "https://physionet.org/static/published-projects/i-care/i-care-international-cardiac-arrest-research-consortium-database-2.0.zip",
+            "full": (
+                "https://physionet.org/static/published-projects/i-care/"
+                "i-care-international-cardiac-arrest-research-consortium-database-2.0.zip"
+            ),
             "subset": "https://drive.google.com/u/0/uc?id=13IAz0mZIyT4X18izeSClj2veE9E09vop",
         }
 
-        self._rec_pattern = "(?P<sbj>[\\d]{4})\\_(?P<seg>[\\d]{3})\\_(?P<hour>[\\d]{3})\\_(?P<sig>EEG|ECG|REF|OTHER)"
+        self._rec_pattern = (
+            "(?P<sbj>[\\d]{4})\\_"
+            "(?P<seg>[\\d]{3})\\_"
+            "(?P<hour>[\\d]{3})\\_"
+            "(?P<sig>EEG|ECG|REF|OTHER)"
+        )
         self.data_ext = "mat"
         self.header_ext = "hea"
         # self.quality_ext = "tsv"
@@ -245,6 +254,7 @@ class CINC2023Reader(PhysioNetDataBase):
         self._all_records_all = None
         self._all_records = None
         self._all_subjects = None
+        self._subject_records_all = None
         self._subject_records = None
         self._df_unofficial_phase_metadata = None
         self._ls_rec()
@@ -278,10 +288,14 @@ class CINC2023Reader(PhysioNetDataBase):
             ].index.tolist()
             for sig_type in self._df_records_all.sig_type.unique().tolist()
         }
-        self._subject_records = {
+        self._subject_records_all = {
             sbj: self._df_records_all.loc[
                 self._df_records_all["subject"] == sbj
             ].index.tolist()
+            for sbj in self._all_subjects
+        }
+        self._subject_records = {
+            sbj: self._df_records.loc[self._df_records["subject"] == sbj].index.tolist()
             for sbj in self._all_subjects
         }
         self._all_records = self._df_records.index.tolist()
@@ -1085,8 +1099,20 @@ class CINC2023Reader(PhysioNetDataBase):
         return self._all_subjects
 
     @property
+    def all_records(self) -> List[str]:
+        return self._all_records
+
+    @property
+    def all_records_all(self) -> List[str]:
+        return self._all_records_all
+
+    @property
     def subject_records(self) -> Dict[str, List[str]]:
         return self._subject_records
+
+    @property
+    def subject_records_all(self) -> Dict[str, List[str]]:
+        return self._subject_records_all
 
     def plot(self, rec: Union[str, int], **kwargs) -> None:
         """Plot the record with metadata and segmentation.

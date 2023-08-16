@@ -112,19 +112,17 @@ if __name__=='__main__':
         #raw_data = scipy.signal.resample(raw_data, int(math.floor(raw_data.shape[1]*Fs/fs)),axis=1)
         raw_data = scipy.signal.resample_poly(raw_data, Fs, fs, axis=1)
         #raw_data = mne.filter.resample(raw_data, down=fs/Fs, npad='auto')
-        
+
         #import pdb;pdb.set_trace()
         raw_data = raw_data*10e5 # V->uV
-        
+
         channels = data.ch_names
         channels = [x.upper() for x in channels]
         chan_index = list()
         for chNo in available_channels:
             chan_index.append(channels.index(chNo.upper()))
         raw_data = raw_data[chan_index,:]
-        
-        
-        
+
         ## Bipolar reference
         bipolar_data = np.zeros((18,raw_data.shape[1]))
         bipolar_data[8,:] = raw_data[0,:] - raw_data[1,:]; # Fp1-F3
