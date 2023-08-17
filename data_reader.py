@@ -124,14 +124,14 @@ class CINC2023Reader(PhysioNetDataBase):
         (Re-)sampling frequency of the recordings.
     backend : {"scipy",  "wfdb"}, optional
         Backend to use, by default "wfdb", case insensitive.
-    eeg_channel_pairs : list of str, optional
+    eeg_bipolar_channels : list of str, optional
         List of EEG channel pairs for bipolar referencing.
         Each element is a string of two channel names separated by a hyphen.
     eeg_reference_channel: str, optional
         Name of the channel to use as reference for EEG channels.
-        Valid if `eeg_channel_pairs` is None.
-        If both `eeg_channel_pairs` and `eeg_reference_channel` are None,
-        `self.default_eeg_channel_pairs` will be used.
+        Valid if `eeg_bipolar_channels` is None.
+        If both `eeg_bipolar_channels` and `eeg_reference_channel` are None,
+        `self.default_eeg_bipolar_channels` will be used.
     working_dir : str, optional
         Working directory, to store intermediate files and log files.
     hour_limit : int, optional
@@ -164,7 +164,7 @@ class CINC2023Reader(PhysioNetDataBase):
         ],
     }
     common_eeg_channels = BaseCfg.common_eeg_channels
-    default_eeg_channel_pairs = BaseCfg.eeg_channel_pairs
+    default_eeg_bipolar_channels = BaseCfg.eeg_bipolar_channels
     default_eeg_reference_channel = None
     # fmt: on
 
@@ -187,7 +187,7 @@ class CINC2023Reader(PhysioNetDataBase):
         db_dir: str,
         fs: int = 100,
         backend: str = "wfdb",
-        eeg_channel_pairs: Optional[List[str]] = None,
+        eeg_bipolar_channels: Optional[List[str]] = None,
         eeg_reference_channel: Optional[str] = None,
         working_dir: Optional[str] = None,
         hour_limit: Optional[int] = None,
@@ -206,25 +206,25 @@ class CINC2023Reader(PhysioNetDataBase):
         self.fs = fs
         self.backend = backend
         self.hour_limit = hour_limit
-        self.eeg_channel_pairs = eeg_channel_pairs
-        if self.eeg_channel_pairs is not None:
+        self.eeg_bipolar_channels = eeg_bipolar_channels
+        if self.eeg_bipolar_channels is not None:
             if eeg_reference_channel is not None:
                 warnings.warn(
-                    "Both `eeg_channel_pairs` and `eeg_reference_channel` are provided, "
+                    "Both `eeg_bipolar_channels` and `eeg_reference_channel` are provided, "
                     "the latter will be ignored.",
                     RuntimeWarning,
                 )
             self.eeg_reference_channel = None
         elif eeg_reference_channel is not None:
             self.eeg_reference_channel = eeg_reference_channel
-            self.eeg_channel_pairs = [
+            self.eeg_bipolar_channels = [
                 f"{ch}-{eeg_reference_channel}"
                 for ch in self.common_eeg_channels
                 if ch != eeg_reference_channel
             ]
         else:
             self.eeg_reference_channel = self.default_eeg_reference_channel
-            self.eeg_channel_pairs = self.default_eeg_channel_pairs
+            self.eeg_bipolar_channels = self.default_eeg_bipolar_channels
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
 
         self._url_compressed = self._url_compressed_
@@ -335,9 +335,9 @@ class CINC2023Reader(PhysioNetDataBase):
             "Outcome", "CPC",
         ]
         # fmt: on
-        eeg_channel_pairs = [
-            [pair.split("-")[0] for pair in self.eeg_channel_pairs],
-            [pair.split("-")[1] for pair in self.eeg_channel_pairs],
+        eeg_bipolar_channels = [
+            [pair.split("-")[0] for pair in self.eeg_bipolar_channels],
+            [pair.split("-")[1] for pair in self.eeg_bipolar_channels],
         ]
 
         self._df_records_all = pd.DataFrame(columns=[records_index] + records_cols)
@@ -459,7 +459,7 @@ class CINC2023Reader(PhysioNetDataBase):
                         else:
                             diff_inds = [
                                 [header.sig_name.index(item) for item in lst]
-                                for lst in eeg_channel_pairs
+                                for lst in eeg_bipolar_channels
                             ]
                         self._df_records_all.at[idx, "diff_inds"] = diff_inds
                         # assign "start_sec", "end_sec" and "utility_freq" columns
@@ -766,7 +766,7 @@ class CINC2023Reader(PhysioNetDataBase):
         """Load bipolar EEG data from the record.
 
         Bipolar EEG is the difference between two channels.
-        Ref. `self.eeg_channel_pairs`.
+        Ref. `self.eeg_bipolar_channels`.
 
         Parameters
         ----------

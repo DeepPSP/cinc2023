@@ -94,9 +94,9 @@ CinC2023Dataset.__DEBUG__ = False
 CRNN_CINC2023.__DEBUG__ = False
 CINC2023Trainer.__DEBUG__ = False
 
-EEG_CHANNEL_PAIRS = [
-    [pair.split("-")[0] for pair in TrainCfg.eeg_channel_pairs],
-    [pair.split("-")[1] for pair in TrainCfg.eeg_channel_pairs],
+EEG_BIPOLAR_CHANNELS = [
+    [pair.split("-")[0] for pair in TrainCfg.eeg_bipolar_channels],
+    [pair.split("-")[1] for pair in TrainCfg.eeg_bipolar_channels],
 ]
 ################################################################################
 
@@ -540,7 +540,7 @@ def format_input_signal(
         input_channels = list(input_channels) + missing_channels
 
     diff_inds = [
-        [input_channels.index(item) for item in lst] for lst in EEG_CHANNEL_PAIRS
+        [input_channels.index(item) for item in lst] for lst in EEG_BIPOLAR_CHANNELS
     ]
     signal = raw_signal[diff_inds[0]] - raw_signal[diff_inds[1]]
     return signal

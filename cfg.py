@@ -51,7 +51,7 @@ BaseCfg.common_eeg_channels = [
     "Fp1", "Fp2", "F7", "F8", "F3", "F4", "T3", "T4", "C3", "C4",
     "T5", "T6", "P3", "P4", "O1", "O2", "Fz", "Cz", "Pz",
 ]
-BaseCfg.eeg_channel_pairs = [  # from the unofficial phase
+BaseCfg.eeg_bipolar_channels = [  # from the unofficial phase
     "Fp1-F7", "F7-T3", "T3-T5", "T5-O1", "Fp2-F8", "F8-T4",
     "T4-T6", "T6-O2", "Fp1-F3", "F3-C3", "C3-P3", "P3-O1",
     "Fp2-F4", "F4-C4", "C4-P4", "P4-O2", "Fz-Cz", "Cz-Pz",
@@ -59,7 +59,7 @@ BaseCfg.eeg_channel_pairs = [  # from the unofficial phase
 # fmt: on
 BaseCfg.hospitals = list("ABCDEFG")
 BaseCfg.hour_limit = 72
-BaseCfg.n_channels = len(BaseCfg.eeg_channel_pairs)
+BaseCfg.n_channels = len(BaseCfg.eeg_bipolar_channels)
 BaseCfg.torch_dtype = torch.float32  # "double"
 BaseCfg.np_dtype = np.float32
 BaseCfg.ignore_index = -100
