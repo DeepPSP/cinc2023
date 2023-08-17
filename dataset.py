@@ -340,6 +340,16 @@ class CinC2023Dataset(Dataset, ReprMixin):
         self.__cache.clear()
         self.__cache = None
 
+    def shuffle_records(self) -> None:
+        """Shuffle the records."""
+        # NOTE that self.start_indices and self.end_indices
+        # should be shuffled along with self.records
+        indices = np.arange(len(self.records))
+        DEFAULTS.RNG.shuffle(indices)
+        self.records = [self.records[i] for i in indices]
+        self.start_indices = [self.start_indices[i] for i in indices]
+        self.end_indices = [self.end_indices[i] for i in indices]
+
     @property
     def cache(self) -> Dict[str, np.ndarray]:
         return self.__cache
