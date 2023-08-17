@@ -1,6 +1,7 @@
 """
 """
 
+import os
 import re
 import warnings
 from ast import literal_eval
@@ -233,9 +234,32 @@ class CINC2023Reader(PhysioNetDataBase):
         # self.quality_ext = "tsv"
         self.ann_ext = "txt"
 
-        self.records_file = self.db_dir / "RECORDS-NEW"
-        self.records_metadata_file = self.db_dir / "RECORDS.csv"
-        self.subjects_metadata_file = self.db_dir / "SUBJECTS.csv"
+        # NOTE: for CinC2023, the data folder (db_dir) is read-only
+        # the workaround is writing to the model folder
+        # which is set to be the working directory (working_dir)
+        if os.access(self.db_dir, os.W_OK):
+            self.records_file = self.db_dir / "RECORDS-NEW"
+            self.records_metadata_file = self.db_dir / "RECORDS.csv"
+            self.subjects_metadata_file = self.db_dir / "SUBJECTS.csv"
+            warning_msg = None
+        elif os.access(self.working_dir, os.W_OK):
+            self.records_file = self.working_dir / "RECORDS-NEW"
+            self.records_metadata_file = self.working_dir / "RECORDS.csv"
+            self.subjects_metadata_file = self.working_dir / "SUBJECTS.csv"
+            warning_msg = (
+                f"DB directory {self.db_dir} is read-only, "
+                f"records and subjects metadata files will be saved to {self.working_dir}."
+            )
+        else:
+            self.records_file = None
+            self.records_metadata_file = None
+            self.subjects_metadata_file = None
+            warning_msg = (
+                f"DB directory {self.db_dir} and working directory {self.working_dir} "
+                "are both read-only, records and subjects metadata files will not be saved."
+            )
+        if warning_msg is not None:
+            warnings.warn(warning_msg, RuntimeWarning)
 
         self._df_records_all_bak = None
         self._df_records_all = None
@@ -319,11 +343,17 @@ class CINC2023Reader(PhysioNetDataBase):
         self._df_records_all = pd.DataFrame(columns=[records_index] + records_cols)
         self._df_subjects = pd.DataFrame(columns=[subjects_index] + subjects_cols)
 
-        cache_exists = (
-            self.records_file.exists()
-            and self.records_metadata_file.exists()
-            and self.subjects_metadata_file.exists()
-        )
+        if self.records_file is not None:
+            # is records file exists then records/subjects metadata file also exist
+            cache_exists = (
+                self.records_file.exists()
+                and self.records_metadata_file.exists()
+                and self.subjects_metadata_file.exists()
+            )
+            writable = True
+        else:
+            cache_exists = False
+            writable = False
         write_files = False
 
         # load from cache if exists
@@ -505,7 +535,7 @@ class CINC2023Reader(PhysioNetDataBase):
         if self._df_records_all.empty or self._df_subjects.empty:
             write_files = False
 
-        if write_files:
+        if writable and write_files:
             self.records_file.write_text(
                 "\n".join(
                     self._df_records_all["path"]

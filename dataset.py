@@ -2,6 +2,7 @@
 """
 
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Optional, List, Sequence, Dict
@@ -66,7 +67,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
         self.config.db_dir = Path(self.config.db_dir).expanduser().resolve()
 
         # updates reader_kwargs with the config
-        for kw in ["fs", "hour_limit"]:
+        for kw in ["fs", "hour_limit", "working_dir"]:
             if kw not in reader_kwargs and hasattr(self.config, kw):
                 reader_kwargs[kw] = getattr(self.config, kw)
 
@@ -248,8 +249,21 @@ class CinC2023Dataset(Dataset, ReprMixin):
         _test_ratio = 100 - _train_ratio
         assert _train_ratio * _test_ratio > 0
 
-        train_file = self.reader.db_dir / f"train_ratio_{_train_ratio}.json"
-        test_file = self.reader.db_dir / f"test_ratio_{_test_ratio}.json"
+        # NOTE: for CinC2023, the data folder (db_dir) is read-only
+        # the workaround is writing to the model folder
+        # which is set to be the working directory (working_dir)
+        writable = True
+        if os.access(self.reader.db_dir, os.W_OK):
+            train_file = self.reader.db_dir / f"train_ratio_{_train_ratio}.json"
+            test_file = self.reader.db_dir / f"test_ratio_{_test_ratio}.json"
+        elif os.access(self.reader.working_dir, os.W_OK):
+            train_file = self.reader.working_dir / f"train_ratio_{_train_ratio}.json"
+            test_file = self.reader.working_dir / f"test_ratio_{_test_ratio}.json"
+        else:
+            train_file = None
+            test_file = None
+            writable = False
+
         (BaseCfg.project_dir / "utils").mkdir(exist_ok=True)
         aux_train_file = (
             BaseCfg.project_dir / "utils" / f"train_ratio_{_train_ratio}.json"
@@ -275,9 +289,10 @@ class CinC2023Dataset(Dataset, ReprMixin):
                         self.reader.all_subjects
                     )
                 )
-                # and write them to the train_file and test_file
-                train_file.write_text(json.dumps(train_set, ensure_ascii=False))
-                test_file.write_text(json.dumps(test_set, ensure_ascii=False))
+                # and write them to the train_file and test_file if writable
+                if writable:
+                    train_file.write_text(json.dumps(train_set, ensure_ascii=False))
+                    test_file.write_text(json.dumps(test_set, ensure_ascii=False))
                 if self.training:
                     return train_set
                 else:
@@ -319,7 +334,11 @@ class CinC2023Dataset(Dataset, ReprMixin):
         train_set = df_train.index.tolist()
         test_set = df_test.index.tolist()
 
-        if force_recompute or not train_file.exists() or not test_file.exists():
+        if (
+            (writable and force_recompute)
+            or not train_file.exists()
+            or not test_file.exists()
+        ):
             train_file.write_text(json.dumps(train_set, ensure_ascii=False))
             test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 

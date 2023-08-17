@@ -91,11 +91,18 @@ tmp_output_dir = Path(
 TASK = "classification"
 
 
+# make tmp_data_dir read-only
+# as the data folder of CinC2023 is read-only
+os.chmod(str(tmp_data_dir), 0o555)
+
+
 @func_indicator("testing dataset")
 def test_dataset() -> None:
     """ """
     ds_config = deepcopy(TrainCfg)
     ds_config.db_dir = tmp_data_dir
+    ds_config.working_dir = tmp_model_dir / "working_dir"
+    ds_config.working_dir.mkdir(parents=True, exist_ok=True)
 
     ds_train = CinC2023Dataset(ds_config, TASK, training=True, lazy=True)
     ds_val = CinC2023Dataset(ds_config, TASK, training=False, lazy=True)
@@ -180,6 +187,8 @@ def test_trainer() -> None:
     # train_config.model_dir = model_folder
     # train_config.final_model_filename = "final_model.pth.tar"
     train_config.debug = True
+    train_config.working_dir = tmp_model_dir / "working_dir"
+    train_config.working_dir.mkdir(parents=True, exist_ok=True)
 
     train_config.n_epochs = 5
     train_config.batch_size = 8  # 16G (Tesla T4)

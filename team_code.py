@@ -157,6 +157,12 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
     train_config.model_dir = Path(model_folder).resolve().absolute()
     train_config.debug = False
 
+    # NOTE: for CinC2023, the data folder (db_dir) is read-only
+    # the workaround is writing to the model folder
+    # which is set to be the working directory (working_dir)
+    train_config.working_dir = train_config.model_dir / "working_dir"
+    train_config.working_dir.mkdir(parents=True, exist_ok=True)
+
     # if train_config.get("entry_test_flag", False):
     if TEST_FLAG:
         # to test in the file test_docker.py or in test_local.py

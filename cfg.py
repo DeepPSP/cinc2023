@@ -33,6 +33,7 @@ _BASE_DIR = pathlib.Path(__file__).absolute().parent
 
 BaseCfg = CFG()
 BaseCfg.db_dir = None
+BaseCfg.working_dir = None
 BaseCfg.project_dir = _BASE_DIR
 BaseCfg.log_dir = _BASE_DIR / "log"
 BaseCfg.model_dir = _BASE_DIR / "saved_models"
