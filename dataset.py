@@ -256,11 +256,32 @@ class CinC2023Dataset(Dataset, ReprMixin):
         )
         aux_test_file = BaseCfg.project_dir / "utils" / f"test_ratio_{_test_ratio}.json"
 
-        if not force_recompute and train_file.exists() and test_file.exists():
-            if self.training:
-                return json.loads(train_file.read_text())
-            else:
-                return json.loads(test_file.read_text())
+        if not force_recompute:
+            if train_file.exists() and test_file.exists():
+                if self.training:
+                    return json.loads(train_file.read_text())
+                else:
+                    return json.loads(test_file.read_text())
+            elif aux_train_file.exists() and aux_test_file.exists():
+                # TODO: remove this workaround after stratified_train_test_split is enhanced
+                # take the intersections of the two splits with self.reader.subjects
+                train_set = list(
+                    set(json.loads(aux_train_file.read_text())).intersection(
+                        self.reader.all_subjects
+                    )
+                )
+                test_set = list(
+                    set(json.loads(aux_test_file.read_text())).intersection(
+                        self.reader.all_subjects
+                    )
+                )
+                # and write them to the train_file and test_file
+                train_file.write_text(json.dumps(train_set, ensure_ascii=False))
+                test_file.write_text(json.dumps(test_set, ensure_ascii=False))
+                if self.training:
+                    return train_set
+                else:
+                    return test_set
 
         # aux files are only used for recording the split, not for actual training
         # if not force_recompute and aux_train_file.exists() and aux_test_file.exists():
@@ -298,11 +319,11 @@ class CinC2023Dataset(Dataset, ReprMixin):
         train_set = df_train.index.tolist()
         test_set = df_test.index.tolist()
 
-        if force_recompute or not train_file.exists():
+        if force_recompute or not train_file.exists() or not test_file.exists():
             train_file.write_text(json.dumps(train_set, ensure_ascii=False))
             test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 
-        if force_recompute or not aux_train_file.exists():
+        if force_recompute or not aux_train_file.exists() or not aux_test_file.exists():
             aux_train_file.write_text(json.dumps(train_set, ensure_ascii=False))
             aux_test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 
