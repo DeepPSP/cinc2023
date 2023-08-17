@@ -162,15 +162,8 @@ class CINC2023Reader(PhysioNetDataBase):
             "SpO2", "EMG1", "EMG2", "EMG3", "LAT1", "LAT2", "LOC", "ROC", "LEG1", "LEG2",
         ],
     }
-    common_eeg_channels = [
-        "Fp1", "Fp2", "F7", "F8", "F3", "F4", "T3", "T4", "C3", "C4",
-        "T5", "T6", "P3", "P4", "O1", "O2", "Fz", "Cz", "Pz",
-    ]
-    default_eeg_channel_pairs = [  # from the unofficial phase
-        "Fp1-F7", "F7-T3", "T3-T5", "T5-O1", "Fp2-F8", "F8-T4",
-        "T4-T6", "T6-O2", "Fp1-F3", "F3-C3", "C3-P3", "P3-O1",
-        "Fp2-F4", "F4-C4", "C4-P4", "P4-O2", "Fz-Cz", "Cz-Pz",
-    ]
+    common_eeg_channels = BaseCfg.common_eeg_channels
+    default_eeg_channel_pairs = BaseCfg.eeg_channel_pairs
     default_eeg_reference_channel = None
     # fmt: on
 
@@ -178,12 +171,7 @@ class CINC2023Reader(PhysioNetDataBase):
         item: name for name, items in channel_names.items() for item in items
     }
 
-    _rec_pattern = (
-        "(?P<sbj>[\\d]{4})\\_"
-        "(?P<seg>[\\d]{3})\\_"
-        "(?P<hour>[\\d]{3})\\_"
-        "(?P<sig>EEG|ECG|REF|OTHER)"
-    )
+    _rec_pattern = BaseCfg.recording_pattern
 
     _url_compressed = {
         "full": (

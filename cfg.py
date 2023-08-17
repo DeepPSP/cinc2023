@@ -1,4 +1,5 @@
 """
+Configurations for models, training, etc., as well as some constants.
 """
 
 import pathlib
@@ -38,13 +39,24 @@ BaseCfg.model_dir = _BASE_DIR / "saved_models"
 BaseCfg.log_dir.mkdir(exist_ok=True)
 BaseCfg.model_dir.mkdir(exist_ok=True)
 BaseCfg.fs = 100
+BaseCfg.recording_pattern = (
+    "(?P<sbj>[\\d]{4})\\_"
+    "(?P<seg>[\\d]{3})\\_"
+    "(?P<hour>[\\d]{3})\\_"
+    "(?P<sig>EEG|ECG|REF|OTHER)"
+)
 # fmt: off
+BaseCfg.common_eeg_channels = [
+    "Fp1", "Fp2", "F7", "F8", "F3", "F4", "T3", "T4", "C3", "C4",
+    "T5", "T6", "P3", "P4", "O1", "O2", "Fz", "Cz", "Pz",
+]
 BaseCfg.eeg_channel_pairs = [  # from the unofficial phase
     "Fp1-F7", "F7-T3", "T3-T5", "T5-O1", "Fp2-F8", "F8-T4",
     "T4-T6", "T6-O2", "Fp1-F3", "F3-C3", "C3-P3", "P3-O1",
     "Fp2-F4", "F4-C4", "C4-P4", "P4-O2", "Fz-Cz", "Cz-Pz",
 ]
 # fmt: on
+BaseCfg.hospitals = list("ABCDEFG")
 BaseCfg.hour_limit = 72
 BaseCfg.n_channels = len(BaseCfg.eeg_channel_pairs)
 BaseCfg.torch_dtype = torch.float32  # "double"
@@ -161,10 +173,11 @@ elif TrainCfg.classification.output_target == "outcome":
 
 # preprocess configurations
 # NOTE: (only unofficial phase):
-# all EEG data was pre-processed with bandpass filtering (0.5-20Hz) and resampled to 100 Hz.
+# all EEG data was pre-processed with bandpass filtering (0.5-20Hz, or 0.5-30Hz?)
+# and resampled to 100 Hz.
 TrainCfg.classification.resample = CFG(fs=TrainCfg.classification.fs)
 TrainCfg.classification.bandpass = CFG(
-    lowcut=0.5, highcut=20, filter_type="butter", filter_order=4
+    lowcut=0.5, highcut=30, filter_type="butter", filter_order=4
 )
 TrainCfg.classification.normalize = CFG(  # None or False for no normalization
     method="z-score",
