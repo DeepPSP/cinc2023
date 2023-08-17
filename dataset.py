@@ -148,10 +148,15 @@ class CinC2023Dataset(Dataset, ReprMixin):
                     self.reader._df_unofficial_phase_metadata.record == rec
                 ].iloc[0]
                 rec_fs = official_phase_row.fs
+                official_start_sec = official_phase_row.start_sec
                 rec_start_sec = unofficial_phase_row.start_sec
                 rec_end_sec = unofficial_phase_row.end_sec
-                self.start_indices.append(int(rec_fs * rec_start_sec))
-                self.end_indices.append(int(rec_fs * rec_end_sec))
+                self.start_indices.append(
+                    int(rec_fs * (rec_start_sec - official_start_sec))
+                )
+                self.end_indices.append(
+                    int(rec_fs * (rec_end_sec - official_start_sec))
+                )
 
         ############################################################################
         # end of workaround
