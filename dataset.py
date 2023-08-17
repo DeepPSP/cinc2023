@@ -94,6 +94,16 @@ class CinC2023Dataset(Dataset, ReprMixin):
                 ].record.values
             )
         ]
+        # remove those recordings whose [start_sec, end_sec]
+        # does not cover those of the unofficial phase
+        df_tmp = self.reader._df_unofficial_phase_metadata.copy()
+        df_tmp.set_index("record", inplace=True)
+        df_tmp = df_tmp.loc[self.reader._df_records.index]
+        condition = (self.reader._df_records["start_sec"] <= df_tmp["start_sec"]) & (
+            self.reader._df_records["end_sec"] >= df_tmp["end_sec"]
+        )
+        self.reader._df_records = self.reader._df_records[condition]
+
         self.reader._all_records = self.reader._df_records.index.tolist()
         self.reader._df_subjects[
             self.reader._df_subjects.index.isin(self.reader._df_records.subject)
@@ -158,12 +168,14 @@ class CinC2023Dataset(Dataset, ReprMixin):
 
     def __len__(self) -> int:
         if self.cache is None:
-            self._load_all_data()
+            # self._load_all_data()
+            return len(self.fdr)
         return self.cache["waveforms"].shape[0]
 
     def __getitem__(self, index: int) -> Dict[str, np.ndarray]:
         if self.cache is None:
-            self._load_all_data()
+            # self._load_all_data()
+            return self.fdr[index]
         return {k: v[index] for k, v in self.cache.items()}
 
     def __set_task(self, task: str, lazy: bool) -> None:
@@ -340,6 +352,13 @@ class FastDataReader(ReprMixin, Dataset):
             if self.config[self.task].output_target == "cpc"
             else BaseCfg.cpc
         )
+        self.hospitals = [
+            self.reader._df_subjects.loc[
+                self.reader._df_records.loc[r, "subject"], "Hospital"
+            ]
+            for r in records
+        ]
+        self.hospitals = [self.config.hospitals.index(h) for h in self.hospitals]
 
     def __len__(self) -> int:
         return len(self.records)
@@ -382,6 +401,7 @@ class FastDataReader(ReprMixin, Dataset):
             self.aux_target: np.array([self.aux_classes.index(aux_label)]).astype(
                 int
             ),  # categorical
+            "hospitals": np.array([self.hospitals[index]]).astype("uint8"),
         }
         return out_tensors
 
