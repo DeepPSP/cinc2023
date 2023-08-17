@@ -300,37 +300,37 @@ def compute_challenge_score(
 
         # Update the TPs, FPs, FNs, and TNs using the values at the previous threshold.
         k = 0
-        for idx in range(1, num_thresholds):
-            tp[idx] = tp[idx - 1]
-            fp[idx] = fp[idx - 1]
-            fn[idx] = fn[idx - 1]
-            tn[idx] = tn[idx - 1]
+        for thr_ in range(1, num_thresholds):
+            tp[thr_] = tp[thr_ - 1]
+            fp[thr_] = fp[thr_ - 1]
+            fn[thr_] = fn[thr_ - 1]
+            tn[thr_] = tn[thr_ - 1]
 
-            while k < num_instances and current_outputs[idx[k]] >= thresholds[idx]:
+            while k < num_instances and current_outputs[idx[k]] >= thresholds[thr_]:
                 if current_labels[idx[k]] == 1:
-                    tp[idx] += 1
-                    fn[idx] -= 1
+                    tp[thr_] += 1
+                    fn[thr_] -= 1
                 else:
-                    fp[idx] += 1
-                    tn[idx] -= 1
+                    fp[thr_] += 1
+                    tn[thr_] -= 1
                 k += 1
 
         # Compute the FPRs.
         fpr = np.zeros(num_thresholds)
-        for idx in range(num_thresholds):
-            if tp[idx] + fn[idx] > 0:
-                fpr[idx] = float(fp[idx]) / float(tp[idx] + fn[idx])
+        for thr_ in range(num_thresholds):
+            if tp[thr_] + fn[thr_] > 0:
+                fpr[thr_] = float(fp[thr_]) / float(tp[thr_] + fn[thr_])
             else:
-                fpr[idx] = float("nan")
+                fpr[thr_] = float("nan")
 
         # Find the threshold such that FPR <= 0.05.
         max_fpr = 0.05
         if np.any(fpr <= max_fpr):
-            idx = max(idx for idx, x in enumerate(fpr) if x <= max_fpr)
-            tps[i] = tp[idx]
-            fps[i] = fp[idx]
-            fns[i] = fn[idx]
-            tns[i] = tn[idx]
+            thr_ = max(thr_ for thr_, x in enumerate(fpr) if x <= max_fpr)
+            tps[i] = tp[thr_]
+            fps[i] = fp[thr_]
+            fns[i] = fn[thr_]
+            tns[i] = tn[thr_]
         else:
             tps[i] = tp[0]
             fps[i] = fp[0]
