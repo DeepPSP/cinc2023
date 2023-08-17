@@ -14,7 +14,7 @@ import pickle
 import time
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Union, Tuple, Sequence
 
 import numpy as np
 import torch
@@ -31,17 +31,20 @@ from torch_ecg._preprocessors import PreprocManager
 from tqdm.auto import tqdm
 
 from cfg import TrainCfg, ModelCfg
-from data_reader import CINC2023Reader
 from dataset import CinC2023Dataset
 from models import CRNN_CINC2023
 from trainer import CINC2023Trainer, _set_task
-from helper_code import (
+from helper_code import (  # noqa: F401
     find_data_folders,
-    load_challenge_data,
-    reorder_recording_channels,
-)
+    reduce_channels,
+    expand_channels,
+)  # noqa: F401
 from utils.features import get_features, get_labels
-from utils.misc import load_challenge_metadata
+from utils.misc import (
+    load_challenge_metadata,
+    load_challenge_eeg_data,
+    find_eeg_recording_files,
+)
 
 
 ################################################################################
@@ -90,6 +93,11 @@ else:
 CinC2023Dataset.__DEBUG__ = False
 CRNN_CINC2023.__DEBUG__ = False
 CINC2023Trainer.__DEBUG__ = False
+
+EEG_CHANNEL_PAIRS = [
+    [pair.split("-")[0] for pair in TrainCfg.eeg_channel_pairs],
+    [pair.split("-")[1] for pair in TrainCfg.eeg_channel_pairs],
+]
 ################################################################################
 
 
@@ -303,17 +311,17 @@ def load_challenge_models(
     -------
     dict
         with items:
-        - main_model: torch.nn.Module,
-            the loaded model, for cpc predictions,
-            or for both cpc and outcome predictions
-        - train_cfg: CFG,
-            the training configuration,
-            including the list of classes (the ordering is important),
-            and the preprocessing configurations
-        - outcome_model: BaseEstimator,
-            the loaded model, for outcome predictions
-        - cpc_model: BaseEstimator,
-            the loaded model, for cpc predictions
+            - main_model: torch.nn.Module,
+              the loaded model, for cpc predictions,
+              or for both cpc and outcome predictions.
+            - train_cfg: CFG,
+              the training configuration,
+              including the list of classes (the ordering is important),
+              and the preprocessing configurations.
+            - outcome_model: BaseEstimator,
+              the loaded model, for outcome predictions.
+            - cpc_model: BaseEstimator,
+              the loaded model, for cpc predictions.
 
     """
     print("\n" + "*" * 100)
@@ -347,24 +355,24 @@ def run_challenge_models(
     data_folder: str,
     patient_id: str,
     verbose: int,
-):
+) -> Tuple[int, float, float]:
     """Run trained models.
 
     Parameters
     ----------
     models : dict
         with items:
-        - main_model: torch.nn.Module,
-            the loaded model, for cpc predictions,
-            or for both cpc and outcome predictions
-        - train_cfg: CFG,
-            the training configuration,
-            including the list of classes (the ordering is important),
-            and the preprocessing configurations
-        - outcome_model: BaseEstimator,
-            the loaded model, for outcome predictions
-        - cpc_model: BaseEstimator,
-            the loaded model, for cpc predictions
+            - main_model: torch.nn.Module,
+              the loaded model, for cpc predictions,
+              or for both cpc and outcome predictions.
+            - train_cfg: CFG,
+              the training configuration,
+              including the list of classes (the ordering is important),
+              and the preprocessing configurations.
+            - outcome_model: BaseEstimator,
+              the loaded model, for outcome predictions.
+            - cpc_model: BaseEstimator,
+              the loaded model, for cpc predictions.
     data_folder : str
         path to the folder containing the Challenge data
     patient_id : str
@@ -374,14 +382,12 @@ def run_challenge_models(
 
     Returns
     -------
-    tuple
-        with items:
-        - outcome: int,
-            the predicted outcome
-        - outcome_probability: float,
-            the predicted outcome probability
-        - cpc: float,
-            the predicted cpc
+    outcome : int
+        the predicted outcome
+    outcome_probability : float
+        the predicted outcome probability
+    cpc : float
+        the predicted cpc
 
     """
     imputer = models["imputer"]
@@ -397,17 +403,14 @@ def run_challenge_models(
 
     # Load data.
     # patient_metadata: str
-    # recording_metadata: str
-    # recording_data: list of 3-tuples (signal, sampling_frequency, channel_names)
-    patient_metadata, recording_metadata, recording_data = load_challenge_data(
-        data_folder, patient_id
-    )
-    recording_data = [rec for rec in recording_data if rec[0] is not None]
+    patient_metadata = load_challenge_metadata(data_folder, patient_id)
+    recording_files = find_eeg_recording_files(data_folder, patient_id)
+    num_recordings = len(recording_files)
 
     if verbose >= 1:
-        print(f"Found {len(recording_data)} recordings for patient {patient_id}.")
+        print(f"Found {num_recordings} recordings for patient {patient_id}.")
 
-    if len(recording_data) == 0:
+    if num_recordings == 0:
         # No available recordings.
         # use the outcome_model and cpc_model to predict the outcome and cpc
         features = get_features(patient_metadata).reshape(1, -1)
@@ -421,18 +424,27 @@ def run_challenge_models(
 
     # There are available recordings.
 
-    # Preprocess the recordings.
+    # recording_data: list of 3-tuples (signal, sampling_frequency, channel_names)
+    recording_data = load_challenge_eeg_data(data_folder, patient_id)
+    # find recordings whose channels are a superset of the common channels
+    valid_indices = [
+        idx
+        for idx, (_, _, channel_names) in enumerate(recording_data)
+        if set(TrainCfg.common_eeg_channels).issubset(channel_names)
+    ]
+    # use only the valid recordings if there are any
+    # otherwise use all recordings
+    if len(valid_indices) > 0:
+        recording_data = [recording_data[idx] for idx in valid_indices]
     main_model_outputs = []
     for signal, sampling_frequency, channel_names in recording_data:
+        # Preprocess the recordings.
         # to correct dtype if necessary
         signal = _to_dtype(signal, DTYPE)
         # to channel first format if necessary
         if signal.shape[0] != len(channel_names):
             signal = signal.T
-        # reorder channels if necessary
-        signal = reorder_recording_channels(
-            signal, channel_names, CINC2023Reader.channel_names
-        )
+        signal = format_input_signal(signal, channel_names)
         # preprocess the signal
         signal, _ = ppm(signal, sampling_frequency)
 
@@ -492,3 +504,37 @@ def _to_dtype(data: np.ndarray, dtype: np.dtype = np.float32) -> np.ndarray:
     if data.dtype in (np.int8, np.uint8, np.int16, np.int32, np.int64):
         data = data.astype(dtype) / (np.iinfo(data.dtype).max + 1)
     return data
+
+
+def format_input_signal(
+    raw_signal: np.ndarray, input_channels: Sequence[str]
+) -> np.ndarray:
+    """Format the input signal via forming the single-channel raw
+    signal to bipolar signal.
+
+    Parameters
+    ----------
+    raw_signal : np.ndarray
+        the raw signal, of shape ``(n_channels, n_samples)``.
+    input_channels : Sequence[str]
+        the list of input channels.
+
+    Returns
+    -------
+    np.ndarray
+        the formatted signal, of shape ``(n_channels, n_samples)``
+
+    """
+    missing_channels = list(set(TrainCfg.common_eeg_channels) - set(input_channels))
+    if len(missing_channels) > 0:
+        # add missing channels
+        raw_signal = np.concatenate(
+            [raw_signal, np.zeros((len(missing_channels), raw_signal.shape[1]))]
+        )
+        input_channels = list(input_channels) + missing_channels
+
+    diff_inds = [
+        [input_channels.index(item) for item in lst] for lst in EEG_CHANNEL_PAIRS
+    ]
+    signal = raw_signal[diff_inds[0]] - raw_signal[diff_inds[1]]
+    return signal

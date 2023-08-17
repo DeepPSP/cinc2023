@@ -160,10 +160,13 @@ def test_challenge_metrics() -> None:
         "cpc": cpc_gt,
         "outcome": outcome_gt,
     }
+
     hospitals = np.random.choice(["A", "B", "C", "D", "E", "F", "G"], size=100)
-
     metrics = compute_challenge_metrics([labels], [outputs], [hospitals])
+    print(dict_to_str(metrics))
 
+    hospitals = np.random.choice(range(7), size=100)
+    metrics = compute_challenge_metrics([labels], [outputs], [hospitals])
     print(dict_to_str(metrics))
 
     print("challenge metrics test passed")

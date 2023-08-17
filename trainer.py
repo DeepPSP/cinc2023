@@ -214,12 +214,11 @@ class CINC2023Trainer(BaseTrainer):
         self.criterion.to(device=self.device, dtype=self.dtype)
 
     def train_one_epoch(self, pbar: tqdm) -> None:
-        """
-        train one epoch, and update the progress bar
+        """Train one epoch, and update the progress bar
 
         Parameters
         ----------
-        pbar: tqdm,
+        pbar : tqdm
             the progress bar for training
 
         """
@@ -309,13 +308,12 @@ class CINC2023Trainer(BaseTrainer):
     def run_one_step(
         self, input_tensors: Dict[str, torch.Tensor]
     ) -> Dict[str, torch.Tensor]:
-        """
+        """Run one step (batch) of training
 
         Parameters
         ----------
-        input_tensors : dict,
+        input_tensors : dict
             the tensors to be processed for training one step (batch), with the following items:
-
                 - "waveforms" (required): the input waveforms
                 - "cpc" (optional): the cpc labels, for classification task or regression task
                 - "outcome" (optional): the outcome labels, for classification task
@@ -324,7 +322,6 @@ class CINC2023Trainer(BaseTrainer):
         -------
         out_tensors : dict
             with the following items (some are optional):
-
                 - "cpc": the cpc predictions, of shape (batch_size, n_classes) or (batch_size,)
                 - "outcome": the outcome predictions, of shape (batch_size, n_classes)
 
@@ -339,12 +336,13 @@ class CINC2023Trainer(BaseTrainer):
 
     @torch.no_grad()
     def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
-        """ """
+        """Evaluate the model on the given data loader"""
 
         self.model.eval()
 
         all_outputs = []
         all_labels = []
+        all_hospitals = []  # required for computing the metrics in the official phase
 
         for input_tensors in data_loader:
             # input_tensors is assumed to be a dict of tensors, with the following items:
@@ -353,9 +351,11 @@ class CINC2023Trainer(BaseTrainer):
             # "outcome" (optional): the outcome labels, for classification task
             waveforms = input_tensors.pop("waveforms")
             waveforms = waveforms.to(device=self.device, dtype=self.dtype)
+            hospitals = input_tensors.pop("hospitals").numpy().flatten().tolist()
             labels = {k: v.numpy() for k, v in input_tensors.items() if v is not None}
 
             all_labels.append(labels)
+            all_hospitals.append(hospitals)
 
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
@@ -394,6 +394,7 @@ class CINC2023Trainer(BaseTrainer):
         eval_res = compute_challenge_metrics(
             labels=all_labels,
             outputs=all_outputs,
+            hospitals=all_hospitals,
         )
 
         # in case possible memeory leakage?
