@@ -159,7 +159,7 @@ TrainCfg.classification.input_config = InputConfig(
 )
 TrainCfg.classification.num_channels = TrainCfg.classification.input_config.n_channels
 TrainCfg.classification.input_len = int(
-    160 * TrainCfg.classification.fs
+    180 * TrainCfg.classification.fs
 )  # units in seconds, to adjust
 TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
 TrainCfg.classification.sig_slice_tol = None  # None, do no slicing
