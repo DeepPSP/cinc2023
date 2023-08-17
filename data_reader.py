@@ -173,7 +173,7 @@ class CINC2023Reader(PhysioNetDataBase):
 
     _rec_pattern = BaseCfg.recording_pattern
 
-    _url_compressed = {
+    _url_compressed_ = {
         "full": (
             "https://physionet.org/static/published-projects/i-care/"
             "i-care-international-cardiac-arrest-research-consortium-database-2.0.zip"
@@ -225,6 +225,8 @@ class CINC2023Reader(PhysioNetDataBase):
             self.eeg_reference_channel = self.default_eeg_reference_channel
             self.eeg_channel_pairs = self.default_eeg_channel_pairs
         self.dtype = kwargs.get("dtype", BaseCfg.np_dtype)
+
+        self._url_compressed = self._url_compressed_
 
         self.data_ext = "mat"
         self.header_ext = "hea"
