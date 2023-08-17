@@ -1,0 +1,32 @@
+Unofficial Phase:
+  submission 1:
+    score: 0.537
+    submission ID: 1297
+    input_len: 180
+    batch_size: 24
+    learning_rate: 1e-3
+    max_lr: 4e-3
+    n_epochs: 60
+    reload_data_every: 6
+
+  submission 2:
+    score: 0.448
+    submission ID: 1338
+    input_len: 180
+    batch_size: 24
+    learning_rate: 1e-3
+    max_lr: 4e-3
+    n_epochs: 80
+    reload_data_every: 6
+
+  submission 3:
+    score: 0.313
+    submission ID: 1375
+    input_len: 160
+    batch_size: 24
+    learning_rate: 1e-3
+    max_lr: 4e-3
+    n_epochs: 80
+    reload_data_every: 5
+
+Official Phase:
