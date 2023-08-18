@@ -21,6 +21,7 @@ from torch_ecg.utils.download import _untar_file
 
 from cfg import BaseCfg
 from utils.misc import load_unofficial_phase_metadata
+from utils.sqi import compute_sqi
 
 
 __all__ = [
@@ -1114,6 +1115,54 @@ class CINC2023Reader(PhysioNetDataBase):
             return metadata
         else:
             return metadata[field]
+
+    def compute_eeg_sqi(
+        self,
+        rec: Union[str, int],
+        sqi_window_time: float = 5.0,  # min
+        sqi_window_step: float = 1.0,  # min
+        sqi_time_units: Optional[str] = "s",
+    ) -> np.ndarray:
+        """Compute EEG SQI (Signal Quality Index) for the record.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or the index of the record in :attr:`all_records`.
+        sqi_window_time : float, optional
+            The window length in minutes to compute the SQI.
+        sqi_window_step : float, optional
+            The window step in minutes to compute the SQI.
+        sqi_time_units : {None, "s", "m"}, default ``None``
+            The time units the returned SQI array,
+            i.e. the first two columns of the returned SQI array,
+            which are the start and end time (indices) of the window.
+            Can be one of ``None``, ``"s"``, ``"m"``;
+            if is ``None``, the time units are indices.
+
+        Returns
+        -------
+        sqi : numpy.ndarray
+            The SQI for the signal. Shape: ``(n_windows, 3)``.
+            The first column is the start time (index) of the window,
+            the second column is the end time (index) of the window,
+            and the third column is the SQI value.
+
+        """
+        # we fix the (re-)sampling frequency to 100 Hz
+        FS = 100
+        bipolar_signal = self.load_bipolar_data(rec, fs=FS)
+        sqi = compute_sqi(
+            signal=bipolar_signal,
+            channels=self.eeg_bipolar_channels,
+            fs=FS,
+            is_bipolar=True,
+            sqi_window_time=sqi_window_time,
+            sqi_window_step=sqi_window_step,
+            sqi_time_units=sqi_time_units,
+            segment_config=None,  # use the default segment config
+        )
+        return sqi
 
     @property
     def all_subjects(self) -> List[str]:
