@@ -50,15 +50,16 @@ def compute_sqi(
     segment_config: Optional[dict] = None,
     sqi_window_time: float = 5.0,  # min
     sqi_window_step: float = 1.0,  # min
+    sqi_time_units: Optional[str] = None,
 ) -> np.ndarray:
-    """Compute SQI for the signal.
+    """Compute SQI (Signal Quality Index) for the signal.
 
     SQI is computed as the proportion of normal segments
     in the window of ``sqi_window_time`` minutes.
 
     Parameters
     ----------
-    signal : np.ndarray
+    signal : numpy.ndarray
         The signal to compute SQI for. Shape: ``(n_channels, n_samples)``.
     channels : Sequence[str]
         The channel names in the signal.
@@ -76,13 +77,19 @@ def compute_sqi(
         The window time for computing SQI, in minutes.
     sqi_window_step : float, default 1.0
         The window step for computing SQI, in minutes.
+    sqi_time_units : {None, "s", "m"}, default ``None``
+        The time units the returned SQI array,
+        i.e. the first two columns of the returned SQI array,
+        which are the start and end time (indices) of the window.
+        Can be one of ``None``, ``"s"``, ``"m"``;
+        if is ``None``, the time units are indices.
 
     Returns
     -------
-    sqi : np.ndarray
+    sqi : numpy.ndarray
         The SQI for the signal. Shape: ``(n_windows, 3)``.
-        The first column is the start index of the window,
-        the second column is the end index of the window,
+        The first column is the start time (index) of the window,
+        the second column is the end time (index) of the window,
         and the third column is the SQI value.
 
     """
@@ -149,6 +156,13 @@ def compute_sqi(
             (seg_start_ids_ >= start) & (seg_end_ids_ <= end) & normal_mask
         )
         sqi[i, 2] = num_normal / num_total if num_total > 0 else 0.0
+
+    # convert the time units if needed
+    if sqi_time_units is not None:
+        if sqi_time_units == "s":
+            sqi[:, :2] /= fs
+        elif sqi_time_units == "m":
+            sqi[:, :2] /= fs * 60
 
     return sqi
 
