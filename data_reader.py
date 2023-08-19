@@ -1252,3 +1252,119 @@ class CINC2023Reader(PhysioNetDataBase):
         return (
             "https://console.cloud.google.com/storage/browser/i-care-2.0.physionet.org/"
         )
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Process CINC2023 database.")
+    parser.add_argument(
+        "operations",
+        nargs=argparse.ONE_OR_MORE,
+        type=str,
+        choices=["download", "sqi"],
+    )
+    parser.add_argument(
+        "-d",
+        "--db-dir",
+        type=str,
+        help="The directory to (store) the database.",
+        dest="db_dir",
+    )
+    parser.add_argument(
+        "--working-dir",
+        type=str,
+        default=None,
+        help="The working directory to store the intermediate results.",
+        dest="working_dir",
+    )
+    parser.add_argument(
+        "--fs",
+        type=int,
+        default=100,
+        help="The (re-)sampling frequency of the signal.",
+        dest="fs",
+    )
+    parser.add_argument(
+        "--hour-limit",
+        type=int,
+        default=None,
+        help="The hour limit of the records to use.",
+        dest="hour_limit",
+    )
+    parser.add_argument(
+        "--download-full",
+        action="store_true",
+        help="Download the full database.",
+        dest="download_full",
+    )
+    parser.add_argument(
+        "--sqi-window-time",
+        type=float,
+        default=5.0,
+        help="The window length in minutes to compute the SQI.",
+        dest="sqi_window_time",
+    )
+    parser.add_argument(
+        "--sqi-window-step",
+        type=float,
+        default=1.0,
+        help="The window step in minutes to compute the SQI.",
+        dest="sqi_window_step",
+    )
+    parser.add_argument(
+        "--sqi-save-dir",
+        type=str,
+        default=None,
+        help="The directory to save the SQI results.",
+        dest="sqi_save_dir",
+    )
+
+    args = parser.parse_args()
+    db_dir = Path(args.db_dir) if args.db_dir is not None else None
+
+    dr = CINC2023Reader(
+        db_dir=db_dir,
+        working_dir=args.working_dir,
+        fs=args.fs,
+        hour_limit=args.hour_limit,
+    )
+
+    operations = args.operations
+
+    if "download" in operations:
+        dr.download(full=args.download_full)
+
+    if "sqi" in operations:
+        if args.sqi_save_dir is not None:
+            sqi_dir = Path(args.sqi_save_dir).expanduser().resolve()
+        elif os.access(dr.db_dir, os.W_OK):
+            sqi_dir = dr.db_dir / "sqi"
+        elif os.access(dr.working_dir, os.W_OK):
+            sqi_dir = dr.working_dir / "sqi"
+        else:
+            raise ValueError("No access to write the SQI results.")
+        sqi_dir.mkdir(parents=True, exist_ok=True)
+        with tqdm(dr.all_records) as pbar:
+            for rec in pbar:
+                subject_id = dr.get_subject_id(rec)
+                save_path = sqi_dir / subject_id / f"{rec}_SQI.csv"
+                save_path.parent.mkdir(parents=True, exist_ok=True)
+                # is save_path is an non-empty file, skip
+                if save_path.is_file() and save_path.stat().st_size > 0:
+                    continue
+                pbar.set_description(f"Computing SQI for {rec}")
+                sqi = dr.compute_eeg_sqi(
+                    rec=rec,
+                    sqi_window_time=args.sqi_window_time,
+                    sqi_window_step=args.sqi_window_step,
+                    sqi_time_units="s",
+                    return_type="pd",
+                )
+                sqi.to_csv(save_path, index=False)
+
+    print("Done.")
+
+    # usage examples:
+    # 1. compute SQI for all records:
+    # python data_reader.py sqi --db-dir /path/to/db
