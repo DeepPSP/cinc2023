@@ -104,6 +104,7 @@ def compute_sqi(
     _config.update(segment_config or {})
 
     if is_bipolar:
+        # `eeg_segment_func` accepts only float64 dtype signal
         bipolar_signal = signal.astype(np.float64)
         _config.bipolar_channels = channels
     else:
@@ -114,6 +115,7 @@ def compute_sqi(
         ]
         diff_inds = [[channels.index(item) for item in lst] for lst in channel_pairs]
         bipolar_signal = signal[diff_inds[0]] - signal[diff_inds[1]]
+        # `eeg_segment_func` accepts only float64 dtype signal
         bipolar_signal = bipolar_signal.astype(np.float64)
 
     # compute segments and information of the segments
@@ -148,7 +150,8 @@ def compute_sqi(
     window_size = int(sqi_window_time * 60 * fs)
     window_step = int(sqi_window_step * 60 * fs)
     siglen = signal.shape[1]
-    num_windows = (siglen - window_size) // window_step + 1
+    # at least one window, even if the signal is too short
+    num_windows = max(1, (siglen - window_size) // window_step + 1)
     sqi = np.zeros((num_windows, 3), dtype=np.float64)
     for i in range(num_windows):
         start = i * window_step
