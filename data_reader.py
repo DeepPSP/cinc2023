@@ -1319,6 +1319,13 @@ if __name__ == "__main__":
         help="The directory to save the SQI results.",
         dest="sqi_save_dir",
     )
+    parser.add_argument(
+        "--sqi-subjects",
+        type=str,
+        default=None,
+        help="The subjects to compute the SQI, separated by comma.",
+        dest="sqi_subjects",
+    )
 
     args = parser.parse_args()
     db_dir = Path(args.db_dir) if args.db_dir is not None else None
@@ -1345,7 +1352,14 @@ if __name__ == "__main__":
         else:
             raise ValueError("No access to write the SQI results.")
         sqi_dir.mkdir(parents=True, exist_ok=True)
-        with tqdm(dr.all_records) as pbar:
+        sqi_error_file = sqi_dir / "error-recs.txt"
+        if args.sqi_subjects is not None:
+            records = dr._df_records[
+                dr._df_records["subject"].isin(args.sqi_subjects.split(","))
+            ].index.tolist()
+        else:
+            records = dr.all_records
+        with tqdm(records) as pbar:
             for rec in pbar:
                 subject_id = dr.get_subject_id(rec)
                 save_path = sqi_dir / subject_id / f"{rec}_SQI.csv"
@@ -1354,14 +1368,19 @@ if __name__ == "__main__":
                 if save_path.is_file() and save_path.stat().st_size > 0:
                     continue
                 pbar.set_description(f"Computing SQI for {rec}")
-                sqi = dr.compute_eeg_sqi(
-                    rec=rec,
-                    sqi_window_time=args.sqi_window_time,
-                    sqi_window_step=args.sqi_window_step,
-                    sqi_time_units="s",
-                    return_type="pd",
-                )
-                sqi.to_csv(save_path, index=False)
+                try:
+                    sqi = dr.compute_eeg_sqi(
+                        rec=rec,
+                        sqi_window_time=args.sqi_window_time,
+                        sqi_window_step=args.sqi_window_step,
+                        sqi_time_units="s",
+                        return_type="pd",
+                    )
+                    sqi.to_csv(save_path, index=False)
+                except Exception as e:
+                    with open(sqi_error_file, "a") as f:
+                        f.write(f"{rec}\n")
+                    print(f"Error in computing SQI for {rec}: {e}")
 
     print("Done.")
 
