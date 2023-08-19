@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Sequence, Optional
 
 import numpy as np
+import pandas as pd
 from torch_ecg.cfg import CFG
 from torch_ecg.utils import mask_to_intervals
 
@@ -51,6 +52,7 @@ def compute_sqi(
     sqi_window_time: float = 5.0,  # min
     sqi_window_step: float = 1.0,  # min
     sqi_time_units: Optional[str] = None,
+    return_type: str = "np",
 ) -> np.ndarray:
     """Compute SQI (Signal Quality Index) for the signal.
 
@@ -83,6 +85,10 @@ def compute_sqi(
         which are the start and end time (indices) of the window.
         Can be one of ``None``, ``"s"``, ``"m"``;
         if is ``None``, the time units are indices.
+    return_type : {"np", "pd"}, default "np"
+        The type of the returned SQI array.
+        Can be one of ``"np"`` (numpy.ndarray)
+        or ``"pd"`` (pandas.DataFrame).
 
     Returns
     -------
@@ -161,8 +167,21 @@ def compute_sqi(
     if sqi_time_units is not None:
         if sqi_time_units == "s":
             sqi[:, :2] /= fs
+            columns = ["start_time_s", "end_time_s", "sqi"]
         elif sqi_time_units == "m":
             sqi[:, :2] /= fs * 60
+            columns = ["start_time_m", "end_time_m", "sqi"]
+        else:
+            raise ValueError(
+                f"Invalid time units: {sqi_time_units}. "
+                f"Must be one of None, 's', 'm'."
+            )
+    else:
+        columns = ["start_index", "end_index", "sqi"]
+
+    # convert to pandas DataFrame if needed
+    if return_type == "pd":
+        sqi = pd.DataFrame(sqi, columns=columns)
 
     return sqi
 

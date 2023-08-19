@@ -1080,18 +1080,18 @@ class CINC2023Reader(PhysioNetDataBase):
         """Get metadata of the record.
 
         Metadata of the record includes the following fields:
-
-        - "hour": the hour after cardiac arrest when the recording was recorded.
-        - "start_sec": the start time of the recording in seconds in the hour.
-        - "end_sec": the end time of the recording in seconds in the hour.
-        - "utility_freq": the AC frequency of the apparatus used to record the signal.
-        - "fs": the sampling frequency of the recording.
-        - "sig_len": the length of the recording in samples.
-        - "n_sig": the number of signals (channels) in the recording.
-        - "sig_name": the names of the signals (channels) in the recording.
-        - "ECG": whether or not the recording has simultaneous ECG signal.
-        - "REF": whether or not the recording has simultaneous reference signal.
-        - "OTHER": whether or not the recording has simultaneous other signal.
+            - "hour": the hour after cardiac arrest when the recording was recorded.
+            - "start_sec": the start time of the recording in seconds in the hour.
+            - "end_sec": the end time of the recording in seconds in the hour.
+            - "utility_freq": the AC frequency of the apparatus used to record the signal.
+            - "fs": the sampling frequency of the recording.
+            - "sig_len": the length of the recording in samples.
+            - "n_sig": the number of signals (channels) in the recording.
+            - "sig_name": the names of the signals (channels) in the recording.
+            - "ECG": whether or not the recording has simultaneous ECG signal.
+            - "REF": whether or not the recording has simultaneous reference signal.
+            - "OTHER": whether or not the recording has simultaneous other signal.
+            - "Hospital": the hospital where the recording was recorded.
 
         Parameters
         ----------
@@ -1111,6 +1111,11 @@ class CINC2023Reader(PhysioNetDataBase):
         metadata = self._df_records.loc[rec].to_dict()
         for item in ["path", "sig_type"]:
             metadata.pop(item)
+        metadata["Hospital"] = self._df_subjects.loc[
+            self.get_subject_id(rec), "Hospital"
+        ]
+        # the rest of the subject-level metadata other than "Hospital"
+        # will NOT be included in the record-level metadata
         if field is None:
             return metadata
         else:
@@ -1122,6 +1127,7 @@ class CINC2023Reader(PhysioNetDataBase):
         sqi_window_time: float = 5.0,  # min
         sqi_window_step: float = 1.0,  # min
         sqi_time_units: Optional[str] = "s",
+        return_type: str = "np",
     ) -> np.ndarray:
         """Compute EEG SQI (Signal Quality Index) for the record.
 
@@ -1139,6 +1145,10 @@ class CINC2023Reader(PhysioNetDataBase):
             which are the start and end time (indices) of the window.
             Can be one of ``None``, ``"s"``, ``"m"``;
             if is ``None``, the time units are indices.
+        return_type : {"np", "pd"}, default "np"
+            The type of the returned SQI array.
+            Can be one of ``"np"`` (numpy.ndarray)
+            or ``"pd"`` (pandas.DataFrame).
 
         Returns
         -------
@@ -1160,6 +1170,7 @@ class CINC2023Reader(PhysioNetDataBase):
             sqi_window_time=sqi_window_time,
             sqi_window_step=sqi_window_step,
             sqi_time_units=sqi_time_units,
+            return_type=return_type,
             segment_config=None,  # use the default segment config
         )
         return sqi
