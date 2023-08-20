@@ -5,6 +5,7 @@ import os
 import re
 import warnings
 from ast import literal_eval
+from numbers import Real
 from pathlib import Path
 from typing import Union, Optional, Any, List, Dict, Sequence, Tuple
 
@@ -653,7 +654,14 @@ class CINC2023Reader(PhysioNetDataBase):
         data_format: str = "channel_first",
         units: Union[str, type(None)] = "uV",
         fs: Optional[int] = None,
-    ) -> np.ndarray:
+        return_fs: bool = False,
+        return_channels: bool = False,
+    ) -> Union[
+        np.ndarray,
+        Tuple[np.ndarray, Real],
+        Tuple[np.ndarray, List[str]],
+        Tuple[np.ndarray, Real, List[str]],
+    ]:
         """Load EEG data from the record.
 
         Parameters
@@ -682,11 +690,21 @@ class CINC2023Reader(PhysioNetDataBase):
             Sampling frequency of the record,
             defaults to `self.fs` if `self.fs` is set
             else defaults to the raw sampling frequency of the record.
+        return_fs : bool, default False
+            Whether to return the sampling frequency of the output signal.
+        return_channels : bool, default False
+            Whether to return the channel names of the output signal.
 
         Returns
         -------
         data : numpy.ndarray
             The loaded EEG data.
+        data_fs : numbers.Real, optional
+            Sampling frequency of the output signal.
+            Returned if `return_fs` is True.
+        data_channels : list of str, optional
+            Channel names of the output signal.
+            Returned if `return_channels` is True.
 
         """
         if isinstance(rec, int):
@@ -742,17 +760,25 @@ class CINC2023Reader(PhysioNetDataBase):
         # elif units.lower() == "mv":
         #     data = wfdb_rec.p_signal / 1000
 
-        fs = fs or self.fs
-        if fs is not None and fs != wfdb_rec.fs:
-            data = SS.resample_poly(data, fs, wfdb_rec.fs, axis=0).astype(data.dtype)
+        data_fs = fs or self.fs
+        if data_fs is not None and data_fs != wfdb_rec.fs:
+            data = SS.resample_poly(data, data_fs, wfdb_rec.fs, axis=0).astype(
+                data.dtype
+            )
         else:
-            fs = wfdb_rec.fs
+            data_fs = wfdb_rec.fs
 
         if data_format.lower() == "channel_first":
             data = data.T
         elif data_format.lower() in ["flat", "plain"]:
             data = data.flatten()
 
+        if return_fs:
+            if return_channels:
+                return data, data_fs, wfdb_rec.sig_name
+            return data, data_fs
+        elif return_channels:
+            return data, wfdb_rec.sig_name
         return data
 
     def load_bipolar_data(
@@ -763,7 +789,8 @@ class CINC2023Reader(PhysioNetDataBase):
         data_format: str = "channel_first",
         units: Union[str, type(None)] = "uV",
         fs: Optional[int] = None,
-    ) -> np.ndarray:
+        return_fs: bool = False,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, Real]]:
         """Load bipolar EEG data from the record.
 
         Bipolar EEG is the difference between two channels.
@@ -796,6 +823,8 @@ class CINC2023Reader(PhysioNetDataBase):
         -------
         data : numpy.ndarray
             The loaded EEG data.
+        data_fs : numbers.Real, optional
+            Sampling frequency of the output signal.
 
         """
         if isinstance(rec, int):
@@ -835,15 +864,17 @@ class CINC2023Reader(PhysioNetDataBase):
             - data[:, metadata_row["diff_inds"][1]]
         )
 
-        fs = fs or self.fs
-        if fs is not None and fs != wfdb_rec.fs:
+        data_fs = fs or self.fs
+        if data_fs is not None and data_fs != wfdb_rec.fs:
             data = SS.resample_poly(data, fs, wfdb_rec.fs, axis=0).astype(data.dtype)
         else:
-            fs = wfdb_rec.fs
+            data_fs = wfdb_rec.fs
 
         if data_format.lower() == "channel_first":
             data = data.T
 
+        if return_fs:
+            return data, data_fs
         return data
 
     def load_aux_data(
