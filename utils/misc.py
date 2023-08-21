@@ -9,11 +9,13 @@ from typing import Callable, Any, List, Tuple
 
 import numpy as np
 import pandas as pd
+import scipy as sp
+from torch_ecg.cfg import DEFAULTS
 from torch_ecg.utils.misc import get_record_list_recursive3
 from tqdm.auto import tqdm
 
 from cfg import BaseCfg
-from helper_code import load_text_file, load_recording_data
+from helper_code import load_text_file
 
 
 __all__ = [
@@ -144,3 +146,130 @@ def func_indicator(name: str) -> Callable:
         return wrapper
 
     return decorator
+
+
+def load_recording_data(
+    record_name: str, check_values: bool = False
+) -> Tuple[np.ndarray, List[str], float]:
+    """Load a recording, including the data, channel names, and sampling frequency.
+
+    Modified from `helper_code.load_recording_data`.
+
+    Parameters
+    ----------
+    record_name : str
+        The record name.
+    check_values : bool, optional
+        Whether to check the values, by default False
+
+    Returns
+    -------
+    rescaled_data : numpy.ndarray
+        The loaded signal data.
+    channels : List[str]
+        The channel names.
+    sampling_frequency : float
+        The sampling frequency.
+
+    """
+    # Allow either the record name or the header filename.
+    root, ext = os.path.splitext(record_name)
+    if ext == "":
+        header_file = record_name + ".hea"
+    else:
+        header_file = record_name
+
+    # Load the header file.
+    if not os.path.isfile(header_file):
+        raise FileNotFoundError("{} recording not found.".format(record_name))
+
+    with open(header_file, "r") as f:
+        header = [line_.strip() for line_ in f.readlines() if line_.strip()]
+
+    # Parse the header file.
+    record_name = None
+    num_signals = None
+    sampling_frequency = None
+    num_samples = None
+    signal_files = list()
+    gains = list()
+    offsets = list()
+    channels = list()
+    initial_values = list()
+    checksums = list()
+
+    for i, line_ in enumerate(header):
+        arrs = [arr.strip() for arr in line_.split(" ")]
+        # Parse the record line.
+        if i == 0:
+            record_name = arrs[0]
+            num_signals = int(arrs[1])
+            sampling_frequency = float(arrs[2])
+            num_samples = int(arrs[3])
+        # Parse the signal specification lines.
+        elif not line_.startswith("#") or len(line_.strip()) == 0:
+            signal_file = arrs[0]
+            gain = float(arrs[2].split("/")[0])
+            offset = int(arrs[4])
+            initial_value = int(arrs[5])
+            checksum = int(arrs[6])
+            channel = arrs[8]
+            signal_files.append(signal_file)
+            gains.append(gain)
+            offsets.append(offset)
+            initial_values.append(initial_value)
+            checksums.append(checksum)
+            channels.append(channel)
+
+    # Check that the header file only references one signal file. WFDB format allows for multiple signal files, but, for
+    # simplicity, we have not done that here.
+    num_signal_files = len(set(signal_files))
+    if num_signal_files != 1:
+        raise NotImplementedError(
+            "The header file {}".format(header_file)
+            + " references {} signal files; one signal file expected.".format(
+                num_signal_files
+            )
+        )
+
+    # Load the signal file.
+    head, tail = os.path.split(header_file)
+    signal_file = os.path.join(head, list(signal_files)[0])
+    # data = np.asarray(sp.io.loadmat(signal_file)["val"])
+    # https://github.com/physionetchallenges/python-example-2023/issues/8
+    data = np.asarray(sp.io.loadmat(signal_file)["val"], dtype=DEFAULTS.DTYPE.NP)
+
+    # Check that the dimensions of the signal data in the signal file is consistent with the dimensions for the signal data given
+    # in the header file.
+    num_channels = len(channels)
+    if np.shape(data) != (num_channels, num_samples):
+        raise ValueError(
+            "The header file {}".format(header_file)
+            + " is inconsistent with the dimensions of the signal file."
+        )
+
+    # Check that the initial value and checksums in the signal file are consistent with the initial value and checksums in the
+    # header file.
+    if check_values:
+        for i in range(num_channels):
+            if data[i, 0] != initial_values[i]:
+                raise ValueError(
+                    "The initial value in header file {}".format(header_file)
+                    + " is inconsistent with the initial value for channel {} in the signal data".format(
+                        channels[i]
+                    )
+                )
+            if np.sum(np.asarray(data[i, :], dtype=np.int64)) != checksums[i]:
+                raise ValueError(
+                    "The checksum in header file {}".format(header_file)
+                    + " is inconsistent with the checksum value for channel {} in the signal data".format(
+                        channels[i]
+                    )
+                )
+
+    # Rescale the signal data using the gains and offsets.
+    rescaled_data = np.zeros(np.shape(data), dtype=np.float32)
+    for i in range(num_channels):
+        rescaled_data[i, :] = (data[i, :] - offsets[i]) / gains[i]
+
+    return rescaled_data, channels, sampling_frequency

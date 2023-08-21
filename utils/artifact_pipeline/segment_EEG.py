@@ -276,6 +276,7 @@ def segment_EEG(EEG, Ch_names, window_time, step_time, Fs, notch_freq=None, band
     # careful about burst suppression
     EEG_segs_temp = EEG_segs[:,:,:(EEG_segs.shape[2]//flat_length)*flat_length]
     short_segs = EEG_segs_temp.reshape(EEG_segs_temp.shape[0], EEG_segs_temp.shape[1], EEG_segs_temp.shape[2]//flat_length, flat_length)
+    # print(f"short_seg contain infs : {np.any(np.isinf(short_segs))} or NaNs : {np.any(np.isnan(short_segs))}")
     flat2d = np.any(detrend(short_segs, axis=3).std(axis=3)<=std_thres1, axis=2)
     flat2d = np.logical_or(flat2d, np.std(EEG_segs,axis=2)<=std_thres2)
     flat1d = np.where(np.any(flat2d, axis=1))[0]
