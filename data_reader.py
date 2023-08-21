@@ -744,21 +744,20 @@ class CINC2023Reader(PhysioNetDataBase):
             dict(
                 sampfrom=sampfrom or 0,
                 sampto=sampto,
-                physical=units is not None,
+                physical=False,
                 return_res=DEFAULTS.DTYPE.INT,
             )
         )
         wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
 
         # p_signal or d_signal is in the format of "channel_last", and with units in "μV"
-        if units is None:
-            data = wfdb_rec.d_signal
-        else:
-            data = wfdb_rec.p_signal
-        # elif units.lower() in ["μv", "uv", "muv"]:
-        #     data = wfdb_rec.p_signal
-        # elif units.lower() == "mv":
-        #     data = wfdb_rec.p_signal / 1000
+        data = wfdb_rec.d_signal
+        if units is not None:
+            # do analog-to-digital conversion
+            data = (data - np.array(wfdb_rec.baseline).reshape((1, -1))) / np.array(
+                wfdb_rec.adc_gain
+            ).reshape((1, -1))
+            data = data.astype(DEFAULTS.DTYPE.NP)
 
         data_fs = fs or self.fs
         if data_fs is not None and data_fs != wfdb_rec.fs:
@@ -844,20 +843,19 @@ class CINC2023Reader(PhysioNetDataBase):
         rdrecord_kwargs = dict(
             sampfrom=sampfrom or 0,
             sampto=sampto,
-            physical=units is not None,
+            physical=False,
             return_res=DEFAULTS.DTYPE.INT,
         )
         wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
 
         # p_signal or d_signal is in the format of "channel_last", and with units in "μV"
-        if units is None:
-            data = wfdb_rec.d_signal
-        else:
-            data = wfdb_rec.p_signal
-        # elif units.lower() in ["μv", "uv", "muv"]:
-        #     data = wfdb_rec.p_signal
-        # elif units.lower() == "mv":
-        #     data = wfdb_rec.p_signal / 1000
+        data = wfdb_rec.d_signal
+        if units is not None:
+            # do analog-to-digital conversion
+            data = (data - np.array(wfdb_rec.baseline).reshape((1, -1))) / np.array(
+                wfdb_rec.adc_gain
+            ).reshape((1, -1))
+            data = data.astype(DEFAULTS.DTYPE.NP)
 
         data = (
             data[:, metadata_row["diff_inds"][0]]
@@ -866,7 +864,9 @@ class CINC2023Reader(PhysioNetDataBase):
 
         data_fs = fs or self.fs
         if data_fs is not None and data_fs != wfdb_rec.fs:
-            data = SS.resample_poly(data, fs, wfdb_rec.fs, axis=0).astype(data.dtype)
+            data = SS.resample_poly(data, data_fs, wfdb_rec.fs, axis=0).astype(
+                data.dtype
+            )
         else:
             data_fs = wfdb_rec.fs
 
@@ -978,13 +978,16 @@ class CINC2023Reader(PhysioNetDataBase):
             dict(
                 sampfrom=sampfrom or 0,
                 sampto=sampto,
-                physical=True,
+                physical=False,
                 return_res=DEFAULTS.DTYPE.INT,
             )
         )
         wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
 
-        data = wfdb_rec.p_signal
+        data = (
+            wfdb_rec.d_signal - np.array(wfdb_rec.baseline).reshape((1, -1))
+        ) / np.array(wfdb_rec.adc_gain).reshape((1, -1))
+        data = data.astype(DEFAULTS.DTYPE.NP)
         if fs is not None and fs != wfdb_rec.fs:
             data = SS.resample_poly(data, fs, wfdb_rec.fs, axis=0).astype(data.dtype)
         else:
