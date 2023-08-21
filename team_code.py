@@ -34,11 +34,7 @@ from cfg import TrainCfg, ModelCfg
 from dataset import CinC2023Dataset
 from models import CRNN_CINC2023
 from trainer import CINC2023Trainer, _set_task
-from helper_code import (  # noqa: F401
-    find_data_folders,
-    reduce_channels,
-    expand_channels,
-)  # noqa: F401
+from helper_code import find_data_folders
 from utils.features import get_features, get_labels
 from utils.misc import (
     load_challenge_metadata,
@@ -419,14 +415,7 @@ def run_challenge_models(
     if num_recordings == 0:
         # No available recordings.
         # use the outcome_model and cpc_model to predict the outcome and cpc
-        features = get_features(patient_metadata).reshape(1, -1)
-        features = imputer.transform(features)
-        outcome = outcome_model.predict(features)[0].item()
-        # outcome_probability is the probability of the "Poor" (1) class
-        outcome_probability = outcome_model.predict_proba(features)[0, 1].item()
-        cpc = cpc_model.predict(features)[0].item()
-
-        return outcome, outcome_probability, cpc
+        return run_minimum_guarantee_model(patient_metadata, outcome_model, cpc_model)
 
     # There are available recordings.
 
@@ -442,6 +431,13 @@ def run_challenge_models(
     # otherwise use all recordings
     if len(valid_indices) > 0:
         recording_data = [recording_data[idx] for idx in valid_indices]
+
+    if len(recording_data) == 0:
+        # No available recordings with the common channels.
+        # use the outcome_model and cpc_model to predict the outcome and cpc
+        return run_minimum_guarantee_model(patient_metadata, outcome_model, cpc_model)
+
+    # Run the model.
     main_model_outputs = []
     for signal, sampling_frequency, channel_names in recording_data:
         # Preprocess the recordings.
@@ -453,11 +449,32 @@ def run_challenge_models(
         signal = format_input_signal(signal, channel_names)
         # preprocess the signal
         signal, _ = ppm(signal, sampling_frequency)
+        # fill nan values with channel means
+        channel_means = np.nanmean(signal, axis=1, keepdims=False)
+        for ch_idx, ch_mean_val in enumerate(channel_means):
+            if np.isnan(ch_mean_val):
+                # all nan values in this channel
+                # set values of this channel to 0
+                signal[ch_idx, :] = 0
+            signal[ch_idx, np.isnan(signal[ch_idx])] = ch_mean_val
 
         # Run the model.
         with torch.no_grad():
             main_model_output = main_model.inference(signal.copy().astype(DTYPE))
-            main_model_outputs.append(main_model_output)
+            # append only valid outputs
+            # i.e. main_model_output.cpc_output.prob and
+            # main_model_output.outcome_output.prob
+            # both have no NaN values
+            if (
+                not np.isnan(main_model_output.cpc_output.prob).any()
+                and not np.isnan(main_model_output.outcome_output.prob).any()
+            ):
+                main_model_outputs.append(main_model_output)
+
+    if len(main_model_outputs) == 0:
+        # No valid outputs.
+        # fallback to the outcome_model and cpc_model
+        return run_minimum_guarantee_model(patient_metadata, outcome_model, cpc_model)
 
     # Aggregate the outputs.
     # main_model_outputs is a list of instances of CINC2023Outputs, with attributes:
@@ -499,6 +516,53 @@ def run_challenge_models(
     outcome = outcome_outputs.argmax(axis=1)[0].item()
     # outcome_probability is the probability of the "Poor" class
     outcome_probability = outcome_outputs[0, train_cfg.outcome.index("Poor")].item()
+
+    # finally, in case outcome_probability is NaN
+    # fallback to the outcome_model and cpc_model
+    if np.isnan(outcome_probability):
+        return run_minimum_guarantee_model(patient_metadata, outcome_model, cpc_model)
+
+    return outcome, outcome_probability, cpc
+
+
+def run_minimum_guarantee_model(
+    patient_metadata: str,
+    imputer: SimpleImputer,
+    outcome_model: BaseEstimator,
+    cpc_model: BaseEstimator,
+) -> Tuple[int, float, float]:
+    """Run the minimum guarantee model.
+
+    Parameters
+    ----------
+    patient_metadata : str
+        Metadata of the patient.
+    imputer : SimpleImputer
+        The imputer.
+    outcome_model : BaseEstimator
+        Model for predicting the outcome.
+    cpc_model : BaseEstimator
+        Model for predicting the CPC.
+
+    Returns
+    -------
+    outcome : int
+        the predicted outcome
+    outcome_probability : float
+        the predicted outcome probability
+    cpc : float
+        the predicted cpc
+
+    """
+    features = get_features(patient_metadata).reshape(1, -1)
+    features = imputer.transform(features)
+    outcome = outcome_model.predict(features)[0].item()
+    # outcome_probability is the probability of the "Poor" (1) class
+    outcome_probability = outcome_model.predict_proba(features)[0, 1].item()
+    # in case nan values in predicted probabilities
+    if np.isnan(outcome_probability):
+        outcome_probability = 1.0 if outcome == 1 else 0.0
+    cpc = cpc_model.predict(features)[0].item()
 
     return outcome, outcome_probability, cpc
 
