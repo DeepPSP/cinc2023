@@ -153,7 +153,8 @@ def load_recording_data(
 ) -> Tuple[np.ndarray, List[str], float]:
     """Load a recording, including the data, channel names, and sampling frequency.
 
-    Modified from `helper_code.load_recording_data`.
+    Modified from `helper_code.load_recording_data`, ref:
+    https://github.com/physionetchallenges/python-example-2023/issues/8
 
     Parameters
     ----------
@@ -235,9 +236,7 @@ def load_recording_data(
     # Load the signal file.
     head, tail = os.path.split(header_file)
     signal_file = os.path.join(head, list(signal_files)[0])
-    # data = np.asarray(sp.io.loadmat(signal_file)["val"])
-    # https://github.com/physionetchallenges/python-example-2023/issues/8
-    data = np.asarray(sp.io.loadmat(signal_file)["val"], dtype=DEFAULTS.DTYPE.NP)
+    data = np.asarray(sp.io.loadmat(signal_file)["val"])
 
     # Check that the dimensions of the signal data in the signal file is consistent with the dimensions for the signal data given
     # in the header file.
@@ -259,7 +258,7 @@ def load_recording_data(
                         channels[i]
                     )
                 )
-            if np.sum(np.asarray(data[i, :], dtype=np.int64)) != checksums[i]:
+            if np.sum(np.asarray(data[i, :], dtype=np.int16)) != checksums[i]:
                 raise ValueError(
                     "The checksum in header file {}".format(header_file)
                     + " is inconsistent with the checksum value for channel {} in the signal data".format(
@@ -267,6 +266,9 @@ def load_recording_data(
                     )
                 )
 
+    # Convert the signal data to float32 (original data is int16)
+    # to avoid integer overflow when subtracting the offset.
+    data = data.astype(dtype=DEFAULTS.DTYPE.NP)
     # Rescale the signal data using the gains and offsets.
     rescaled_data = np.zeros(np.shape(data), dtype=np.float32)
     for i in range(num_channels):
