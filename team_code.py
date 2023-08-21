@@ -415,7 +415,12 @@ def run_challenge_models(
     if num_recordings == 0:
         # No available recordings.
         # use the outcome_model and cpc_model to predict the outcome and cpc
-        return run_minimum_guarantee_model(patient_metadata, outcome_model, cpc_model)
+        return run_minimum_guarantee_model(
+            patient_metadata=patient_metadata,
+            imputer=imputer,
+            outcome_model=outcome_model,
+            cpc_model=cpc_model,
+        )
 
     # There are available recordings.
 
@@ -435,7 +440,12 @@ def run_challenge_models(
     if len(recording_data) == 0:
         # No available recordings with the common channels.
         # use the outcome_model and cpc_model to predict the outcome and cpc
-        return run_minimum_guarantee_model(patient_metadata, outcome_model, cpc_model)
+        return run_minimum_guarantee_model(
+            patient_metadata=patient_metadata,
+            imputer=imputer,
+            outcome_model=outcome_model,
+            cpc_model=cpc_model,
+        )
 
     # Run the model.
     main_model_outputs = []
@@ -474,7 +484,12 @@ def run_challenge_models(
     if len(main_model_outputs) == 0:
         # No valid outputs.
         # fallback to the outcome_model and cpc_model
-        return run_minimum_guarantee_model(patient_metadata, outcome_model, cpc_model)
+        return run_minimum_guarantee_model(
+            patient_metadata=patient_metadata,
+            imputer=imputer,
+            outcome_model=outcome_model,
+            cpc_model=cpc_model,
+        )
 
     # Aggregate the outputs.
     # main_model_outputs is a list of instances of CINC2023Outputs, with attributes:
@@ -520,7 +535,12 @@ def run_challenge_models(
     # finally, in case outcome_probability is NaN
     # fallback to the outcome_model and cpc_model
     if np.isnan(outcome_probability):
-        return run_minimum_guarantee_model(patient_metadata, outcome_model, cpc_model)
+        return run_minimum_guarantee_model(
+            patient_metadata=patient_metadata,
+            imputer=imputer,
+            outcome_model=outcome_model,
+            cpc_model=cpc_model,
+        )
 
     return outcome, outcome_probability, cpc
 
