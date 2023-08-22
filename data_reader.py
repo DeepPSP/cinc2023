@@ -1401,7 +1401,12 @@ if __name__ == "__main__":
                 save_path = sqi_dir / subject_id / f"{rec}_SQI.csv"
                 save_path.parent.mkdir(parents=True, exist_ok=True)
                 # is save_path is an non-empty file, skip
-                if save_path.is_file() and save_path.stat().st_size > 0:
+                # non-empty means the file is not empty and has at least one row
+                if (
+                    save_path.is_file()
+                    and save_path.stat().st_size != 0
+                    and len(pd.read_csv(save_path)) != 0
+                ):
                     continue
                 pbar.set_description(f"Computing SQI for {rec}")
                 try:
