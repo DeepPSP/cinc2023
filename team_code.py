@@ -41,6 +41,7 @@ from utils.misc import (
     load_challenge_eeg_data,
     find_eeg_recording_files,
 )
+from utils.sqi import compute_sqi  # noqa: F401
 
 
 ################################################################################
@@ -74,7 +75,7 @@ TrainCfg[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
 ################################################################################
 # NOTE: constants
 
-FS = 100
+# FS = 100
 
 _ModelFilename = "final_model_main.pth.tar"
 _ModelFilename_ml = "final_model_ml.pkl"
@@ -456,9 +457,24 @@ def run_challenge_models(
         # to channel first format if necessary
         if signal.shape[0] != len(channel_names):
             signal = signal.T
+        # to bipolar signal
         signal = format_input_signal(signal, channel_names)
         # preprocess the signal
         signal, _ = ppm(signal, sampling_frequency)
+
+        # TODO:
+        # further filter the recording data using compute_sqi
+        # WARNING: compute_sqi is time-consuming
+        # signal_sqi = compute_sqi(
+        #     signal=signal,
+        #     channels=train_cfg.eeg_bipolar_channels,
+        #     sampling_rate=train_cfg.fs,
+        #     sqi_window_time=5.0,  # minutes
+        #     sqi_window_step=1.0,  # minutes
+        #     sqi_time_units="s",
+        #     return_type="np",  # "np" or "pd"
+        # )
+
         # fill nan values with channel means
         channel_means = np.nanmean(signal, axis=1, keepdims=False)
         for ch_idx, ch_mean_val in enumerate(channel_means):
