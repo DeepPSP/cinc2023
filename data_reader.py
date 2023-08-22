@@ -751,7 +751,7 @@ class CINC2023Reader(PhysioNetDataBase):
         wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
 
         # p_signal or d_signal is in the format of "channel_last", and with units in "μV"
-        data = wfdb_rec.d_signal
+        data = wfdb_rec.d_signal.astype(DEFAULTS.DTYPE.NP)
         if units is not None:
             # do analog-to-digital conversion
             data = (data - np.array(wfdb_rec.baseline).reshape((1, -1))) / np.array(
@@ -849,7 +849,7 @@ class CINC2023Reader(PhysioNetDataBase):
         wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
 
         # p_signal or d_signal is in the format of "channel_last", and with units in "μV"
-        data = wfdb_rec.d_signal
+        data = wfdb_rec.d_signal.astype(DEFAULTS.DTYPE.NP)
         if units is not None:
             # do analog-to-digital conversion
             data = (data - np.array(wfdb_rec.baseline).reshape((1, -1))) / np.array(
@@ -985,7 +985,8 @@ class CINC2023Reader(PhysioNetDataBase):
         wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
 
         data = (
-            wfdb_rec.d_signal - np.array(wfdb_rec.baseline).reshape((1, -1))
+            wfdb_rec.d_signal.astype(DEFAULTS.DTYPE.NP)
+            - np.array(wfdb_rec.baseline).reshape((1, -1))
         ) / np.array(wfdb_rec.adc_gain).reshape((1, -1))
         data = data.astype(DEFAULTS.DTYPE.NP)
         if fs is not None and fs != wfdb_rec.fs:
@@ -1114,6 +1115,7 @@ class CINC2023Reader(PhysioNetDataBase):
         """Get metadata of the record.
 
         Metadata of the record includes the following fields:
+
             - "hour": the hour after cardiac arrest when the recording was recorded.
             - "start_sec": the start time of the recording in seconds in the hour.
             - "end_sec": the end time of the recording in seconds in the hour.
@@ -1169,9 +1171,9 @@ class CINC2023Reader(PhysioNetDataBase):
         ----------
         rec : str or int
             Record name or the index of the record in :attr:`all_records`.
-        sqi_window_time : float, optional
+        sqi_window_time : float, default 5.0
             The window length in minutes to compute the SQI.
-        sqi_window_step : float, optional
+        sqi_window_step : float, default 1.0
             The window step in minutes to compute the SQI.
         sqi_time_units : {None, "s", "m"}, default ``None``
             The time units the returned SQI array,
@@ -1247,7 +1249,7 @@ class CINC2023Reader(PhysioNetDataBase):
             The axes of the figure.
 
         """
-        pass
+        raise NotImplementedError
 
     def download(self, full: bool = True) -> None:
         """Download the database from PhysioNet or Google Drive."""
