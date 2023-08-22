@@ -97,8 +97,11 @@ def smooth(x, window_len=12, window='hanning'):
 
 def autocorrelate_noncentral_max_abs(x):
     ress = []
+    EPS = 1e-15  # avoid divide by 0
     for ii in range(x.shape[1]):
-        res = np.correlate(x[:,ii],x[:,ii],mode='full')/np.correlate(x[:,ii],x[:,ii],mode='valid')[0]
+        # --- modification by wenh06 starts ---
+        res = np.correlate(x[:,ii],x[:,ii],mode='full') / (np.correlate(x[:,ii],x[:,ii],mode='valid')[0] + EPS)
+        # --- modification by wenh06 ends ---
         ress.append(np.max(res[len(res)//2+7:len(res)//2+20]))  # ECG range: 40/1min(0.7Hz) -- 120/1min(2Hz)
     return ress
 
@@ -205,10 +208,12 @@ def segment_EEG(EEG, Ch_names, window_time, step_time, Fs, notch_freq=None, band
     BW = 2.
     specs, freq = mne.time_frequency.psd_array_multitaper(EEG_segs, Fs, fmin=bandpass_freq[0], fmax=bandpass_freq[1], adaptive=False, low_bias=False, n_jobs=n_jobs, verbose='ERROR', bandwidth=BW, normalization='full')
     df = freq[1]-freq[0]
-    specs = 10*np.log10(specs.transpose(0,2,1))
-    
+    # --- modification by wenh06 starts ---
+    EPS = 1e-15  # avoid log(0)
+    specs = 10*np.log10(specs.transpose(0,2,1) + EPS)
+    # --- modification by wenh06 ends ---
+
     ## find nan in spectrum
-    
     specs[np.isinf(specs)] = np.nan
     nan2d = np.any(np.isnan(specs), axis=1)
     nan1d = np.where(np.any(nan2d, axis=1))[0]
@@ -226,6 +231,7 @@ def segment_EEG(EEG, Ch_names, window_time, step_time, Fs, notch_freq=None, band
     freq2 = freq[np.logical_and(freq>=5,freq<=20)][spec_smooth_window:-spec_smooth_window]
     ww = np.hanning(spec_smooth_window*2+1)
     ww = ww/ww.sum()
+    # print(f"specs.shape : {specs.shape}, specs2.shape : {specs2.shape}")
     smooth_specs = np.apply_along_axis(lambda m: np.convolve(m, ww, mode='valid'), axis=1, arr=specs2)
     dspecs = specs2[:,spec_smooth_window:-spec_smooth_window]-smooth_specs
     #dspecs_std = np.std(dspecs, axis=1, keepdims=True)
@@ -306,9 +312,9 @@ def segment_EEG(EEG, Ch_names, window_time, step_time, Fs, notch_freq=None, band
     """
     BW = 1.  #frequency resolution 1Hz
     specs, freq = mne.time_frequency.psd_array_multitaper(EEG_segs, Fs, fmin=bandpass_freq[0], fmax=bandpass_freq[1], adaptive=False, low_bias=False, n_jobs=n_jobs, verbose='ERROR', bandwidth=BW, normalization='full')
-    specs = 10*np.log10(specs.transpose(0,2,1))
-    
-            
+    # --- modification by wenh06 starts ---
+    EPS = 1e-15  # avoid log(0)
+    specs = 10*np.log10(specs.transpose(0,2,1) + EPS)
+    # --- modification by wenh06 ends ---
+
     return EEG_segs, BSR_segs, start_ids, seg_masks, specs, freq
-
-
