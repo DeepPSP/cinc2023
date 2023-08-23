@@ -8,6 +8,7 @@ Unofficial Phase:
     max_lr: 4e-3
     n_epochs: 60
     reload_data_every: 6
+    hash: 4c474e6
 
   submission 2:
     score: 0.448
@@ -18,6 +19,7 @@ Unofficial Phase:
     max_lr: 4e-3
     n_epochs: 80
     reload_data_every: 6
+    hash: 5865683
 
   submission 3:
     score: 0.313
@@ -28,5 +30,16 @@ Unofficial Phase:
     max_lr: 4e-3
     n_epochs: 80
     reload_data_every: 5
+    hash: 5d16c89
 
 Official Phase:
+  submission 1:
+    score: 0.507
+    submission ID: 2245
+    input_len: 180
+    batch_size: 24
+    learning_rate: 1.2e-3
+    max_lr: 6e-3
+    n_epochs: 60
+    reload_data_every: 6
+    hash: bb3877c
