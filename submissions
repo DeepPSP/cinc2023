@@ -8,6 +8,7 @@ Unofficial Phase:
     max_lr: 4e-3
     n_epochs: 60
     reload_data_every: 6
+    early_stopping_patience: 0.35
     hash: 4c474e6
 
   submission 2:
@@ -19,6 +20,7 @@ Unofficial Phase:
     max_lr: 4e-3
     n_epochs: 80
     reload_data_every: 6
+    early_stopping_patience: 0.35
     hash: 5865683
 
   submission 3:
@@ -30,6 +32,7 @@ Unofficial Phase:
     max_lr: 4e-3
     n_epochs: 80
     reload_data_every: 5
+    early_stopping_patience: 0.35
     hash: 5d16c89
 
 Official Phase:
@@ -42,4 +45,17 @@ Official Phase:
     max_lr: 6e-3
     n_epochs: 60
     reload_data_every: 6
+    early_stopping_patience: 0.35
     hash: bb3877c
+
+  submission 2:
+    score:
+    submission ID:
+    input_len: 180
+    batch_size: 32
+    learning_rate: 2.5e-3
+    max_lr: 8e-3
+    n_epochs: 55
+    reload_data_every: 5
+    early_stopping_patience: 0.45
+    hash: 

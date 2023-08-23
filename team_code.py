@@ -172,14 +172,14 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
         # train_config.max_lr = 1.5e-3
         train_config.early_stopping.patience = 20
     else:
-        train_config.n_epochs = 60
-        train_config.batch_size = 24  # 16G (Tesla T4)
-        train_config.reload_data_every = 6
+        train_config.n_epochs = 55
+        train_config.batch_size = 32  # 16G (Tesla T4)
+        train_config.reload_data_every = 5
         # train_config[TASK].input_len = 180 * train_config[TASK].fs
         # train_config[TASK].siglen = train_config[TASK].input_len
         train_config.log_step = 50
         # train_config.max_lr = 1.5e-3
-        train_config.early_stopping.patience = int(train_config.n_epochs * 0.35)
+        train_config.early_stopping.patience = int(train_config.n_epochs * 0.45)
 
     train_config.final_model_name = _ModelFilename
     train_config[TASK].final_model_name = _ModelFilename
