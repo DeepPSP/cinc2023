@@ -7,6 +7,10 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 
 <!-- toc -->
 
+- [The Conference](#the-conference)
+- [External Resources Used](#external-resources-used)
+  * [SQI (Signal Quality Index) Calculation](#sqi--signal-quality-index--calculation)
+
 <!-- tocstop -->
 
 ## The Conference
@@ -14,3 +18,19 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 [Conference Website](https://cinc2023.org/)
 
 [Official Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vTa94VmPIbywGJEBYjNkzJiGZuPLaajzPIZpoxsi12_X5DF66ccUFB6Qi3U41UEpVu2q1rzTF7nlSpY/pubhtml?gid=0&widget=true&headers=false)
+
+:point_right: [Back to TOC](#cinc2023)
+
+## External Resources Used
+
+### SQI (Signal Quality Index) Calculation
+
+[Source Code](utils/sqi.py) integrated from [bdsp-core/icare-dl](https://github.com/bdsp-core/icare-dl/blob/main/Artifact_pipeline.zip).
+
+As stated in the `Artfiact Screening (Signal Quality)` subsection of the `Data Description` section of the
+[I-CARE database version 1.0 hosted at PhysioNet](https://physionet.org/content/i-care/1.0/), the SQI is calculated as follows:
+<blockquote>
+...This artifact score is based on how many 10-second epochs within a 5-minute EEG window are contaminated by artifacts. Each 10-second epoch was scored for the presence of the following artifacts including: 1) flat signal, 2) extreme high or low values, 3) muscle artifact, 4) non-physiological spectra, and 5) implausibly fast rising or decreasing signal amplitude...
+</blockquote>
+
+:point_right: [Back to TOC](#cinc2023)
