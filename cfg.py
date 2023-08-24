@@ -269,12 +269,12 @@ MLCfg.model_dir = BaseCfg.model_dir
 # MLCfg.task = "classification"  # "classification", "regression"
 # MLCfg.output_target = None
 MLCfg.output_target = BaseCfg.output_target
-# if MLCfg.output_target == "cpc":
-#     MLCfg.classes = deepcopy(BaseCfg.cpc)
-#     MLCfg.class_map = deepcopy(BaseCfg.cpc_map)
-# elif MLCfg.output_target == "outcome":
-#     MLCfg.classes = deepcopy(BaseCfg.outcome)
-#     MLCfg.class_map = deepcopy(BaseCfg.outcome_map)
+if MLCfg.output_target == "cpc":
+    MLCfg.classes = deepcopy(BaseCfg.cpc)
+    MLCfg.class_map = deepcopy(BaseCfg.cpc_map)
+elif MLCfg.output_target == "outcome":
+    MLCfg.classes = deepcopy(BaseCfg.outcome)
+    MLCfg.class_map = deepcopy(BaseCfg.outcome_map)
 # MLCfg.x_cols_cate = [  # categorical features
 #     "Sex",
 #     "OHCA",

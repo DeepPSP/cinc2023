@@ -33,6 +33,7 @@ from tqdm.auto import tqdm
 
 from utils.scoring_metrics import compute_challenge_metrics
 from utils.features import get_features, get_labels
+from utils.misc import get_outcome_from_cpc
 from cfg import BaseCfg, MLCfg
 from data_reader import CINC2023Reader
 from outputs import CINC2023Outputs
@@ -156,14 +157,22 @@ class ML_Classifier_CINC2023(object):
         ] = self.__scaler.fit_transform(
             self.__df_features.loc[:, self.config.cont_features]
         )
+        # convert labels from str to int
+        self.__df_features.loc[:, self.y_col] = (
+            self.__df_features.loc[:, self.y_col]
+            .astype(int)
+            .astype(str)
+            .map(self.config.class_map)
+        )
+        self.config.class_map_inv = {v: k for k, v in self.config.class_map.items()}
 
-        train_set, test_set = self._train_test_split()
-        df_train = self.__df_features.loc[train_set]
-        df_test = self.__df_features.loc[test_set]
-        self.X_train = df_train[self.feature_list].values
-        self.y_train = df_train[self.y_col].values
-        self.X_test = df_test[self.feature_list].values
-        self.y_test = df_test[self.y_col].values
+        self.__train_set, self.__test_set = self._train_test_split()
+        df_train = self.__df_features.loc[self.__train_set]
+        df_test = self.__df_features.loc[self.__test_set]
+        self.X_train = df_train[self.feature_list].values.astype(BaseCfg.np_dtype)
+        self.y_train = df_train[self.y_col].values.astype(int)
+        self.X_test = df_test[self.feature_list].values.astype(BaseCfg.np_dtype)
+        self.y_test = df_test[self.y_col].values.astype(int)
         self.train_hospitals = df_train["hospital"].values
         self.test_hospitals = df_test["hospital"].values
 
@@ -427,10 +436,12 @@ class ML_Classifier_CINC2023(object):
             The best model score
 
         """
-        best_score = np.inf
+        best_score = -np.inf
         best_clf = None
         best_params = None
-        with tqdm(enumerate(param_grid)) as pbar:
+        with tqdm(
+            enumerate(param_grid), total=len(param_grid), mininterval=1.0
+        ) as pbar:
             for idx, params in pbar:
                 updated_params = deepcopy(params)
                 updated_params["n_jobs"] = self._num_workers
@@ -446,18 +457,29 @@ class ML_Classifier_CINC2023(object):
                     y_pred, shape=(y_pred.shape[0], len(self.config.classes))
                 )
                 outputs = CINC2023Outputs(
-                    outcome_output=ClassificationOutput(
+                    cpc_output=ClassificationOutput(
                         classes=self.config.classes,
                         prob=y_prob,
                         pred=y_pred,
                         bin_pred=bin_pred,
                     ),
-                    murmur_output=None,
-                    segmentation_output=None,
                 )
 
+                labels = {self.y_col: y_val}
+                if self.y_col == "cpc":
+                    # apply self.config.class_map_inv to get the original cpc
+                    labels["outcome"] = [
+                        self.config.class_map_inv[v.item()] for v in y_val
+                    ]
+                    # convert the original cpc to outcome
+                    labels["outcome"] = get_outcome_from_cpc(labels["outcome"])
+                    # convert the outcome to the mapped outcome
+                    labels["outcome"] = [
+                        BaseCfg.outcome_map[v] for v in labels["outcome"]
+                    ]
+
                 val_metrics = compute_challenge_metrics(
-                    labels=[{"outcome": y_val}],
+                    labels=[labels],
                     outputs=[outputs],
                     hospitals=[val_hospitals],
                 )
@@ -476,7 +498,7 @@ class ML_Classifier_CINC2023(object):
                     part="val",
                 )
 
-                if val_metrics[self.config.monitor] < best_score:
+                if val_metrics[self.config.monitor] > best_score:
                     best_score = val_metrics[self.config.monitor]
                     best_clf = clf_gs
                     best_params = params
@@ -554,8 +576,17 @@ class ML_Classifier_CINC2023(object):
             ),
         )
 
+        labels = {self.y_col: y_val}
+        if self.y_col == "cpc":
+            # apply self.config.class_map_inv to get the original cpc
+            labels["outcome"] = [self.config.class_map_inv[v.item()] for v in y_val]
+            # convert the original cpc to outcome
+            labels["outcome"] = get_outcome_from_cpc(labels["outcome"])
+            # convert the outcome to the mapped outcome
+            labels["outcome"] = [BaseCfg.outcome_map[v] for v in labels["outcome"]]
+
         val_metrics = compute_challenge_metrics(
-            labels=[{"outcome": y_val}],
+            labels=[labels],
             outputs=[outputs],
             hospitals=[val_hospitals],
         )
@@ -648,6 +679,14 @@ class ML_Classifier_CINC2023(object):
     @property
     def scaler(self) -> BaseEstimator:
         return self.__scaler
+
+    @property
+    def train_set(self) -> List[str]:
+        return self.__train_set
+
+    @property
+    def test_set(self) -> List[str]:
+        return self.__test_set
 
     @property
     def model_map(self) -> Dict[str, BaseEstimator]:
