@@ -266,6 +266,7 @@ MLCfg = CFG()
 MLCfg.db_dir = None
 MLCfg.log_dir = BaseCfg.log_dir
 MLCfg.model_dir = BaseCfg.model_dir
+MLCfg.log_step = 20
 # MLCfg.task = "classification"  # "classification", "regression"
 # MLCfg.output_target = None
 MLCfg.output_target = BaseCfg.output_target

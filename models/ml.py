@@ -484,19 +484,18 @@ class ML_Classifier_CINC2023(object):
                     hospitals=[val_hospitals],
                 )
 
-                msg = (
-                    f"""Model - {self.model_map[model_name].__name__}\nParameters:\n"""
-                )
-                for k, v in params.items():
-                    msg += f"""{k} = {v}\n"""
-                self.logger_manager.log_message(msg)
+                if idx % self.config.log_step == 0:
+                    msg = f"""Model - {self.model_map[model_name].__name__}\nParameters:\n"""
+                    for k, v in params.items():
+                        msg += f"""{k} = {v}\n"""
+                    self.logger_manager.log_message(msg)
 
-                self.logger_manager.log_metrics(
-                    metrics=val_metrics,
-                    step=idx,
-                    epoch=self._no,
-                    part="val",
-                )
+                    self.logger_manager.log_metrics(
+                        metrics=val_metrics,
+                        step=idx,
+                        epoch=self._no,
+                        part="val",
+                    )
 
                 if val_metrics[self.config.monitor] > best_score:
                     best_score = val_metrics[self.config.monitor]
