@@ -118,6 +118,15 @@ def compute_sqi(
         # `eeg_segment_func` accepts only float64 dtype signal
         bipolar_signal = bipolar_signal.astype(np.float64)
 
+    # padding the signal to make sure the signal has at least one window for segmenting
+    # NOTE that the padding is done on the right side of the signal
+    siglen = signal.shape[1]
+    if bipolar_signal.shape[1] < int(_config.window_time * fs):
+        pad_len = int(_config.window_time * fs) - bipolar_signal.shape[1]
+        bipolar_signal = np.pad(
+            bipolar_signal, ((0, 0), (0, pad_len)), mode="constant", constant_values=0
+        )
+
     # compute segments and information of the segments
     segs_, bs_, seg_start_ids_, seg_mask, specs_, freqs_ = eeg_segment_func(
         EEG=bipolar_signal,
@@ -133,6 +142,7 @@ def compute_sqi(
         n_jobs=-1,
     )
     seg_end_ids_ = seg_start_ids_ + int(_config.window_time * fs)
+    seg_end_ids_ = np.minimum(seg_end_ids_, siglen)
 
     # no segments found
     if len(segs_) <= 0:
@@ -149,7 +159,6 @@ def compute_sqi(
     # compute SQI for each window
     window_size = int(sqi_window_time * 60 * fs)
     window_step = int(sqi_window_step * 60 * fs)
-    siglen = signal.shape[1]
     # at least one window, even if the signal is too short
     num_windows = max(1, (siglen - window_size) // window_step + 1)
     sqi = np.zeros((num_windows, 3), dtype=np.float64)
