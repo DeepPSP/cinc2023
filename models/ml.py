@@ -164,7 +164,7 @@ class ML_Classifier_CINC2023(object):
             .astype(str)
             .map(self.config.class_map)
         )
-        self.config.class_map_inv = {v: k for k, v in self.config.class_map.items()}
+        self._class_map_inv = {v: k for k, v in self.config.class_map.items()}
 
         self.__train_set, self.__test_set = self._train_test_split()
         df_train = self.__df_features.loc[self.__train_set]
@@ -289,19 +289,53 @@ class ML_Classifier_CINC2023(object):
 
         Returns
         -------
-        ClassificationOutput
-            classification output, with the following items:
+        CINC2023Outputs
+            with attributes:
+            - cpc_output, outcome_output: ClassificationOutput, with items:
                 - classes: list of str,
-                  list of class names.
-                - prob: ndarray,
-                  probability array of each class, of shape ``(1, n_classes)``.
+                  list of the class names
+                - prob: ndarray or DataFrame,
+                  scalar (probability) predictions,
+                  (and binary predictions if `class_names` is True)
                 - pred: ndarray,
-                  predicted class index, of shape ``(1,)``.
+                  the array of class number predictions
                 - bin_pred: ndarray,
-                  binarized prediction (one-hot), of shape ``(1, n_classes)``.
+                  the array of binary predictions
+                - forward_output: ndarray,
+                  the array of output of the model's forward function,
+                  useful for producing challenge result using
+                  multiple recordings
 
         """
-        raise NotImplementedError
+        assert self.best_clf is not None, "No model found."
+        features = get_features(patient_metadata, ret_type="pd")
+        features.loc[:, self.feature_list] = self.__imputer.transform(
+            features.loc[:, self.feature_list]
+        )
+        features.loc[:, self.config.cont_features] = self.__scaler.transform(
+            features.loc[:, self.config.cont_features]
+        )
+        features = features[self.feature_list].values.astype(BaseCfg.np_dtype)
+        y_prob = self.best_clf.predict_proba(features)
+        y_pred = self.best_clf.predict(features)
+        bin_pred = _cls_to_bin(
+            y_pred, shape=(y_pred.shape[0], len(self.config.classes))
+        )
+
+        model_output = ClassificationOutput(
+            classes=self.config.classes,
+            prob=y_prob,
+            pred=y_pred,
+            bin_pred=bin_pred,
+        )
+
+        if self.y_col == "cpc":
+            # the rest of the attributes will be inferred from cpc_output
+            inference_output = CINC2023Outputs(cpc_output=model_output)
+        else:
+            inference_output = CINC2023Outputs(outcome_output=model_output)
+
+        return inference_output
 
     def search(
         self,
@@ -467,10 +501,8 @@ class ML_Classifier_CINC2023(object):
 
                 labels = {self.y_col: y_val}
                 if self.y_col == "cpc":
-                    # apply self.config.class_map_inv to get the original cpc
-                    labels["outcome"] = [
-                        self.config.class_map_inv[v.item()] for v in y_val
-                    ]
+                    # apply self._class_map_inv to get the original cpc
+                    labels["outcome"] = [self._class_map_inv[v.item()] for v in y_val]
                     # convert the original cpc to outcome
                     labels["outcome"] = get_outcome_from_cpc(labels["outcome"])
                     # convert the outcome to the mapped outcome
@@ -577,8 +609,8 @@ class ML_Classifier_CINC2023(object):
 
         labels = {self.y_col: y_val}
         if self.y_col == "cpc":
-            # apply self.config.class_map_inv to get the original cpc
-            labels["outcome"] = [self.config.class_map_inv[v.item()] for v in y_val]
+            # apply self._class_map_inv to get the original cpc
+            labels["outcome"] = [self._class_map_inv[v.item()] for v in y_val]
             # convert the original cpc to outcome
             labels["outcome"] = get_outcome_from_cpc(labels["outcome"])
             # convert the outcome to the mapped outcome

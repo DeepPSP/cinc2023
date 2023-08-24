@@ -49,6 +49,14 @@ class CINC2023Outputs:
     outcome : Sequence[str]
         Outcome, i.e., the predicted class names (str) of the outcome.
 
+    .. note::
+
+        - If `cpc_output` is provided, then `outcome_output` will be inferred from `cpc_output`.
+        - `outcome` will be inferred from `outcome_output` if `outcome` is not provided.
+          Otherwise, consistency check will be performed between `outcome` and `outcome_output`.
+        - `cpc_value` will be inferred from `cpc_output` if `cpc_value` is not provided.
+          Otherwise, consistency check will be performed between `cpc_value` and `cpc_output`.
+
     """
 
     cpc_output: Optional[ClassificationOutput] = None

@@ -312,19 +312,25 @@ def load_challenge_models(
 
     Returns
     -------
-    dict
-        with items:
-            - main_model: torch.nn.Module,
-              the loaded model, for cpc predictions,
+    models : dict
+        Dict of the models, with the following items:
+            - main_model: torch.nn.Module
+              The loaded model, for cpc predictions,
               or for both cpc and outcome predictions.
-            - train_cfg: CFG,
-              the training configuration,
+            - train_cfg: CFG
+              The training configuration,
               including the list of classes (the ordering is important),
               and the preprocessing configurations.
-            - outcome_model: BaseEstimator,
-              the loaded model, for outcome predictions.
-            - cpc_model: BaseEstimator,
-              the loaded model, for cpc predictions.
+            - imputer: SimpleImputer
+              The loaded imputer for the input features.
+            - scaler: BaseEstimator, optional
+              The loaded scaler for the input features.
+            - cpc_model: BaseEstimator
+              The loaded model, for cpc predictions.
+            - outcome_model: BaseEstimator, optional
+              The loaded model, for outcome predictions.
+              If is None, then the outcome predictions will be
+              inferred from cpc predictions.
 
     """
     print("\n" + "*" * 100)
@@ -364,18 +370,24 @@ def run_challenge_models(
     Parameters
     ----------
     models : dict
-        with items:
-            - main_model: torch.nn.Module,
-              the loaded model, for cpc predictions,
+        Dict of the models, with the following items:
+            - main_model: torch.nn.Module
+              The loaded model, for cpc predictions,
               or for both cpc and outcome predictions.
-            - train_cfg: CFG,
-              the training configuration,
+            - train_cfg: CFG
+              The training configuration,
               including the list of classes (the ordering is important),
               and the preprocessing configurations.
-            - outcome_model: BaseEstimator,
-              the loaded model, for outcome predictions.
-            - cpc_model: BaseEstimator,
-              the loaded model, for cpc predictions.
+            - imputer: SimpleImputer
+              The loaded imputer for the input features.
+            - scaler: BaseEstimator, optional
+              The loaded scaler for the input features.
+            - cpc_model: BaseEstimator
+              The loaded model, for cpc predictions.
+            - outcome_model: BaseEstimator, optional
+              The loaded model, for outcome predictions.
+              If is None, then the outcome predictions will be
+              inferred from cpc predictions.
     data_folder : str
         path to the folder containing the Challenge data
     patient_id : str
@@ -394,7 +406,8 @@ def run_challenge_models(
 
     """
     imputer = models["imputer"]
-    outcome_model = models["outcome_model"]
+    scaler = models.get("scaler", None)
+    outcome_model = models.get("outcome_model", None)
     cpc_model = models["cpc_model"]
 
     main_model = models["main_model"]
@@ -419,6 +432,7 @@ def run_challenge_models(
         return run_minimum_guarantee_model(
             patient_metadata=patient_metadata,
             imputer=imputer,
+            scaler=scaler,
             outcome_model=outcome_model,
             cpc_model=cpc_model,
         )
@@ -444,6 +458,7 @@ def run_challenge_models(
         return run_minimum_guarantee_model(
             patient_metadata=patient_metadata,
             imputer=imputer,
+            scaler=scaler,
             outcome_model=outcome_model,
             cpc_model=cpc_model,
         )
@@ -503,6 +518,7 @@ def run_challenge_models(
         return run_minimum_guarantee_model(
             patient_metadata=patient_metadata,
             imputer=imputer,
+            scaler=scaler,
             outcome_model=outcome_model,
             cpc_model=cpc_model,
         )
@@ -554,6 +570,7 @@ def run_challenge_models(
         return run_minimum_guarantee_model(
             patient_metadata=patient_metadata,
             imputer=imputer,
+            scaler=scaler,
             outcome_model=outcome_model,
             cpc_model=cpc_model,
         )
@@ -564,6 +581,7 @@ def run_challenge_models(
 def run_minimum_guarantee_model(
     patient_metadata: str,
     imputer: SimpleImputer,
+    scaler: BaseEstimator,
     outcome_model: BaseEstimator,
     cpc_model: BaseEstimator,
 ) -> Tuple[int, float, float]:
@@ -575,8 +593,12 @@ def run_minimum_guarantee_model(
         Metadata of the patient.
     imputer : SimpleImputer
         The imputer.
+    scaler : BaseEstimator
+        The scaler, optional.
     outcome_model : BaseEstimator
-        Model for predicting the outcome.
+        Model for predicting the outcome, optional.
+        If is None, then the outcome predictions will be
+        inferred from cpc predictions.
     cpc_model : BaseEstimator
         Model for predicting the CPC.
 
@@ -592,6 +614,8 @@ def run_minimum_guarantee_model(
     """
     features = get_features(patient_metadata).reshape(1, -1)
     features = imputer.transform(features)
+    if scaler is not None:
+        features = scaler.transform(features)
     outcome = outcome_model.predict(features)[0].item()
     # outcome_probability is the probability of the "Poor" (1) class
     outcome_probability = outcome_model.predict_proba(features)[0, 1].item()

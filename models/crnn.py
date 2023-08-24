@@ -101,7 +101,8 @@ class CRNN_CINC2023(ECG_CRNN):
 
         Returns
         -------
-        CINC2023Outputs, with attributes:
+        CINC2023Outputs
+            with attributes:
             - cpc_output, outcome_output: ClassificationOutput, with items:
                 - classes: list of str,
                   list of the class names
