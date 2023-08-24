@@ -25,6 +25,7 @@ __all__ = [
     "load_unofficial_phase_metadata",
     "func_indicator",
     "get_outcome_from_cpc",
+    "predict_proba_ordered",
 ]
 
 
@@ -305,3 +306,33 @@ def get_outcome_from_cpc(
         cpc_value = str(int(cpc_value))
     outcome = BaseCfg.cpc2outcome_map[cpc_value]
     return outcome
+
+
+def predict_proba_ordered(
+    probs: np.ndarray, classes_: np.ndarray, all_classes: np.ndarray
+) -> np.ndarray:
+    """Workaround for the problem that one can not set explicitly
+    the list of classes for models in sklearn.
+
+    Modified from https://stackoverflow.com/a/32191708
+
+    Parameters
+    ----------
+    probs : numpy.ndarray
+        Array of probabilities, output of `predict_proba` method of sklearn models.
+    classes_ : numpy.ndarray
+        Array of classes, output of `classes_` attribute of sklearn models.
+    all_classes : numpy.ndarray
+        All possible classes (superset of `classes_`).
+
+    Returns
+    -------
+    numpy.ndarray
+        Array of probabilities, ordered according to all_classes.
+
+    """
+    proba_ordered = np.zeros((probs.shape[0], all_classes.size), dtype=float)
+    sorter = np.argsort(all_classes)  # http://stackoverflow.com/a/32191125/395857
+    idx = sorter[np.searchsorted(all_classes, classes_, sorter=sorter)]
+    proba_ordered[:, idx] = probs
+    return proba_ordered

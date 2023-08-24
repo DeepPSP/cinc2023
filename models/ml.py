@@ -31,13 +31,13 @@ from torch_ecg.utils.utils_data import stratified_train_test_split
 from torch_ecg.utils.utils_metrics import _cls_to_bin
 from tqdm.auto import tqdm
 
-from utils.scoring_metrics import compute_challenge_metrics
-from utils.features import get_features, get_labels
-from utils.misc import get_outcome_from_cpc
 from cfg import BaseCfg, MLCfg
 from data_reader import CINC2023Reader
 from outputs import CINC2023Outputs
 from helper_code import get_hospital
+from utils.scoring_metrics import compute_challenge_metrics
+from utils.features import get_features, get_labels
+from utils.misc import get_outcome_from_cpc, predict_proba_ordered
 
 
 __all__ = [
@@ -486,6 +486,16 @@ class ML_Classifier_CINC2023(object):
                     continue
 
                 y_prob = clf_gs.predict_proba(X_val)
+                if y_prob.shape[1] < len(self.config.classes):
+                    # workaround for GitHub action test
+                    # in which the data subset does not have full classes
+                    y_prob = predict_proba_ordered(
+                        y_prob,
+                        clf_gs.classes_,
+                        np.array(
+                            [self.config.class_map[k] for k in self.config.classes]
+                        ),
+                    )
                 y_pred = clf_gs.predict(X_val)
                 bin_pred = _cls_to_bin(
                     y_pred, shape=(y_pred.shape[0], len(self.config.classes))
@@ -594,6 +604,14 @@ class ML_Classifier_CINC2023(object):
         best_params = gscv.best_params_
         # best_score = gscv.best_score_
         y_prob = best_clf.predict_proba(X_val)
+        if y_prob.shape[1] < len(self.config.classes):
+            # workaround for GitHub action test
+            # in which the data subset does not have full classes
+            y_prob = predict_proba_ordered(
+                y_prob,
+                best_clf.classes_,
+                np.array([self.config.class_map[k] for k in self.config.classes]),
+            )
         y_pred = best_clf.predict(X_val)
         bin_pred = _cls_to_bin(
             y_pred, shape=(y_pred.shape[0], len(self.config.classes))
