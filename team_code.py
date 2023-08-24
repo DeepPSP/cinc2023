@@ -30,9 +30,9 @@ from torch_ecg.utils.misc import str2bool
 from torch_ecg._preprocessors import PreprocManager
 from tqdm.auto import tqdm
 
-from cfg import TrainCfg, ModelCfg
+from cfg import TrainCfg, ModelCfg, MLCfg
 from dataset import CinC2023Dataset
-from models import CRNN_CINC2023
+from models import CRNN_CINC2023, ML_Classifier_CINC2023
 from trainer import CINC2023Trainer, _set_task
 from helper_code import find_data_folders
 from utils.features import get_features, get_labels
@@ -79,6 +79,7 @@ TrainCfg[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
 
 _ModelFilename = "final_model_main.pth.tar"
 _ModelFilename_ml = "final_model_ml.pkl"
+_ModelFilename_ml_min_guarantee = "final_model_ml_min_guarantee.pkl"
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if ModelCfg.torch_dtype == torch.float64:
@@ -223,8 +224,25 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
     torch.cuda.empty_cache()
 
     ###############################################################################
-    # Train ML model using patient metadata.
-    # TODO: replace with grid searched model.
+    # Train ML model using patient metadata via grid search.
+    ###############################################################################
+    aux_model_cls = ML_Classifier_CINC2023
+    aux_model_config = deepcopy(MLCfg)
+    aux_model_config.db_dir = Path(data_folder).resolve().absolute()
+    aux_model_config.model_dir = Path(model_folder).resolve().absolute()
+    aux_model_config.working_dir = aux_model_config.model_dir / "working_dir"
+    aux_model_config.working_dir.mkdir(parents=True, exist_ok=True)
+    aux_model_config.log_step = 100
+
+    aux_model_name = "rf"  # "rf", "svc", "bagging", "xgb", "gdbt"
+
+    aux_model = aux_model_cls(config=aux_model_config)
+    aux_model.search(model_name=aux_model_name)
+    aux_model.save_best_model(model_name=_ModelFilename_ml)
+
+    ###############################################################################
+    # Out-dated: Train ML (RF) model using patient metadata.
+    # kept for reference and minimum guarantee
     ###############################################################################
     # Extract the features and labels.
     if verbose >= 1:
@@ -234,9 +252,6 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
     outcomes = list()
     cpcs = list()
 
-    # for i in range(num_patients):
-    #     if verbose >= 2:
-    #         print("    {}/{}...".format(i + 1, num_patients))
     for i in tqdm(
         range(num_patients),
         desc="Extracting features and labels",
@@ -288,7 +303,9 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
     ).fit(features, cpcs.ravel())
 
     d = {"imputer": imputer, "outcome_model": outcome_model, "cpc_model": cpc_model}
-    model_path = Path(model_folder).resolve().absolute() / _ModelFilename_ml
+    model_path = (
+        Path(model_folder).resolve().absolute() / _ModelFilename_ml_min_guarantee
+    )
     with open(model_path, "wb") as f:
         pickle.dump(d, f)
 
@@ -321,6 +338,8 @@ def load_challenge_models(
               The training configuration,
               including the list of classes (the ordering is important),
               and the preprocessing configurations.
+            - aux_model: ML_Classifier_CINC2023
+              The loaded auxiliary ML model trained using patient metadata.
             - imputer: SimpleImputer
               The loaded imputer for the input features.
             - scaler: BaseEstimator, optional
@@ -344,15 +363,25 @@ def load_challenge_models(
     )
     main_model.eval()
 
-    ml_model_path = Path(model_folder).resolve().absolute() / _ModelFilename_ml
-    with open(ml_model_path, "rb") as f:
-        ml_models = pickle.load(f)
+    aux_model_path = Path(model_folder).resolve().absolute() / _ModelFilename_ml
+    aux_model = ML_Classifier_CINC2023.from_file(aux_model_path)
+
+    min_guarantee_model_path = (
+        Path(model_folder).resolve().absolute() / _ModelFilename_ml_min_guarantee
+    )
+    with open(min_guarantee_model_path, "rb") as f:
+        min_guarantee_models = pickle.load(f)
 
     msg = "   CinC2023 challenge model loaded   ".center(100, "#")
     print(msg)
     print("*" * 100 + "\n")
 
-    models = dict(main_model=main_model, train_cfg=train_cfg, **ml_models)
+    models = dict(
+        main_model=main_model,
+        train_cfg=train_cfg,
+        aux_model=aux_model,
+        **min_guarantee_models,
+    )
 
     return models
 
@@ -378,6 +407,8 @@ def run_challenge_models(
               The training configuration,
               including the list of classes (the ordering is important),
               and the preprocessing configurations.
+            - aux_model: ML_Classifier_CINC2023
+              The loaded auxiliary ML model trained using patient metadata.
             - imputer: SimpleImputer
               The loaded imputer for the input features.
             - scaler: BaseEstimator, optional
@@ -416,6 +447,8 @@ def run_challenge_models(
     ppm_config = CFG(random=False)
     ppm_config.update(deepcopy(train_cfg[TASK]))
     ppm = PreprocManager.from_config(ppm_config)
+
+    aux_model = models["aux_model"]
 
     # Load data.
     # patient_metadata: str
@@ -457,6 +490,7 @@ def run_challenge_models(
         # use the outcome_model and cpc_model to predict the outcome and cpc
         return run_minimum_guarantee_model(
             patient_metadata=patient_metadata,
+            aux_model=aux_model,
             imputer=imputer,
             scaler=scaler,
             outcome_model=outcome_model,
@@ -517,6 +551,7 @@ def run_challenge_models(
         # fallback to the outcome_model and cpc_model
         return run_minimum_guarantee_model(
             patient_metadata=patient_metadata,
+            aux_model=aux_model,
             imputer=imputer,
             scaler=scaler,
             outcome_model=outcome_model,
@@ -569,6 +604,7 @@ def run_challenge_models(
     if np.isnan(outcome_probability):
         return run_minimum_guarantee_model(
             patient_metadata=patient_metadata,
+            aux_model=aux_model,
             imputer=imputer,
             scaler=scaler,
             outcome_model=outcome_model,
@@ -580,6 +616,7 @@ def run_challenge_models(
 
 def run_minimum_guarantee_model(
     patient_metadata: str,
+    aux_model: ML_Classifier_CINC2023,
     imputer: SimpleImputer,
     scaler: BaseEstimator,
     outcome_model: BaseEstimator,
@@ -591,6 +628,8 @@ def run_minimum_guarantee_model(
     ----------
     patient_metadata : str
         Metadata of the patient.
+    aux_model : ML_Classifier_CINC2023
+        The auxiliary ML model trained using patient metadata.
     imputer : SimpleImputer
         The imputer.
     scaler : BaseEstimator
@@ -612,6 +651,42 @@ def run_minimum_guarantee_model(
         the predicted cpc
 
     """
+    # use_aux_model = aux_model is not None
+    use_aux_model = True
+
+    if use_aux_model:
+        print("Using the auxiliary model.")
+        aux_model_output = aux_model.inference(patient_metadata)
+        # aux_model_output is of type CINC2023Outputs, with attributes:
+        # - cpc_output, outcome_output: ClassificationOutput, with items:
+        #     - classes: list of str,
+        #         list of the class names
+        #     - prob: ndarray or DataFrame,
+        #         scalar (probability) predictions,
+        #         (and binary predictions if `class_names` is True)
+        #     - pred: ndarray,
+        #         the array of class number predictions
+        #     - bin_pred: ndarray,
+        #         the array of binary predictions
+        #     - forward_output: ndarray,
+        #         the array of output of the model's forward function,
+        #         useful for producing challenge result using
+        #         multiple recordings
+        # - cpc_value: List[float],
+        #     the list of cpc values
+        # - outcome: List[str],
+        #     the list of outcome classes
+        outcome = aux_model_output.outcome_output.pred[0].item()
+        # outcome_probability is the probability of the "Poor" (1) class
+        outcome_probability = aux_model_output.outcome_output.prob[0, 1].item()
+        cpc = aux_model_output.cpc_value[0]
+
+        if not np.isnan(outcome_probability):
+            return outcome, outcome_probability, cpc
+        # if is nan, fallback to the minimum guarantee model
+
+    print("Fallback to the minimum guarantee model.")
+
     features = get_features(patient_metadata).reshape(1, -1)
     features = imputer.transform(features)
     if scaler is not None:

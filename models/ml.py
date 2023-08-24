@@ -242,7 +242,7 @@ class ML_Classifier_CINC2023(object):
         Parameters
         ----------
         model_name : str, optional
-            model name,
+            File name of the model to save,
             defaults to f"{self.best_clf.__class__.__name__}_{self.best_score}.pkl"
 
         """
@@ -279,7 +279,7 @@ class ML_Classifier_CINC2023(object):
         clf.best_clf = loaded["classifier"]
         return clf
 
-    def inference(self, patient_metadata: str) -> ClassificationOutput:
+    def inference(self, patient_metadata: str) -> CINC2023Outputs:
         """Helper function to infer the cpc and/or outcome of a patient.
 
         Parameters
