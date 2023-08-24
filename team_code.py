@@ -464,6 +464,7 @@ def run_challenge_models(
         # use the outcome_model and cpc_model to predict the outcome and cpc
         return run_minimum_guarantee_model(
             patient_metadata=patient_metadata,
+            aux_model=aux_model,
             imputer=imputer,
             scaler=scaler,
             outcome_model=outcome_model,

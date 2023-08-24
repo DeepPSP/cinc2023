@@ -3,8 +3,9 @@ Currently NOT used, NOT tested.
 """
 
 import json
-import pickle
 import multiprocessing as mp
+import pickle
+import warnings
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Optional, List, Union, Tuple, Sequence
@@ -43,6 +44,10 @@ from utils.misc import get_outcome_from_cpc, predict_proba_ordered
 __all__ = [
     "ML_Classifier_CINC2023",
 ]
+
+
+# suppress warnings from sklearn
+warnings.filterwarnings("ignore")
 
 
 class ML_Classifier_CINC2023(object):
