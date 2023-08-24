@@ -6,6 +6,7 @@ pandas==2.0.0
 scikit-learn==1.2.2
 mne==1.4.0
 wfdb==3.2.0
+xgboost==1.6.2
 opencv-python
 torchsummary
 tensorboardX
