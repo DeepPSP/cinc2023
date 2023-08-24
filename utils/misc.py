@@ -5,7 +5,7 @@ Miscellaneous functions.
 import os
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Any, List, Tuple
+from typing import Callable, Any, List, Tuple, Union, Iterable
 
 import numpy as np
 import pandas as pd
@@ -24,6 +24,7 @@ __all__ = [
     "load_challenge_metadata",
     "load_unofficial_phase_metadata",
     "func_indicator",
+    "get_outcome_from_cpc",
 ]
 
 
@@ -275,3 +276,32 @@ def load_recording_data(
         rescaled_data[i, :] = (data[i, :] - offsets[i]) / gains[i]
 
     return rescaled_data, channels, sampling_frequency
+
+
+def get_outcome_from_cpc(
+    cpc_value: Union[int, str, Iterable[Union[int, str]]]
+) -> Union[str, List[str]]:
+    """Get the outcome from the CPC value.
+
+    Parameters
+    ----------
+    cpc_value : int or str or Iterable[int] or Iterable[str]
+        The CPC value.
+
+    Returns
+    -------
+    outcome : str or List[str]
+        The outcome.
+
+    """
+    if isinstance(cpc_value, (list, tuple, np.ndarray)):
+        return [get_outcome_from_cpc(v) for v in cpc_value]
+    # convert numpy type to python type
+    if isinstance(cpc_value, np.generic):
+        cpc_value = cpc_value.item()
+    # convert dtype of cpc_value to str
+    if not isinstance(cpc_value, str):
+        assert isinstance(cpc_value, (int, float))
+        cpc_value = str(int(cpc_value))
+    outcome = BaseCfg.cpc2outcome_map[cpc_value]
+    return outcome

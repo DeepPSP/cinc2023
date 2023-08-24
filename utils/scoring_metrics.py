@@ -251,8 +251,8 @@ def compute_challenge_score(
 
     Returns
     -------
-    float
-        The Challenge score.
+    max_tpr : float
+        The Challenge score, the largest TPR such that FPR <= 0.05.
 
     """
     # Check the data.
@@ -366,9 +366,9 @@ def compute_auc(labels: np.ndarray, outputs: np.ndarray) -> Tuple[float, float]:
 
     Returns
     -------
-    float
+    auroc: float
         The AUROC.
-    float
+    auprc : float
         The AUPRC.
 
     """
