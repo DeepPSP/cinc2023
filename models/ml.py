@@ -322,6 +322,14 @@ class ML_Classifier_CINC2023(object):
         )
         features = features[self.feature_list].values.astype(BaseCfg.np_dtype)
         y_prob = self.best_clf.predict_proba(features)
+        if y_prob.shape[1] < len(self.config.classes):
+            # workaround for GitHub action test
+            # in which the data subset does not have full classes
+            y_prob = predict_proba_ordered(
+                y_prob,
+                self.best_clf.classes_,
+                np.array([self.config.class_map[k] for k in self.config.classes]),
+            )
         y_pred = self.best_clf.predict(features)
         bin_pred = _cls_to_bin(
             y_pred, shape=(y_pred.shape[0], len(self.config.classes))
