@@ -46,6 +46,7 @@ Official Phase:
     n_epochs: 60
     reload_data_every: 6
     early_stopping_patience: 0.35
+    enhanced_ml_model: false
     hash: bb3877c
 
   submission 2:
@@ -58,4 +59,18 @@ Official Phase:
     n_epochs: 55
     reload_data_every: 5
     early_stopping_patience: 0.45
+    enhanced_ml_model: false
+    hash: 
+
+  submission 3:
+    score:
+    submission ID:
+    input_len: 180
+    batch_size: 32
+    learning_rate: 2.5e-3
+    max_lr: 8e-3
+    n_epochs: 55
+    reload_data_every: 5
+    early_stopping_patience: 0.45
+    enhanced_ml_model: true
     hash: 
