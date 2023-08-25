@@ -18,10 +18,10 @@ from tqdm.auto import tqdm
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.databases.base import PhysioNetDataBase, DataBaseInfo
 from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring
-from torch_ecg.utils.download import _untar_file
+from torch_ecg.utils.download import _untar_file, _unzip_file
 
 from cfg import BaseCfg
-from utils.misc import load_unofficial_phase_metadata
+from utils.misc import load_unofficial_phase_metadata, url_is_reachable
 from utils.sqi import compute_sqi
 
 
@@ -182,6 +182,7 @@ class CINC2023Reader(PhysioNetDataBase):
             "i-care-international-cardiac-arrest-research-consortium-database-2.0.zip"
         ),
         "subset": "https://drive.google.com/u/0/uc?id=13IAz0mZIyT4X18izeSClj2veE9E09vop",
+        "sqi": "https://drive.google.com/u/0/uc?id=1yPeLkL7WmHzXfSi5XK7hzWTfcAvrL8_q",
     }
 
     def __init__(
@@ -243,11 +244,13 @@ class CINC2023Reader(PhysioNetDataBase):
             self.records_file = self.db_dir / "RECORDS-NEW"
             self.records_metadata_file = self.db_dir / "RECORDS.csv"
             self.subjects_metadata_file = self.db_dir / "SUBJECTS.csv"
+            self.sqi_dir = self.db_dir / "SQI"
             warning_msg = None
         elif os.access(self.working_dir, os.W_OK):
             self.records_file = self.working_dir / "RECORDS-NEW"
             self.records_metadata_file = self.working_dir / "RECORDS.csv"
             self.subjects_metadata_file = self.working_dir / "SUBJECTS.csv"
+            self.sqi_dir = self.working_dir / "SQI"
             warning_msg = (
                 f"DB directory {self.db_dir} is read-only, "
                 f"records and subjects metadata files will be saved to {self.working_dir}."
@@ -256,6 +259,7 @@ class CINC2023Reader(PhysioNetDataBase):
             self.records_file = None
             self.records_metadata_file = None
             self.subjects_metadata_file = None
+            self.sqi_dir = None
             warning_msg = (
                 f"DB directory {self.db_dir} and working directory {self.working_dir} "
                 "are both read-only, records and subjects metadata files will not be saved."
@@ -275,6 +279,7 @@ class CINC2023Reader(PhysioNetDataBase):
         self._subject_records = None
         self._df_unofficial_phase_metadata = None
         self._ls_rec()
+        self._download_sqi_files()
 
     def _auto_infer_units(self) -> None:
         """Auto infer the units of the signals."""
@@ -1278,6 +1283,29 @@ class CINC2023Reader(PhysioNetDataBase):
             gdown.download(url, dl_file, quiet=False)
             _untar_file(dl_file, self.db_dir)
             self._ls_rec()
+
+    def _download_sqi_files(self) -> None:
+        """Download the SQI files from Google Drive."""
+        if not url_is_reachable("https://drive.google.com/"):
+            warnings.warn(
+                "Cannot reach Google Drive. " "The SQI files will not be downloaded."
+            )
+            return
+        url = self._url_compressed["sqi"]
+        if os.access(self.db_dir, os.W_OK):
+            dl_dir = self.db_dir
+        elif os.access(self.working_dir, os.W_OK):
+            dl_dir = self.working_dir
+        else:
+            warnings.warn(
+                "No access to write the SQI files. "
+                "The SQI files will not be downloaded."
+            )
+            return
+        dl_file = str(dl_dir / "CinC2023-SQI.zip")
+        gdown.download(url, dl_file, quiet=False)
+        _unzip_file(dl_file, self.sqi_dir)
+        # TODO: further integrate the SQI files into the self._df_records
 
     @property
     def database_info(self) -> DataBaseInfo:
