@@ -799,7 +799,7 @@ class ML_Classifier_CINC2023(object):
         """
         _train_ratio = int(train_ratio * 100)
         _test_ratio = 100 - _train_ratio
-        assert _train_ratio * _test_ratio > 0
+        assert _train_ratio * _test_ratio > 0, "Invalid train/test ratio."
 
         # NOTE: for CinC2023, the data folder (db_dir) is read-only
         # the workaround is writing to the model folder
@@ -823,7 +823,7 @@ class ML_Classifier_CINC2023(object):
         aux_test_file = BaseCfg.project_dir / "utils" / f"test_ratio_{_test_ratio}.json"
 
         if not force_recompute:
-            if train_file.exists() and test_file.exists():
+            if writable and train_file.exists() and test_file.exists():
                 return json.loads(train_file.read_text()), json.loads(
                     test_file.read_text()
                 )

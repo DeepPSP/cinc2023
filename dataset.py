@@ -271,7 +271,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
         aux_test_file = BaseCfg.project_dir / "utils" / f"test_ratio_{_test_ratio}.json"
 
         if not force_recompute:
-            if train_file.exists() and test_file.exists():
+            if writable and train_file.exists() and test_file.exists():
                 if self.training:
                     return json.loads(train_file.read_text())
                 else:

@@ -69,6 +69,8 @@ TrainCfg[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
 
 # TrainCfg[TASK].rnn_name = "none"  # "none", "lstm"
 # TrainCfg[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
+
+ENHANCED_ML_MODEL = True
 ################################################################################
 
 
@@ -226,19 +228,20 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
     ###############################################################################
     # Train ML model using patient metadata via grid search.
     ###############################################################################
-    aux_model_cls = ML_Classifier_CINC2023
-    aux_model_config = deepcopy(MLCfg)
-    aux_model_config.db_dir = Path(data_folder).resolve().absolute()
-    aux_model_config.model_dir = Path(model_folder).resolve().absolute()
-    aux_model_config.working_dir = aux_model_config.model_dir / "working_dir"
-    aux_model_config.working_dir.mkdir(parents=True, exist_ok=True)
-    aux_model_config.log_step = 100
+    if ENHANCED_ML_MODEL:
+        aux_model_cls = ML_Classifier_CINC2023
+        aux_model_config = deepcopy(MLCfg)
+        aux_model_config.db_dir = Path(data_folder).resolve().absolute()
+        aux_model_config.model_dir = Path(model_folder).resolve().absolute()
+        aux_model_config.working_dir = aux_model_config.model_dir / "working_dir"
+        aux_model_config.working_dir.mkdir(parents=True, exist_ok=True)
+        aux_model_config.log_step = 100
 
-    aux_model_name = "rf"  # "rf", "svc", "bagging", "xgb", "gdbt"
+        aux_model_name = "rf"  # "rf", "svc", "bagging", "xgb", "gdbt"
 
-    aux_model = aux_model_cls(config=aux_model_config)
-    aux_model.search(model_name=aux_model_name)
-    aux_model.save_best_model(model_name=_ModelFilename_ml)
+        aux_model = aux_model_cls(config=aux_model_config)
+        aux_model.search(model_name=aux_model_name)
+        aux_model.save_best_model(model_name=_ModelFilename_ml)
 
     ###############################################################################
     # Out-dated: Train ML (RF) model using patient metadata.
@@ -338,7 +341,7 @@ def load_challenge_models(
               The training configuration,
               including the list of classes (the ordering is important),
               and the preprocessing configurations.
-            - aux_model: ML_Classifier_CINC2023
+            - aux_model: ML_Classifier_CINC2023, optional
               The loaded auxiliary ML model trained using patient metadata.
             - imputer: SimpleImputer
               The loaded imputer for the input features.
@@ -363,8 +366,14 @@ def load_challenge_models(
     )
     main_model.eval()
 
-    aux_model_path = Path(model_folder).resolve().absolute() / _ModelFilename_ml
-    aux_model = ML_Classifier_CINC2023.from_file(aux_model_path)
+    if ENHANCED_ML_MODEL:
+        aux_model_path = Path(model_folder).resolve().absolute() / _ModelFilename_ml
+        if aux_model_path.exists():
+            aux_model = ML_Classifier_CINC2023.from_file(aux_model_path)
+        else:
+            aux_model = None
+    else:
+        aux_model = None
 
     min_guarantee_model_path = (
         Path(model_folder).resolve().absolute() / _ModelFilename_ml_min_guarantee
@@ -407,7 +416,7 @@ def run_challenge_models(
               The training configuration,
               including the list of classes (the ordering is important),
               and the preprocessing configurations.
-            - aux_model: ML_Classifier_CINC2023
+            - aux_model: ML_Classifier_CINC2023, optional
               The loaded auxiliary ML model trained using patient metadata.
             - imputer: SimpleImputer
               The loaded imputer for the input features.
@@ -448,7 +457,7 @@ def run_challenge_models(
     ppm_config.update(deepcopy(train_cfg[TASK]))
     ppm = PreprocManager.from_config(ppm_config)
 
-    aux_model = models["aux_model"]
+    aux_model = models.get("aux_model", None)
 
     # Load data.
     # patient_metadata: str
@@ -629,7 +638,7 @@ def run_minimum_guarantee_model(
     ----------
     patient_metadata : str
         Metadata of the patient.
-    aux_model : ML_Classifier_CINC2023
+    aux_model : ML_Classifier_CINC2023, optional
         The auxiliary ML model trained using patient metadata.
     imputer : SimpleImputer
         The imputer.
@@ -653,7 +662,7 @@ def run_minimum_guarantee_model(
 
     """
     # use_aux_model = aux_model is not None
-    use_aux_model = True
+    use_aux_model = ENHANCED_ML_MODEL and aux_model is not None
 
     if use_aux_model:
         print("Using the auxiliary model.")
@@ -685,8 +694,7 @@ def run_minimum_guarantee_model(
         if not np.isnan(outcome_probability):
             return outcome, outcome_probability, cpc
         # if is nan, fallback to the minimum guarantee model
-
-    print("Fallback to the minimum guarantee model.")
+        print("Fallback to the minimum guarantee model.")
 
     features = get_features(patient_metadata).reshape(1, -1)
     features = imputer.transform(features)
