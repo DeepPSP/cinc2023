@@ -4,6 +4,7 @@ Currently NOT used, NOT tested.
 
 import json
 import multiprocessing as mp
+import os
 import pickle
 import warnings
 from copy import deepcopy
@@ -132,7 +133,17 @@ class ML_Classifier_CINC2023(object):
             self.logger_manager = LoggerManager.from_config(logger_config)
 
         self.config.db_dir = Path(self.config.db_dir).resolve().absolute()
-        self.reader = CINC2023Reader(self.config.db_dir)
+        self.reader = CINC2023Reader(
+            self.config.db_dir, working_dir=self.config.working_dir
+        )
+
+        # let the data reader (re-)load the metadata dataframes
+        # in which case would be read from the disk via `pd.read_csv`
+        # and the string values parsed from the txt files
+        # are automatically converted to the correct data types
+        # e.g. "50" -> 50 or 50.0 depending on whether the column has nan values
+        # and "True" -> True or "False" -> False, "nan" -> np.nan, etc.
+        self.reader._ls_rec()
 
         self.__df_features = pd.DataFrame()
         for subject in self.reader.all_subjects:
@@ -790,24 +801,40 @@ class ML_Classifier_CINC2023(object):
         _test_ratio = 100 - _train_ratio
         assert _train_ratio * _test_ratio > 0
 
-        # let the data reader (re-)load the metadata dataframes
-        # in which case would be read from the disk via `pd.read_csv`
-        # and the string values parsed from the txt files
-        # are automatically converted to the correct data types
-        # e.g. "50" -> 50 or 50.0 depending on whether the column has nan values
-        # and "True" -> True or "False" -> False, "nan" -> np.nan, etc.
-        self.reader._ls_rec()
+        # NOTE: for CinC2023, the data folder (db_dir) is read-only
+        # the workaround is writing to the model folder
+        # which is set to be the working directory (working_dir)
+        writable = True
+        if os.access(self.reader.db_dir, os.W_OK):
+            train_file = self.reader.db_dir / f"train_ratio_{_train_ratio}.json"
+            test_file = self.reader.db_dir / f"test_ratio_{_test_ratio}.json"
+        elif os.access(self.reader.working_dir, os.W_OK):
+            train_file = self.reader.working_dir / f"train_ratio_{_train_ratio}.json"
+            test_file = self.reader.working_dir / f"test_ratio_{_test_ratio}.json"
+        else:
+            train_file = None
+            test_file = None
+            writable = False
 
-        train_file = self.reader.db_dir / f"train_ratio_{_train_ratio}.json"
-        test_file = self.reader.db_dir / f"test_ratio_{_test_ratio}.json"
         (BaseCfg.project_dir / "utils").mkdir(exist_ok=True)
         aux_train_file = (
             BaseCfg.project_dir / "utils" / f"train_ratio_{_train_ratio}.json"
         )
         aux_test_file = BaseCfg.project_dir / "utils" / f"test_ratio_{_test_ratio}.json"
 
-        if not force_recompute and train_file.exists() and test_file.exists():
-            return json.loads(train_file.read_text()), json.loads(test_file.read_text())
+        if not force_recompute:
+            if train_file.exists() and test_file.exists():
+                return json.loads(train_file.read_text()), json.loads(
+                    test_file.read_text()
+                )
+            elif aux_train_file.exists() and aux_test_file.exists():
+                train_set = json.loads(aux_train_file.read_text())
+                test_set = json.loads(aux_test_file.read_text())
+                # and write them to the train_file and test_file if writable
+                if writable:
+                    train_file.write_text(json.dumps(train_set, ensure_ascii=False))
+                    test_file.write_text(json.dumps(test_set, ensure_ascii=False))
+                return train_set, test_set
 
         df = self.reader._df_subjects.copy()
         df.loc[:, "Age"] = (
@@ -838,11 +865,15 @@ class ML_Classifier_CINC2023(object):
         train_set = df_train.index.tolist()
         test_set = df_test.index.tolist()
 
-        if force_recompute or not train_file.exists():
+        if (
+            (writable and force_recompute)
+            or not train_file.exists()
+            or not test_file.exists()
+        ):
             train_file.write_text(json.dumps(train_set, ensure_ascii=False))
             test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 
-        if force_recompute or not aux_train_file.exists():
+        if force_recompute or not aux_train_file.exists() or not aux_test_file.exists():
             aux_train_file.write_text(json.dumps(train_set, ensure_ascii=False))
             aux_test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 
