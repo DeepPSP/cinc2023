@@ -9,6 +9,19 @@ FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # check distribution of the base image
 RUN cat /etc/issue
 
+# check detailed system version of the base image
+RUN cat /etc/os-release
+
+# check python version of the base image
+RUN python --version
+
+# check CUDA version of the base image if is installed
+RUN if [ -x "$(command -v nvcc)" ]; then nvcc --version; fi
+
+ARG CUDNN_H_PATH=$(whereis cudnn.h)
+# check cuDNN version of the base image if CUDNN_H_PATH exists
+RUN if [ -n "$CUDNN_H_PATH" ]; then cat $CUDNN_H_PATH | grep CUDNN_MAJOR -A 2; fi
+
 
 # NOTE: The GPU provided by the Challenge is nvidia Tesla T4
 # running on a g4ad.4xlarge (or g4dn.4xlarge?) instance on AWS,
@@ -47,6 +60,9 @@ RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 -y
 
 RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
 
+# list packages installed in the base image
+RUN pip list
+
 # alternative pypi sources
 # http://mirrors.aliyun.com/pypi/simple/
 # http://pypi.douban.com/simple/
@@ -72,6 +88,8 @@ WORKDIR /challenge
 # install dependencies other than torch-related packages
 RUN pip install -r requirements-docker.txt
 
+# list packages after installing requirements
+RUN pip list
 
 # copy the whole project to the docker container
 COPY ./ /challenge
