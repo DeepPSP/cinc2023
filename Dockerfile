@@ -18,10 +18,6 @@ RUN python --version
 # check CUDA version of the base image if is installed
 RUN if [ -x "$(command -v nvcc)" ]; then nvcc --version; fi
 
-ARG CUDNN_H_PATH=$(whereis cudnn.h)
-# check cuDNN version of the base image if CUDNN_H_PATH exists
-RUN if [ -n "$CUDNN_H_PATH" ]; then cat $CUDNN_H_PATH | grep CUDNN_MAJOR -A 2; fi
-
 
 # NOTE: The GPU provided by the Challenge is nvidia Tesla T4
 # running on a g4ad.4xlarge (or g4dn.4xlarge?) instance on AWS,
