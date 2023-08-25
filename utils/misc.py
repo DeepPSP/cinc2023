@@ -9,6 +9,7 @@ from typing import Callable, Any, List, Tuple, Union, Iterable
 
 import numpy as np
 import pandas as pd
+import requests
 import scipy as sp
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.utils.misc import get_record_list_recursive3
@@ -26,6 +27,7 @@ __all__ = [
     "func_indicator",
     "get_outcome_from_cpc",
     "predict_proba_ordered",
+    "url_is_reachable",
 ]
 
 
@@ -336,3 +338,24 @@ def predict_proba_ordered(
     idx = sorter[np.searchsorted(all_classes, classes_, sorter=sorter)]
     proba_ordered[:, idx] = probs
     return proba_ordered
+
+
+def url_is_reachable(url: str) -> bool:
+    """Check if a URL is reachable.
+
+    Parameters
+    ----------
+    url : str
+        The URL.
+
+    Returns
+    -------
+    bool
+        Whether the URL is reachable.
+
+    """
+    try:
+        r = requests.head(url, timeout=3)
+        return r.status_code == 200
+    except Exception:
+        return False
