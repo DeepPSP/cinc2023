@@ -92,9 +92,11 @@ tmp_output_dir = Path(
 TASK = "classification"
 
 
-# make tmp_data_dir read-only
+# make tmp_data_dir read-only recursively
 # as the data folder of CinC2023 is read-only
-os.chmod(str(tmp_data_dir), 0o555)
+os.system(f"chmod -R 555 {str(tmp_data_dir)}")
+
+# os.chmod(str(tmp_data_dir), 0o555)
 
 
 def echo_write_permission(folder: Union[str, Path]) -> None:
