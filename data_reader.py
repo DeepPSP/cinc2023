@@ -18,7 +18,7 @@ from tqdm.auto import tqdm
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.databases.base import PhysioNetDataBase, DataBaseInfo
 from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring
-from torch_ecg.utils.download import _untar_file, _unzip_file
+from torch_ecg.utils.download import _untar_file, _unzip_file, http_get
 
 from cfg import BaseCfg
 from utils.misc import load_unofficial_phase_metadata, url_is_reachable
@@ -183,6 +183,7 @@ class CINC2023Reader(PhysioNetDataBase):
         ),
         "subset": "https://drive.google.com/u/0/uc?id=13IAz0mZIyT4X18izeSClj2veE9E09vop",
         "sqi": "https://drive.google.com/u/0/uc?id=1yPeLkL7WmHzXfSi5XK7hzWTfcAvrL8_q",
+        "sqi_alt": "https://deep-psp.tech/Data/CinC2023-SQI.zip",
     }
 
     def __init__(
@@ -1286,12 +1287,18 @@ class CINC2023Reader(PhysioNetDataBase):
 
     def _download_sqi_files(self) -> None:
         """Download the SQI files from Google Drive."""
-        if not url_is_reachable("https://drive.google.com/"):
+        if url_is_reachable("https://drive.google.com/"):
+            source = "gdrive"
+            url = self._url_compressed["sqi"]
+        elif url_is_reachable("https://deep-psp.tech"):
+            source = "deep-psp"
+            url = self._url_compressed["sqi_alt"]
+        else:
             warnings.warn(
-                "Cannot reach Google Drive. " "The SQI files will not be downloaded."
+                "Can reach neither Google Drive nor deep-psp.tech. "
+                "The SQI files will not be downloaded."
             )
             return
-        url = self._url_compressed["sqi"]
         if os.access(self.db_dir, os.W_OK):
             dl_dir = self.db_dir
         elif os.access(self.working_dir, os.W_OK):
@@ -1303,8 +1310,11 @@ class CINC2023Reader(PhysioNetDataBase):
             )
             return
         dl_file = str(dl_dir / "CinC2023-SQI.zip")
-        gdown.download(url, dl_file, quiet=False)
-        _unzip_file(dl_file, self.sqi_dir)
+        if source == "gdrive":
+            gdown.download(url, dl_file, quiet=False)
+            _unzip_file(dl_file, self.sqi_dir)
+        elif source == "deep-psp":
+            http_get(url, dl_dir, extract=True)
         # TODO: further integrate the SQI files into the self._df_records
 
     @property
