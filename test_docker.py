@@ -50,10 +50,15 @@ else:
 tmp_data_dir = Path(
     os.environ.get("revenger_data_dir", _BASE_DIR / "tmp" / "CINC2023")
 ).resolve()
+print(f"tmp_data_dir: {str(tmp_data_dir)}")
 tmp_data_dir.mkdir(parents=True, exist_ok=True)
+
 dr = CINC2023Reader(tmp_data_dir)
-dr.download(full=False)
-dr._ls_rec()
+# downloading is done outside the docker container
+# and the data folder is mounted to the docker container as read-only
+# dr.download(full=False)
+# dr._ls_rec()
+
 # let's remove cached metadata files
 # to test the CinC2023Dataset at the very first run
 # when metadata files are not computed and cached yet,
@@ -70,19 +75,21 @@ truncate_cfg = CFG(
     input_folder=str(dr._df_records.path.iloc[0].parents[1]),
 )
 
-truncated_data_dir = {}
-for limit in [12, 24, 48, 72]:
-    truncate_cfg.time_limit = limit
-    truncate_cfg.patient_ids = []
-    truncated_data_dir[limit] = str(tmp_data_dir.parent / f"CINC2023_{limit}h")
-    truncate_cfg.output_folder = truncated_data_dir[limit]
-    truncate_data_run(truncate_cfg)
-
 
 del dr
 
 
 tmp_model_dir = Path(os.environ.get("revenger_model_dir", TrainCfg.model_dir)).resolve()
+
+truncated_data_dir = {}
+for limit in [12, 24, 48, 72]:
+    truncate_cfg.time_limit = limit
+    truncate_cfg.patient_ids = []
+    truncated_data_dir[limit] = str(
+        tmp_model_dir / "truncated_data" / f"CINC2023_{limit}h"
+    )
+    truncate_cfg.output_folder = truncated_data_dir[limit]
+    truncate_data_run(truncate_cfg)
 
 tmp_output_dir = Path(
     os.environ.get("revenger_output_dir", _BASE_DIR / "tmp" / "output")
@@ -94,7 +101,7 @@ TASK = "classification"
 
 # make tmp_data_dir read-only recursively
 # as the data folder of CinC2023 is read-only
-os.system(f"chmod -R 555 {str(tmp_data_dir)}")
+# os.system(f"chmod -R 555 {str(tmp_data_dir)}")
 
 # os.chmod(str(tmp_data_dir), 0o555)
 
