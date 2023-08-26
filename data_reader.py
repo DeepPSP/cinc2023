@@ -280,7 +280,7 @@ class CINC2023Reader(PhysioNetDataBase):
         self._subject_records = None
         self._df_unofficial_phase_metadata = None
         self._ls_rec()
-        self._download_sqi_files()
+        # self._download_sqi_files()  # to use later
 
     def _auto_infer_units(self) -> None:
         """Auto infer the units of the signals."""

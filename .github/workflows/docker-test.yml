@@ -35,6 +35,9 @@ jobs:
       run: docker build . --file ${{ env.docker_filename }} --tag deeppsp-cinc2023-docker-image:latest
 
     - name: Download the training_subset data
+      # this step is done before running the test of challenge entry
+      # in the Docker image in the next step since the data directory
+      # is mounted as read-only in the challenge settings
       run: |
         mkdir -p ${{ env.download_data_dir }}
         docker run \
@@ -49,7 +52,7 @@ jobs:
     - name: Run the Docker image
       # skip if env.docker_filename is 'test.Dockerfile'
       # NOTE: mount env.download_data_dir to env.revenger_data_dir
-      # and set it read-only as the CinC2023 challenge setting
+      # and set it read-only as in the CinC2023 challenge settings
       if: ${{ env.docker_filename == 'Dockerfile' }}
       run: |
         docker run \
