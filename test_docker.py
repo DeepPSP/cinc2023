@@ -4,6 +4,7 @@
 import os
 from copy import deepcopy
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 import torch
@@ -96,6 +97,17 @@ TASK = "classification"
 os.chmod(str(tmp_data_dir), 0o555)
 
 
+def echo_write_permission(folder: Union[str, Path]) -> None:
+    """ """
+    is_writeable = (
+        "is writable" if os.access(str(folder), os.W_OK) else "is not writable"
+    )
+    print(f"{str(folder)} {is_writeable}")
+
+
+echo_write_permission(tmp_data_dir)
+
+
 @func_indicator("testing dataset")
 def test_dataset() -> None:
     """ """
@@ -182,6 +194,9 @@ def test_challenge_metrics() -> None:
 @func_indicator("testing trainer")
 def test_trainer() -> None:
     """ """
+    echo_write_permission(tmp_data_dir)
+    echo_write_permission(tmp_model_dir)
+
     train_config = deepcopy(TrainCfg)
     train_config.db_dir = tmp_data_dir
     # train_config.model_dir = model_folder
@@ -239,6 +254,8 @@ from evaluate_model import evaluate_model
 @func_indicator("testing challenge entry")
 def test_entry() -> None:
     """ """
+    echo_write_permission(tmp_data_dir)
+    echo_write_permission(tmp_model_dir)
 
     # run the model training function (script)
     print("run model training function")
