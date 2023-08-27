@@ -9,6 +9,7 @@ Unofficial Phase:
     n_epochs: 60
     reload_data_every: 6
     early_stopping_patience: 0.35
+    augmentations: null
     hash: 4c474e6
 
   submission 2:
@@ -21,6 +22,7 @@ Unofficial Phase:
     n_epochs: 80
     reload_data_every: 6
     early_stopping_patience: 0.35
+    augmentations: null
     hash: 5865683
 
   submission 3:
@@ -33,6 +35,7 @@ Unofficial Phase:
     n_epochs: 80
     reload_data_every: 5
     early_stopping_patience: 0.35
+    augmentations: null
     hash: 5d16c89
 
 Official Phase:
@@ -46,6 +49,7 @@ Official Phase:
     n_epochs: 60
     reload_data_every: 6
     early_stopping_patience: 0.35
+    augmentations: null
     enhanced_ml_model: false
     hash: bb3877c
 
@@ -59,6 +63,7 @@ Official Phase:
     n_epochs: 55
     reload_data_every: 5
     early_stopping_patience: 0.45
+    augmentations: null
     enhanced_ml_model: false
     hash: 
 
@@ -72,5 +77,9 @@ Official Phase:
     n_epochs: 55
     reload_data_every: 5
     early_stopping_patience: 0.45
+    augmentations: |
+      mixup:
+        alpha: 0.3
+        prob: 0.6
     enhanced_ml_model: true
     hash: 

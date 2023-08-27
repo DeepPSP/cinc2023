@@ -187,12 +187,12 @@ TrainCfg.classification.normalize = CFG(  # None or False for no normalization
 )
 
 # augmentations configurations
-TrainCfg.classification.augmentations = [
-    # currently empty
-]
-TrainCfg.classification.augmentations_kw = CFG(
-    p=0.7,
-    p_mode="per_batch",
+TrainCfg.classification.label_smooth = False
+TrainCfg.classification.random_masking = False
+TrainCfg.classification.stretch_compress = False  # stretch or compress in time axis
+TrainCfg.classification.mixup = CFG(
+    prob=0.6,
+    alpha=0.3,
 )
 
 # model choices
