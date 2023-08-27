@@ -230,6 +230,9 @@ _BASE_MODEL_CONFIG.torch_dtype = BaseCfg.torch_dtype
 
 ModelCfg = deepcopy(_BASE_MODEL_CONFIG)
 
+# adjust filter lengths, > 1 for enlarging, < 1 for shrinking
+cnn_filter_length_ratio = 1.5
+
 for t in TrainCfg.tasks:
     ModelCfg[t] = deepcopy(_BASE_MODEL_CONFIG)
     ModelCfg[t].task = t
@@ -254,7 +257,9 @@ for t in TrainCfg.tasks:
     ]:
         if mn not in ModelCfg[t]:
             continue
-        ModelCfg[t][mn] = adjust_cnn_filter_lengths(ModelCfg[t][mn], ModelCfg[t].fs)
+        ModelCfg[t][mn] = adjust_cnn_filter_lengths(
+            ModelCfg[t][mn], int(ModelCfg[t].fs * cnn_filter_length_ratio)
+        )
         ModelCfg[t][mn].cnn.name = ModelCfg[t].cnn_name
         ModelCfg[t][mn].rnn.name = ModelCfg[t].rnn_name
         ModelCfg[t][mn].attn.name = ModelCfg[t].attn_name
