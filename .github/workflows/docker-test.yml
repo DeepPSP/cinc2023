@@ -17,7 +17,6 @@ env:
   revenger_model_dir: /challenge/models
   revenger_test_dir: /challenge/test
   revenger_output_dir: /challenge/output
-  # docker_filename: test.Dockerfile
   docker_filename: Dockerfile
 
 jobs:
