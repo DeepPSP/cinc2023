@@ -55,8 +55,8 @@ Official Phase:
     hash: bb3877c
 
   submission 2:
-    score:
-    submission ID:
+    score: 0.582
+    submission ID: 2312
     input_len: 180
     batch_size: 32
     learning_rate: 2.5e-3
@@ -70,8 +70,8 @@ Official Phase:
     hash: f7a99a6
 
   submission 3:
-    score:
-    submission ID:
+    score: 0.582
+    submission ID: 2352
     input_len: 180
     batch_size: 32
     learning_rate: 2.5e-3
@@ -82,7 +82,7 @@ Official Phase:
     augmentations: null
     enhanced_ml_model: true
     cnn_filter_lengths_multiplier: 1
-    hash: 
+    hash: d51bc57
 
   submission 4:
     score:
