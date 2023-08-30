@@ -52,6 +52,7 @@ Official Phase:
     augmentations: null
     enhanced_ml_model: false
     cnn_filter_lengths_multiplier: 1
+    hour_limit: null
     hash: bb3877c
 
   submission 2:
@@ -67,6 +68,7 @@ Official Phase:
     augmentations: null
     enhanced_ml_model: false
     cnn_filter_lengths_multiplier: 1
+    hour_limit: null
     hash: f7a99a6
 
   submission 3:
@@ -82,6 +84,7 @@ Official Phase:
     augmentations: null
     enhanced_ml_model: true
     cnn_filter_lengths_multiplier: 1
+    hour_limit: null
     hash: d51bc57
 
   submission 4:
@@ -100,7 +103,8 @@ Official Phase:
         prob: 0.6
     enhanced_ml_model: true
     cnn_filter_lengths_multiplier: 1
-    hash: 
+    hour_limit: null
+    hash: null
 
   submission 5:
     score:
@@ -118,4 +122,40 @@ Official Phase:
         prob: 0.6
     enhanced_ml_model: true
     cnn_filter_lengths_multiplier: 1.5
-    hash: 
+    hour_limit: null
+    hash: null
+
+  submission 6:
+    score:
+    submission ID:
+    input_len: 180
+    batch_size: 32
+    learning_rate: 2.5e-3
+    max_lr: 8e-3
+    n_epochs: 65
+    reload_data_every: 5
+    early_stopping_patience: 0.45
+    augmentations: |
+      mixup:
+        alpha: 0.3
+        prob: 0.6
+    enhanced_ml_model: true
+    cnn_filter_lengths_multiplier: 2
+    hour_limit: null
+    hash: null
+
+  submission 7:
+    score:
+    submission ID:
+    input_len: 180
+    batch_size: 32
+    learning_rate: 2.5e-3
+    max_lr: 8e-3
+    n_epochs: 55
+    reload_data_every: 5
+    early_stopping_patience: 0.45
+    augmentations: null
+    enhanced_ml_model: true
+    cnn_filter_lengths_multiplier: 1
+    hour_limit: 48
+    hash: null
