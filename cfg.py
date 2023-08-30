@@ -231,7 +231,7 @@ _BASE_MODEL_CONFIG.torch_dtype = BaseCfg.torch_dtype
 ModelCfg = deepcopy(_BASE_MODEL_CONFIG)
 
 # adjust filter lengths, > 1 for enlarging, < 1 for shrinking
-cnn_filter_length_ratio = 1.5
+cnn_filter_length_ratio = 2.0
 
 for t in TrainCfg.tasks:
     ModelCfg[t] = deepcopy(_BASE_MODEL_CONFIG)
