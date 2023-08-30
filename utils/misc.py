@@ -5,7 +5,7 @@ Miscellaneous functions.
 import os
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Any, List, Tuple, Union, Iterable
+from typing import Callable, Any, List, Tuple, Union, Iterable, Optional
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ from torch_ecg.utils.misc import get_record_list_recursive3
 from tqdm.auto import tqdm
 
 from cfg import BaseCfg
-from helper_code import load_text_file
+from helper_code import load_text_file, get_end_time
 
 
 __all__ = [
@@ -32,7 +32,7 @@ __all__ = [
 
 
 def load_challenge_eeg_data(
-    data_folder: str, patient_id: str
+    data_folder: str, patient_id: str, hour_limit: Optional[int] = None
 ) -> List[Tuple[np.ndarray, int, List[str]]]:
     """Load challenge EEG data given the data folder and patient ID.
 
@@ -44,6 +44,9 @@ def load_challenge_eeg_data(
         The data folder.
     patient_id : str
         The patient ID.
+    hour_limit : int, optional
+        The hour limit of the recordings to load.
+        None for no limit, by default None
 
     Returns
     -------
@@ -54,7 +57,7 @@ def load_challenge_eeg_data(
     """
     patient_folder = Path(data_folder) / patient_id
     # Load recordings.
-    recording_files = find_eeg_recording_files(data_folder, patient_id)
+    recording_files = find_eeg_recording_files(data_folder, patient_id, hour_limit)
     recordings = list()
     with tqdm(
         recording_files, desc=f"Loading {patient_id} recordings", mininterval=1
@@ -69,7 +72,9 @@ def load_challenge_eeg_data(
     return recordings
 
 
-def find_eeg_recording_files(data_folder: str, patient_id: str) -> List[str]:
+def find_eeg_recording_files(
+    data_folder: str, patient_id: str, hour_limit: Optional[int] = None
+) -> List[str]:
     """Find the EEG recording files.
 
     Parameters
@@ -78,6 +83,9 @@ def find_eeg_recording_files(data_folder: str, patient_id: str) -> List[str]:
         The data folder.
     patient_id : str
         The patient ID.
+    hour_limit : int, optional
+        The hour limit of the recordings to load.
+        None for no limit, by default None
 
     Returns
     -------
@@ -94,6 +102,16 @@ def find_eeg_recording_files(data_folder: str, patient_id: str) -> List[str]:
         for fp in recording_files
         if fp.endswith("EEG") and Path(fp).parent == patient_folder
     ]
+    if hour_limit is not None:
+        end_hours = [
+            # get_end_time returns a tuple of (hour, minute, second)
+            get_end_time(Path(fp + ".hea").read_text())[0] for fp in recording_files
+        ]
+        recording_files = [
+            fp
+            for fp, end_hour in zip(recording_files, end_hours)
+            if end_hour < hour_limit
+        ]
     return recording_files
 
 
