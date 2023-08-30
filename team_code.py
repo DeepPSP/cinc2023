@@ -74,7 +74,7 @@ ENHANCED_ML_MODEL = True
 
 # NOTE: it is observed that in some submissions, challenge scores for 48 hours
 # are higher than those for 72 hours
-HOUR_LIMIT = 48  # hours, None for no limit
+HOUR_LIMIT = None  # hours, None for no limit
 ################################################################################
 
 
