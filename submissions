@@ -178,3 +178,22 @@ Official Phase:
     cnn_filter_lengths_multiplier: 2.0
     hour_limit: 48
     hash: null
+
+  submission 9:
+    score:
+    submission ID:
+    input_len: 180
+    batch_size: 32
+    learning_rate: 2.5e-3
+    max_lr: 8e-3
+    n_epochs: 65
+    reload_data_every: 5
+    early_stopping_patience: 0.45
+    augmentations: |
+      mixup:
+        alpha: 0.3
+        prob: 0.6
+    enhanced_ml_model: true
+    cnn_filter_lengths_multiplier: 2.0
+    hour_limit: null
+    hash: null
