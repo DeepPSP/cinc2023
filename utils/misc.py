@@ -105,7 +105,8 @@ def find_eeg_recording_files(
     if hour_limit is not None:
         end_hours = [
             # get_end_time returns a tuple of (hour, minute, second)
-            get_end_time(Path(fp + ".hea").read_text())[0] for fp in recording_files
+            get_end_time(Path(fp + ".hea").read_text())[0]
+            for fp in recording_files
         ]
         recording_files = [
             fp

@@ -71,6 +71,10 @@ TrainCfg[TASK].cnn_name = "resnet_nature_comm_bottle_neck_se"
 # TrainCfg[TASK].attn_name = "se"  # "none", "se", "gc", "nl"
 
 ENHANCED_ML_MODEL = True
+
+# NOTE: it is observed that in some submissions, challenge scores for 48 hours
+# are higher than those for 72 hours
+HOUR_LIMIT = 48  # hours, None for no limit
 ################################################################################
 
 
@@ -462,7 +466,9 @@ def run_challenge_models(
     # Load data.
     # patient_metadata: str
     patient_metadata = load_challenge_metadata(data_folder, patient_id)
-    recording_files = find_eeg_recording_files(data_folder, patient_id)
+    recording_files = find_eeg_recording_files(
+        data_folder, patient_id, hour_limit=HOUR_LIMIT
+    )
     num_recordings = len(recording_files)
 
     if verbose >= 1:
@@ -483,7 +489,9 @@ def run_challenge_models(
     # There are available recordings.
 
     # recording_data: list of 3-tuples (signal, sampling_frequency, channel_names)
-    recording_data = load_challenge_eeg_data(data_folder, patient_id)
+    recording_data = load_challenge_eeg_data(
+        data_folder, patient_id, hour_limit=HOUR_LIMIT
+    )
     # find recordings whose channels are a superset of the common channels
     valid_indices = [
         idx
