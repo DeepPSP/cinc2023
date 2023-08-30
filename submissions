@@ -41,6 +41,11 @@ Unofficial Phase:
 Official Phase:
   submission 1:
     score: 0.507
+    full_scores:
+      12h: 0.31
+      44h: 0.51
+      48h: 0.52
+      72h: 0.507
     submission ID: 2245
     input_len: 180
     batch_size: 24
@@ -57,6 +62,11 @@ Official Phase:
 
   submission 2:
     score: 0.582
+    full_scores:
+      12h: 0.27
+      44h: 0.45
+      48h: 0.58
+      72h: 0.582
     submission ID: 2312
     input_len: 180
     batch_size: 32
@@ -73,6 +83,11 @@ Official Phase:
 
   submission 3:
     score: 0.582
+    full_scores:
+      12h: 0.33
+      44h: 0.55
+      48h: 0.60
+      72h: 0.582
     submission ID: 2352
     input_len: 180
     batch_size: 32
@@ -88,8 +103,13 @@ Official Phase:
     hash: d51bc57
 
   submission 4:
-    score:
-    submission ID:
+    score: 0.537
+    full_scores:
+      12h: 0.40
+      44h: 0.45
+      48h: 0.52
+      72h: 0.537
+    submission ID: 2368
     input_len: 180
     batch_size: 32
     learning_rate: 2.5e-3
@@ -104,11 +124,16 @@ Official Phase:
     enhanced_ml_model: true
     cnn_filter_lengths_multiplier: 1
     hour_limit: null
-    hash: null
+    hash: dabfbb7
 
   submission 5:
-    score:
-    submission ID:
+    score: 0.537
+    full_scores:
+      12h: 0.34
+      44h: 0.49
+      48h: 0.57
+      72h: 0.537
+    submission ID: 2372
     input_len: 180
     batch_size: 32
     learning_rate: 2.5e-3
@@ -123,7 +148,7 @@ Official Phase:
     enhanced_ml_model: true
     cnn_filter_lengths_multiplier: 1.5
     hour_limit: null
-    hash: null
+    hash: 608c185
 
   submission 6:
     score:
