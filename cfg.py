@@ -116,7 +116,7 @@ TrainCfg.momentum = 0.949  # default values for corresponding PyTorch optimizers
 TrainCfg.betas = (0.9, 0.999)  # default values for corresponding PyTorch optimizers
 TrainCfg.decay = 1e-2  # default values for corresponding PyTorch optimizers
 
-TrainCfg.learning_rate = 2.5e-3  # 5e-4, 1e-3
+TrainCfg.learning_rate = 3e-3  # 5e-4, 1e-3
 TrainCfg.lr = TrainCfg.learning_rate
 
 TrainCfg.lr_scheduler = "one_cycle"  # "one_cycle", "plateau", "burn_in", "step", None
@@ -187,13 +187,13 @@ TrainCfg.classification.normalize = CFG(  # None or False for no normalization
 )
 
 # augmentations configurations
-TrainCfg.classification.label_smooth = False
-TrainCfg.classification.random_masking = False
-TrainCfg.classification.stretch_compress = False  # stretch or compress in time axis
-TrainCfg.classification.mixup = CFG(
-    prob=0.6,
-    alpha=0.3,
-)
+# TrainCfg.classification.label_smooth = False
+# TrainCfg.classification.random_masking = False
+# TrainCfg.classification.stretch_compress = False  # stretch or compress in time axis
+# TrainCfg.classification.mixup = CFG(
+#     prob=0.6,
+#     alpha=0.3,
+# )
 
 # model choices
 TrainCfg.classification.model_name = "crnn"  # "wav2vec", "crnn"
@@ -231,7 +231,7 @@ _BASE_MODEL_CONFIG.torch_dtype = BaseCfg.torch_dtype
 ModelCfg = deepcopy(_BASE_MODEL_CONFIG)
 
 # adjust filter lengths, > 1 for enlarging, < 1 for shrinking
-cnn_filter_length_ratio = 2.0
+cnn_filter_length_ratio = 1.0
 
 for t in TrainCfg.tasks:
     ModelCfg[t] = deepcopy(_BASE_MODEL_CONFIG)

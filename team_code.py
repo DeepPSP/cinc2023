@@ -74,7 +74,7 @@ ENHANCED_ML_MODEL = True
 
 # NOTE: it is observed that in some submissions, challenge scores for 48 hours
 # are higher than those for 72 hours
-HOUR_LIMIT = None  # hours, None for no limit
+HOUR_LIMIT = 48  # hours, None for no limit
 ################################################################################
 
 
@@ -179,9 +179,9 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
         # train_config.max_lr = 1.5e-3
         train_config.early_stopping.patience = 20
     else:
-        train_config.n_epochs = 65
+        train_config.n_epochs = 55
         train_config.batch_size = 32  # 16G (Tesla T4)
-        train_config.reload_data_every = 5
+        train_config.reload_data_every = 4
         # train_config[TASK].input_len = 180 * train_config[TASK].fs
         # train_config[TASK].siglen = train_config[TASK].input_len
         train_config.log_step = 100
