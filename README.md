@@ -33,4 +33,6 @@ As stated in the `Artfiact Screening (Signal Quality)` subsection of the `Data D
 ...This artifact score is based on how many 10-second epochs within a 5-minute EEG window are contaminated by artifacts. Each 10-second epoch was scored for the presence of the following artifacts including: 1) flat signal, 2) extreme high or low values, 3) muscle artifact, 4) non-physiological spectra, and 5) implausibly fast rising or decreasing signal amplitude...
 </blockquote>
 
+Precomputed SQI (5min window, 1min step) for all EEGs: [Google Drive](https://drive.google.com/u/0/uc?id=1yPeLkL7WmHzXfSi5XK7hzWTfcAvrL8_q) | [Alternative](https://deep-psp.tech/Data/CinC2023-SQI.zip)
+
 :point_right: [Back to TOC](#cinc2023)

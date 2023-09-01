@@ -35,7 +35,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip setuptools wheel
         python -m pip install -r requirements.txt
-        python -m pip install black==22.3.0 flake8 # Testing packages
+        python -m pip install black==22.8.0 flake8 importlib-metadata==4.8.3 # Testing packages
     - name: Check code format with black and flake8
       run: |
         black . --check -v --exclude="/build|dist|official_baseline_classifier|official_scoring_metric|artifact_pipeline|helper_code\.py|run_model\.py|train_model\.py|evaluate_model\.py|remove_data\.py|remove_labels\.py|truncate_data\.py|\.ipynb_checkpoints"
