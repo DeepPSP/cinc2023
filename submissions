@@ -172,8 +172,13 @@ Official Phase:
     hash: f7a99a6
 
   submission 7:
-    score:
-    submission ID:
+    score: 0.612
+    full_scores:
+      12h: 0.36
+      44h: 0.52
+      48h: 0.55
+      72h: 0.612
+    submission ID: 2443
     input_len: 180
     batch_size: 32
     learning_rate: 2.5e-3
@@ -188,7 +193,7 @@ Official Phase:
     enhanced_ml_model: true
     cnn_filter_lengths_multiplier: 2
     hour_limit: null
-    hash: null
+    hash: 4942d49
 
   submission 8:
     score:

@@ -9,7 +9,7 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 
 - [The Conference](#the-conference)
 - [External Resources Used](#external-resources-used)
-  * [SQI (Signal Quality Index) Calculation](#sqi--signal-quality-index--calculation)
+  - [SQI (Signal Quality Index) Calculation](#sqi--signal-quality-index--calculation)
 
 <!-- tocstop -->
 
