@@ -406,6 +406,8 @@ def get_leaderboard(
         "2PACX-1vTa94VmPIbywGJEBYjNkzJiGZuPLaajzPIZpoxsi12_"
         "X5DF66ccUFB6Qi3U41UEpVu2q1rzTF7nlSpY/pubhtml"
     )
+    if not url_is_reachable(url):
+        raise ConnectionError("The leaderboard is unreachable.")
     df_leaderboard = pd.read_html(url, index_col=0)[0].dropna()
     df_leaderboard = pd.DataFrame(
         df_leaderboard.values[1:, 1:],
