@@ -443,7 +443,7 @@ def get_leaderboard(
 
 def load_submission_log() -> pd.DataFrame:
     """Load the submission log.
-    
+
     Returns
     -------
     df_sub_log : pandas.DataFrame
