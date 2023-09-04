@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import requests
 import scipy as sp
+import yaml
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.utils.misc import get_record_list_recursive3
 from tqdm.auto import tqdm
@@ -29,6 +30,7 @@ __all__ = [
     "predict_proba_ordered",
     "url_is_reachable",
     "get_leaderboard",
+    "load_submission_log",
 ]
 
 
@@ -437,3 +439,20 @@ def get_leaderboard(
         raise TypeError(f"by_team must be bool or str, got {type(by_team)}.")
     df_leaderboard.index.name = "Rank"
     return df_leaderboard
+
+
+def load_submission_log() -> pd.DataFrame:
+    """Load the submission log.
+    
+    Returns
+    -------
+    df_sub_log : pandas.DataFrame
+        The submission log,
+        sorted by challenge score in descending order.
+
+    """
+    path = Path(__file__).parents[1] / "submissions"
+    df_sub_log = pd.DataFrame.from_dict(
+        yaml.safe_load(path.read_text())["Official Phase"], orient="index"
+    ).sort_values("score", ascending=False)
+    return df_sub_log

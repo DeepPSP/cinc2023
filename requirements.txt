@@ -27,3 +27,4 @@ seaborn
 requests
 accelerate
 nitime
+PyYAML
