@@ -28,6 +28,7 @@ __all__ = [
     "get_outcome_from_cpc",
     "predict_proba_ordered",
     "url_is_reachable",
+    "get_leaderboard",
 ]
 
 
@@ -378,3 +379,59 @@ def url_is_reachable(url: str) -> bool:
         return r.status_code == 200
     except Exception:
         return False
+
+
+def get_leaderboard(
+    by_team: Union[bool, str] = False, sort_by: int = 72
+) -> pd.DataFrame:
+    """Get the leaderboard of the official phase.
+
+    Parameters
+    ----------
+    by_team : bool or str, default False
+        If True, sort by team and keep only the best score of each team;
+        if False, return the original leaderboard;
+        if str and is a team name, return the scores of the team.
+    sort_by : {12, 24, 48, 72}, default 72
+        Sort by the score evaluated on the specified hour limit.
+
+    Returns
+    -------
+    df_leaderboard : pandas.DataFrame
+        The leaderboard.
+
+    """
+    url = (
+        "https://docs.google.com/spreadsheets/u/0/d/e/"
+        "2PACX-1vTa94VmPIbywGJEBYjNkzJiGZuPLaajzPIZpoxsi12_"
+        "X5DF66ccUFB6Qi3U41UEpVu2q1rzTF7nlSpY/pubhtml"
+    )
+    df_leaderboard = pd.read_html(url, index_col=0)[0].dropna()
+    df_leaderboard = pd.DataFrame(
+        df_leaderboard.values[1:, 1:],
+        columns=df_leaderboard.values[0, 1:],
+        index=df_leaderboard.values[1:, 0],
+    )
+    if sort_by not in [12, 24, 48, 72]:
+        raise ValueError(f"sort_by must be one of [12, 24, 48, 72], got {sort_by}.")
+    if sort_by != 72:
+        col = f"Challenge score for {int(sort_by)} hours"
+        df_leaderboard = df_leaderboard.sort_values(by=col, ascending=False)
+        # reset index (Rank)
+        df_leaderboard.index = np.arange(1, df_leaderboard.shape[0] + 1)
+        # set the rows with the same score to the same rank
+        df_leaderboard.index = df_leaderboard.apply(
+            lambda row: df_leaderboard.index[df_leaderboard[col] == row[col]][0],
+            axis=1,
+        )
+    if isinstance(by_team, bool) and by_team:
+        df_leaderboard = df_leaderboard.drop_duplicates(subset="Team", keep="first")
+        df_leaderboard.index = np.arange(1, df_leaderboard.shape[0] + 1)
+    elif isinstance(by_team, str):
+        if by_team not in df_leaderboard["Team"].values:
+            raise ValueError(f"Team {by_team} not found.")
+        df_leaderboard = df_leaderboard[df_leaderboard["Team"] == by_team]
+    else:
+        raise TypeError(f"by_team must be bool or str, got {type(by_team)}.")
+    df_leaderboard.index.name = "Rank"
+    return df_leaderboard
