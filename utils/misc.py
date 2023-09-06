@@ -428,9 +428,10 @@ def get_leaderboard(
             lambda row: df_leaderboard.index[df_leaderboard[col] == row[col]][0],
             axis=1,
         )
-    if isinstance(by_team, bool) and by_team:
-        df_leaderboard = df_leaderboard.drop_duplicates(subset="Team", keep="first")
-        df_leaderboard.index = np.arange(1, df_leaderboard.shape[0] + 1)
+    if isinstance(by_team, bool):
+        if by_team:
+            df_leaderboard = df_leaderboard.drop_duplicates(subset="Team", keep="first")
+            df_leaderboard.index = np.arange(1, df_leaderboard.shape[0] + 1)
     elif isinstance(by_team, str):
         if by_team not in df_leaderboard["Team"].values:
             raise ValueError(f"Team {by_team} not found.")
