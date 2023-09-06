@@ -418,8 +418,8 @@ def get_leaderboard(
     )
     if sort_by not in [12, 24, 48, 72]:
         raise ValueError(f"sort_by must be one of [12, 24, 48, 72], got {sort_by}.")
+    col = f"Challenge score for {int(sort_by)} hours"
     if sort_by != 72:
-        col = f"Challenge score for {int(sort_by)} hours"
         df_leaderboard = df_leaderboard.sort_values(by=col, ascending=False)
         # reset index (Rank)
         df_leaderboard.index = np.arange(1, df_leaderboard.shape[0] + 1)
@@ -432,6 +432,11 @@ def get_leaderboard(
         if by_team:
             df_leaderboard = df_leaderboard.drop_duplicates(subset="Team", keep="first")
             df_leaderboard.index = np.arange(1, df_leaderboard.shape[0] + 1)
+            # set the rows with the same score to the same rank
+            df_leaderboard.index = df_leaderboard.apply(
+                lambda row: df_leaderboard.index[df_leaderboard[col] == row[col]][0],
+                axis=1,
+            )
     elif isinstance(by_team, str):
         if by_team not in df_leaderboard["Team"].values:
             raise ValueError(f"Team {by_team} not found.")
