@@ -616,7 +616,8 @@ class CINC2023Reader(PhysioNetDataBase):
         signal_type: Optional[str] = None,
         extension: Optional[str] = None,
     ) -> Path:
-        """Get the absolute path of the record.
+        """Get the absolute path of the signal file or directory,
+        or metadata file.
 
         Parameters
         ----------

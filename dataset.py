@@ -16,7 +16,7 @@ from torch_ecg.utils.utils_data import stratified_train_test_split
 from torch_ecg._preprocessors import PreprocManager
 from tqdm.auto import tqdm
 
-from cfg import BaseCfg, TrainCfg, ModelCfg  # noqa: F401
+from cfg import BaseCfg, TrainCfg
 from data_reader import CINC2023Reader
 
 
@@ -465,3 +465,68 @@ class FastDataReader(ReprMixin, Dataset):
             "reader",
             "ppm",
         ]
+
+
+if __name__ == "__main__":
+    import argparse
+    import shutil
+
+    parser = argparse.ArgumentParser(description="Process CINC2023 data for training")
+    parser.add_argument(
+        "operations",
+        nargs=argparse.ONE_OR_MORE,
+        type=str,
+        choices=["move_files", "move-files"],
+        help="operations to perform",
+    )
+    parser.add_argument(
+        "-d",
+        "--db-dir",
+        type=str,
+        help="The directory to (store) the database.",
+        dest="db_dir",
+    )
+    parser.add_argument(
+        "--move-dst",
+        type=str,
+        default=None,
+        help="The destination directory to move the files to.",
+        dest="move_dst",
+    )
+
+    args = parser.parse_args()
+
+    operations = [ops.replace("-", "_") for ops in args.operations]
+    if "move_files" in operations:
+        assert args.move_dst is not None, "move_dst must be specified"
+        move_dst = Path(args.move_dst).expanduser().resolve()
+
+    db_dir = Path(args.db_dir) if args.db_dir is not None else None
+    train_cfg = deepcopy(TrainCfg)
+    train_cfg.db_dir = db_dir
+    ds = CinC2023Dataset(
+        train_cfg,
+        lazy=True,
+    )
+
+    if "move_files" in operations:
+        with tqdm(ds.reader.all_records) as pbar:
+            for rec in pbar:
+                sid = ds.reader.get_subject_id(rec)
+                dst = move_dst / sid
+                dst.mkdir(exist_ok=True, parents=True)
+                metadata_file = ds.reader.get_absolute_path(
+                    sid, extension=ds.reader.ann_ext
+                )
+                if not (dst / metadata_file.name).exists():
+                    shutil.copy(metadata_file, dst)
+                sig_file = ds.reader.get_absolute_path(
+                    rec, extension=ds.reader.data_ext
+                )
+                if not (dst / sig_file.name).exists():
+                    shutil.copy(sig_file, dst)
+                header_file = ds.reader.get_absolute_path(
+                    rec, extension=ds.reader.header_ext
+                )
+                if not (dst / header_file.name).exists():
+                    shutil.copy(header_file, dst)
