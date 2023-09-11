@@ -59,6 +59,7 @@ Official Phase:
     cnn_filter_lengths_multiplier: 1
     hour_limit: null
     hash: bb3877c
+    is_final_submission: false
 
   submission 2:
     score: 0.582
@@ -80,6 +81,7 @@ Official Phase:
     cnn_filter_lengths_multiplier: 1
     hour_limit: null
     hash: f7a99a6
+    is_final_submission: false
 
   submission 3:
     score: 0.582
@@ -101,6 +103,7 @@ Official Phase:
     cnn_filter_lengths_multiplier: 1
     hour_limit: null
     hash: d51bc57
+    is_final_submission: false
 
   submission 4:
     score: 0.537
@@ -125,6 +128,7 @@ Official Phase:
     cnn_filter_lengths_multiplier: 1
     hour_limit: null
     hash: dabfbb7
+    is_final_submission: false
 
   submission 5:
     score: 0.537
@@ -149,6 +153,7 @@ Official Phase:
     cnn_filter_lengths_multiplier: 1.5
     hour_limit: null
     hash: 608c185
+    is_final_submission: false
 
   submission 6:
     score: 0.701
@@ -170,6 +175,7 @@ Official Phase:
     cnn_filter_lengths_multiplier: 1
     hour_limit: null
     hash: f7a99a6
+    is_final_submission: true
 
   submission 7:
     score: 0.612
@@ -194,6 +200,7 @@ Official Phase:
     cnn_filter_lengths_multiplier: 2
     hour_limit: null
     hash: 4942d49
+    is_final_submission: false
 
   submission 8:
     score: 0.642
@@ -215,6 +222,7 @@ Official Phase:
     cnn_filter_lengths_multiplier: 1
     hour_limit: 48
     hash: 1d3c8c3
+    is_final_submission: false
 
   submission 9:
     score: 0.552
@@ -239,6 +247,7 @@ Official Phase:
     cnn_filter_lengths_multiplier: 2.0
     hour_limit: 48
     hash: 8bdbd27
+    is_final_submission: false
 
   submission 10:
     score: 0.597
@@ -260,3 +269,4 @@ Official Phase:
     cnn_filter_lengths_multiplier: 1
     hour_limit: 48
     hash: 17f9bcc
+    is_final_submission: false

@@ -44,7 +44,7 @@ __all__ = [
 
 
 class CINC2023Trainer(BaseTrainer):
-    """Trainer for the CinC2023 challenge
+    """Trainer for the CinC2023 challenge.
 
     Parameters
     ----------
@@ -58,18 +58,20 @@ class CINC2023Trainer(BaseTrainer):
         including configurations for the data loader, for the optimization, etc.
         will also be recorded in the checkpoints.
         `train_config` should at least contain the following keys:
-            - "monitor": str,
-            - "loss": str,
-            - "n_epochs": int,
-            - "batch_size": int,
-            - "learning_rate": float,
-            - "lr_scheduler": str,
-                "lr_step_size": int, optional, depending on the scheduler
-                "lr_gamma": float, optional, depending on the scheduler
-                "max_lr": float, optional, depending on the scheduler
-            - "optimizer": str,
-                "decay": float, optional, depending on the optimizer
-                "momentum": float, optional, depending on the optimizer
+
+            - "monitor": obj:`str`,
+            - "loss": obj:`str`,
+            - "n_epochs": obj:`int`,
+            - "batch_size": obj:`int`,
+            - "learning_rate": obj:`float`,
+            - "lr_scheduler": obj:`str`,
+            - "lr_step_size": obj:`int`, optional, depending on the scheduler
+            - "lr_gamma": obj:`float`, optional, depending on the scheduler
+            - "max_lr": obj:`float`, optional, depending on the scheduler
+            - "optimizer": obj:`str`,
+            - "decay": obj:`float`, optional, depending on the optimizer
+            - "momentum": obj:`float`, optional, depending on the optimizer
+
     device : torch.device, optional
         the device to be used for training
     lazy : bool, default True
