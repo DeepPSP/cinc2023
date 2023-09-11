@@ -230,7 +230,15 @@ class CinC2023Dataset(Dataset, ReprMixin):
             for idx in pbar:
                 tmp_cache.append(self.fdr[idx])
         keys = tmp_cache[0].keys()
-        self.__cache = {k: np.concatenate([v[k] for v in tmp_cache]) for k in keys}
+        self.__cache = {
+            k: np.concatenate(
+                [
+                    v[k] if v[k].shape == (1,) else v[k][np.newaxis, ...]
+                    for v in tmp_cache
+                ]
+            )
+            for k in keys
+        }
         # for k in keys:
         #     if self.__cache[k].ndim == 1:
         #         self.__cache[k] = self.__cache[k]
@@ -445,13 +453,11 @@ class FastDataReader(ReprMixin, Dataset):
         label = ann[self.config[self.task].output_target]
         aux_label = ann[self.aux_target]
         if self.config[self.task].loss != "CrossEntropyLoss":
-            label = np.isin(self.config[self.task].classes, label).astype(self.dtype)[
-                np.newaxis, ...
-            ]
+            label = np.isin(self.config[self.task].classes, label).astype(self.dtype)
         else:
             label = np.array([self.config[self.task].classes.index(label)])
         out_tensors = {
-            "waveforms": waveforms.astype(self.dtype),
+            "waveforms": waveforms.squeeze(0).astype(self.dtype),
             self.config[self.task].output_target: label.astype(self.dtype),
             self.aux_target: np.array([self.aux_classes.index(aux_label)]).astype(
                 int
