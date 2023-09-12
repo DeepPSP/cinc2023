@@ -6,6 +6,11 @@ FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime has python version 3.10.11, system version Ubuntu 20.04.6 LTS
 
 
+# set the environment variable to avoid interactive installation
+# which might stuck the docker build process
+ENV DEBIAN_FRONTEND=noninteractive
+
+
 # check distribution of the base image
 RUN cat /etc/issue
 
