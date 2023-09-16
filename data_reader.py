@@ -238,6 +238,8 @@ class CINC2023Reader(PhysioNetDataBase):
         # self.quality_ext = "tsv"
         self.ann_ext = "txt"
 
+        self.sqi_dir = kwargs.get("sqi_dir", None)
+
         # NOTE: for CinC2023, the data folder (db_dir) is read-only
         # the workaround is writing to the model folder
         # which is set to be the working directory (working_dir)
@@ -245,13 +247,15 @@ class CINC2023Reader(PhysioNetDataBase):
             self.records_file = self.db_dir / "RECORDS-NEW"
             self.records_metadata_file = self.db_dir / "RECORDS.csv"
             self.subjects_metadata_file = self.db_dir / "SUBJECTS.csv"
-            self.sqi_dir = self.db_dir / "SQI"
+            if self.sqi_dir is None:
+                self.sqi_dir = self.db_dir / "SQI"
             warning_msg = None
         elif os.access(self.working_dir, os.W_OK):
             self.records_file = self.working_dir / "RECORDS-NEW"
             self.records_metadata_file = self.working_dir / "RECORDS.csv"
             self.subjects_metadata_file = self.working_dir / "SUBJECTS.csv"
-            self.sqi_dir = self.working_dir / "SQI"
+            if self.sqi_dir is None:
+                self.sqi_dir = self.working_dir / "SQI"
             warning_msg = (
                 f"DB directory {self.db_dir} is read-only, "
                 f"records and subjects metadata files will be saved to {self.working_dir}."
@@ -260,7 +264,6 @@ class CINC2023Reader(PhysioNetDataBase):
             self.records_file = None
             self.records_metadata_file = None
             self.subjects_metadata_file = None
-            self.sqi_dir = None
             warning_msg = (
                 f"DB directory {self.db_dir} and working directory {self.working_dir} "
                 "are both read-only, records and subjects metadata files will not be saved."
@@ -327,6 +330,7 @@ class CINC2023Reader(PhysioNetDataBase):
         """Find all records in the database directory
         and store them (path, metadata, etc.) in a dataframe.
         """
+        print("Please wait while finding data files and collecting metadata...")
         # fmt: off
         records_index = "record"
         records_cols = [
@@ -1091,6 +1095,36 @@ class CINC2023Reader(PhysioNetDataBase):
             cpc = class_map[cpc]
         return cpc
 
+    def load_eeg_sqi(self, rec: Union[str, int]) -> pd.DataFrame:
+        """Load pre-computed EEG SQI (Signal Quality Index) if available.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or the index of the record in :attr:`all_records`.
+
+        Returns
+        -------
+        df_sqi : pandas.DataFrame
+            The SQI table of the record.
+
+        """
+        if self.sqi_dir is None:
+            print(
+                "Directory of SQI files is not specified, or no write permission is given."
+            )
+            return pd.DataFrame()
+        if isinstance(rec, int):
+            rec = self.all_records[rec]
+        sid = self.get_subject_id(rec)
+        path = self.sqi_dir / sid / f"{rec}_SQI.csv"
+        if not path.exists():
+            print(
+                f"SQI file `{path.name}` does not exist, call `compute_eeg_sqi` instead to get the SQI table"
+            )
+            return pd.DataFrame()
+        return pd.read_csv(path)
+
     def load_quality_table(self, sbj: Union[str, int]) -> pd.DataFrame:
         """Load recording quality table of the subject.
 
@@ -1420,10 +1454,8 @@ if __name__ == "__main__":
     if "sqi" in operations:
         if args.sqi_save_dir is not None:
             sqi_dir = Path(args.sqi_save_dir).expanduser().resolve()
-        elif os.access(dr.db_dir, os.W_OK):
-            sqi_dir = dr.db_dir / "sqi"
-        elif os.access(dr.working_dir, os.W_OK):
-            sqi_dir = dr.working_dir / "sqi"
+        elif dr.sqi_dir is not None:
+            sqi_dir = dr.sqi_dir
         else:
             raise ValueError("No access to write the SQI results.")
         sqi_dir.mkdir(parents=True, exist_ok=True)
