@@ -26,3 +26,4 @@ requests
 accelerate
 nitime
 PyYAML
+diff-binom-confint
