@@ -19,17 +19,18 @@ from scipy import fft, ifft
 from scipy.optimize import curve_fit
 from scipy.signal import cspline1d_eval, cspline1d
 
+
 __all__ = [
-        "peakdetect",
-        "peakdetect_fft",
-        "peakdetect_parabola",
-        "peakdetect_sine",
-        "peakdetect_sine_locked",
-        "peakdetect_spline",
-        "peakdetect_zero_crossing",
-        "zero_crossings",
-        "zero_crossings_sine_fit"
-        ]
+    "peakdetect",
+    "peakdetect_fft",
+    "peakdetect_parabola",
+    "peakdetect_sine",
+    "peakdetect_sine_locked",
+    "peakdetect_spline",
+    "peakdetect_zero_crossing",
+    "zero_crossings",
+    "zero_crossings_sine_fit"
+]
 
 
 
