@@ -43,7 +43,7 @@ Official Phase:
     score: 0.507
     full_scores:
       12h: 0.31
-      44h: 0.51
+      24h: 0.51
       48h: 0.52
       72h: 0.507
     submission ID: 2245
@@ -65,7 +65,7 @@ Official Phase:
     score: 0.582
     full_scores:
       12h: 0.27
-      44h: 0.45
+      24h: 0.45
       48h: 0.58
       72h: 0.582
     submission ID: 2312
@@ -87,7 +87,7 @@ Official Phase:
     score: 0.582
     full_scores:
       12h: 0.33
-      44h: 0.55
+      24h: 0.55
       48h: 0.60
       72h: 0.582
     submission ID: 2352
@@ -109,7 +109,7 @@ Official Phase:
     score: 0.537
     full_scores:
       12h: 0.40
-      44h: 0.45
+      24h: 0.45
       48h: 0.52
       72h: 0.537
     submission ID: 2368
@@ -134,7 +134,7 @@ Official Phase:
     score: 0.537
     full_scores:
       12h: 0.34
-      44h: 0.49
+      24h: 0.49
       48h: 0.57
       72h: 0.537
     submission ID: 2372
@@ -159,7 +159,7 @@ Official Phase:
     score: 0.701
     full_scores:
       12h: 0.33
-      44h: 0.40
+      24h: 0.40
       48h: 0.75
       72h: 0.701
     submission ID: 2393
@@ -181,7 +181,7 @@ Official Phase:
     score: 0.612
     full_scores:
       12h: 0.36
-      44h: 0.52
+      24h: 0.52
       48h: 0.55
       72h: 0.612
     submission ID: 2443
@@ -206,7 +206,7 @@ Official Phase:
     score: 0.642
     full_scores:
       12h: 0.33
-      44h: 0.43
+      24h: 0.43
       48h: 0.64
       72h: 0.642
     submission ID: 2454
@@ -228,7 +228,7 @@ Official Phase:
     score: 0.552
     full_scores:
       12h: 0.28
-      44h: 0.52
+      24h: 0.52
       48h: 0.55
       72h: 0.552
     submission ID: 2475
@@ -253,7 +253,7 @@ Official Phase:
     score: 0.597
     full_scores:
       12h: 0.37
-      44h: 0.51
+      24h: 0.51
       48h: 0.60
       72h: 0.597
     submission ID: 2485
