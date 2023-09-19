@@ -41,7 +41,7 @@ _CINC2023_INFO = DataBaseInfo(
     4. EEG data (and also other types of data) have varying sampling rates (500, 512, 256, 2048, 250, 200, 1024).
     5. The recordings are segmented every hour, and each segment can start at any time of the hour and ends at the end of the hour or when the EEG recording ends, whichever comes first.
     6. Each EEG recording contains an array of varying length EEG signals from 19-21 channels. The public training data share a common set of 19 channels.
-    7. The voltage values of the each EEG signals are relative to a **unknown** reference potential. Therefore, one has to use the differences between pairs of channels. For a system (surface potential field) of N channels, the minimum number of channels required to reconstruct the EEG signals is N-1, hence a deep learning model for CinC2023 which accepts raw EEG signals as input should have at least 18 input channels. One can use the 18 pairs from the unofficial phase or choose a common reference channel from the 19 common channels (e.g. Pz) and use the 18 pairs of differences between the reference channel and the other 18 channels.
+    7. The voltage values of each EEG signal are relative to a **unknown** reference potential. Therefore, one has to use the differences between pairs of channels. For a system (surface potential field) of N channels, the minimum number of channels required to reconstruct the EEG signals is N-1, hence a deep learning model for CinC2023 which accepts raw EEG signals as input should have at least 18 input channels. One can use the 18 pairs from the unofficial phase or choose a common reference channel from the 19 common channels (e.g. Pz) and use the 18 pairs of differences between the reference channel and the other 18 channels.
     8. The EEG recordings for one patient continue for several hours to days, so the EEG signals are prone to quality deterioration from non-physiological artifacts. ~~Only the **cleanest 5 minutes** of EEG data per hour are provided.~~
     9. There might be gaps in the EEG data, since patients may have EEG started several hours after the arrest or need to have brain monitoring interrupted transiently while in the ICU.
     10. Pattern for the data files: <patient_id>_<segment_id>_<hour>_<signal_type>.mat
@@ -1271,6 +1271,98 @@ class CINC2023Reader(PhysioNetDataBase):
     @property
     def subject_records_all(self) -> Dict[str, List[str]]:
         return self._subject_records_all
+
+    def plot_correlation(
+        self, target: str = "CPC", col: str = "OHCA", **kwargs: Any
+    ) -> tuple:
+        """Plot the correlation between the `target` and the feature `col`.
+
+        Parameters
+        ----------
+        target : {"Outcome", "CPC"}
+            The target to be used for the correlation.
+        col : {"Hospital", "Sex", "OHCA", "Shockable Rhythm"}
+            The feature to be used for the correlation.
+        kwargs : dict
+            Key word arguments,
+            passed to the function :meth:`pandas.DataFrame.plot`.
+
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The figure of the correlation.
+        ax : matplotlib.axes.Axes
+            The axes of the figure.
+
+        """
+        # import matplotlib as mpl
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        # sns.set()
+        sns.set_theme(style="white")  # darkgrid, whitegrid, dark, white, ticks
+        plt.rcParams["xtick.labelsize"] = 20
+        plt.rcParams["ytick.labelsize"] = 20
+        plt.rcParams["axes.labelsize"] = 24
+        plt.rcParams["legend.fontsize"] = 18
+        plt.rcParams["hatch.linewidth"] = 2.5
+
+        colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+        hatches = ["/", "\\", "|", ".", "x"]
+
+        assert target in ["Outcome", "CPC"], (
+            """`target` should be one of `{"Outcome", "CPC"}`, """
+            f"""but got `{target}`"""
+        )
+        assert col in ["Hospital", "Sex", "OHCA", "Shockable Rhythm"], (
+            """`col` should be one of `["Hospital", "Sex", "OHCA", "Shockable Rhythm"]`, """
+            f"""but got `{col}`"""
+        )
+        prefix_sep = " - "
+        df_dummies = pd.get_dummies(
+            self._df_subjects[col], prefix=col, prefix_sep=prefix_sep
+        )
+        columns = df_dummies.columns.tolist()
+        df_stats = pd.concat((self._df_subjects, df_dummies), axis=1)
+        df_stats = df_stats.drop(columns=["Directory"])
+        if target == "CPC":
+            # rename "CPC" to "CPC Score (n.u.)"
+            df_stats = df_stats.rename(columns={"CPC": "CPC Score (n.u.)"})
+        for idx, old_col in enumerate(columns):
+            if prefix_sep in old_col:
+                new_col = old_col.split(prefix_sep)
+                if new_col[1] == "True":
+                    new_col[1] = "Yes"  # "$\\checkmark$"
+                elif new_col[1] == "False":
+                    new_col[1] = "No"  # "$\\times$"
+                new_col = prefix_sep.join(new_col)
+                if old_col != new_col:
+                    df_stats = df_stats.rename(columns={old_col: new_col})
+                    columns[idx] = new_col
+        plot_ylim = int(1.1 * max(len(df_) for _, df_ in df_stats.groupby(target)))
+        plot_kw = dict(
+            kind="bar",
+            figsize=(8, 6),
+            ylabel="Number of Patients (n.u.)",
+            stacked=True,
+            rot=0,
+            ylim=(0, plot_ylim),
+            yticks=np.arange(0, int(100 * np.ceil(plot_ylim / 100)), 100),
+            width=0.3,
+            fill=True,
+        )
+        plot_kw.update(kwargs)
+        ax = df_stats.groupby(target).agg("sum")[columns].plot(**plot_kw)
+        num_targets = len(df_stats.groupby(target))
+        for idx in range(len(columns)):
+            for i in range(num_targets):
+                ax.patches[num_targets * idx + i].set_hatch(hatches[idx])
+        # ax.legend(loc="upper left", ncol=int(np.ceil(len(columns) / 3)))
+        ax.legend(loc="upper left", ncol=1)
+        plt.tight_layout()
+        fig = ax.get_figure()
+
+        return fig, ax
 
     def plot(self, rec: Union[str, int], **kwargs) -> None:
         """Plot the record with metadata and segmentation.
