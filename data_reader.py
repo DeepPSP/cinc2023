@@ -1332,6 +1332,7 @@ class CINC2023Reader(PhysioNetDataBase):
         if target == "CPC":
             # rename "CPC" to "CPC Score (n.u.)"
             df_stats = df_stats.rename(columns={"CPC": "CPC Score (n.u.)"})
+            target = "CPC Score (n.u.)"
         for idx, old_col in enumerate(columns):
             if prefix_sep in old_col:
                 new_col = old_col.split(prefix_sep)
@@ -1601,7 +1602,7 @@ class CINC2023Reader(PhysioNetDataBase):
 
         if save_path is not None:
             save_path = Path(save_path)
-        
+
         if save_path is not None and (not save_path.is_file() or overwrite):
             df.to_csv(save_path.with_suffix(".csv"), index=False, header=False)
             df.to_excel(save_path.with_suffix(".xlsx"), index=False, header=False)
@@ -1609,11 +1610,14 @@ class CINC2023Reader(PhysioNetDataBase):
         if return_type.lower() == "pd":
             return df
         elif return_type.lower() == "latex":
-            rows = df.to_latex(header=False, index=False).splitlines()
-            rows[0] = r"\begin{tabular}{@{\extracolsep{6pt}}llllllll@{}}"
+            rows = [
+                line.replace("%", r"\%")
+                for line in df.to_latex(header=False, index=False).splitlines()
+            ]
+            rows[0] = r"\begin{tabular}{@{\extracolsep{6pt}}lllllll@{}}"
             rows[
                 2
-            ] = r"\multicolumn{2}{l}{Feature} & \multicolumn{3}{l}{Affected} & \multicolumn{2}{l}{Poor Outcome Risk ($95\%$ CI)} & Poor Outcome Risk Difference  ($95\%$ CI) \\ \cline{1-2}\cline{3-5}\cline{6-7}\cline{8-8}"
+            ] = r"\multicolumn{2}{l}{Feature} & \multicolumn{2}{l}{Affected} & \multicolumn{2}{l}{Poor Outcome Risk ($95\%$ CI)} & Poor Outcome Risk Difference  ($95\%$ CI) \\ \cline{1-2}\cline{3-4}\cline{5-6}\cline{7-7}"
             ret_lines = "\n".join(rows)
             if save_path is not None and (
                 not save_path.with_suffix(".tex").is_file() or overwrite
