@@ -44,27 +44,6 @@ seg_mask_explanation = [
     '1Hz artifact',]
     
     
-# def peak_detect_num_amp(signal, lookahead=200, delta=0):
-#     # signal: #channel x #points
-#     res_num = []
-#     res_amp = []
-#     for cid in range(signal.shape[0]):
-#         local_max, local_min = peakdetect(signal[cid], lookahead=lookahead, delta=delta)
-#         if len(local_min)<=0:
-#             local_extremes = np.array(local_max)
-#         elif len(local_max)<=0:
-#             local_extremes = np.array(local_min)
-#         else:
-#             local_extremes = np.r_[local_max, local_min]
-#         res_num.append(len(local_extremes))
-#         if len(local_extremes)<=0:
-#             amp = 0
-#         else:
-#             amp = local_extremes[:,1].max()-local_extremes[:,1].min()
-#         res_amp.append(amp)
-#     return res_num, res_amp
-    
-    
 def peak_detect(signal, max_change_points, min_change_amp, lookahead=200, delta=0):
     # signal: #channel x #points
     res = []
@@ -157,16 +136,15 @@ def segment_EEG(EEG, Ch_names, window_time, step_time, Fs, notch_freq=None, band
             seg_masks[i] = seg_mask_explanation[8]
     """
 
-    
     ## filter signal
     # IF high end of bandpass (aka max) is more than notch filter
     if np.max(bandpass_freq)>=notch_freq:
         # JUST DO NOTCH FILTERING
         EEG = notch_filter(EEG, Fs, notch_freq, n_jobs=n_jobs, verbose='ERROR')  # (#window, #ch, window_size+2padding)
     EEG = filter_data(EEG, Fs, bandpass_freq[0], bandpass_freq[1], n_jobs=n_jobs, verbose='ERROR')  # take the value starting from *padding*, (#window, #ch, window_size+2padding)
-    
+
     ## detect burst suppression
-    
+
     #import pdb;pdb.set_trace()
     EEG_tmp = np.zeros_like(EEG)
     for i in range(EEG.shape[0]):
@@ -175,7 +153,7 @@ def segment_EEG(EEG, Ch_names, window_time, step_time, Fs, notch_freq=None, band
     EEG_mne = mne.io.RawArray(np.array(EEG_tmp, copy=True), mne.create_info(Ch_names, Fs, ch_types='eeg', verbose='ERROR'), verbose='ERROR')
     EEG_mne.apply_hilbert(envelope=True, n_jobs=-1, verbose='ERROR')
     BS = EEG_mne.get_data()
-    
+
     bs_window_size = int(round(120*Fs))  # BSR estimation window 2min
     bs_start_ids = np.arange(0, EEG.shape[1]-bs_window_size+1,bs_window_size)
     if len(bs_start_ids)<=0:
@@ -187,23 +165,23 @@ def segment_EEG(EEG, Ch_names, window_time, step_time, Fs, notch_freq=None, band
     BSR = np.zeros_like(EEG)
     for ii, bsi in enumerate(bs_start_ids):
         BSR[:, bsi:min(BSR.shape[1], bsi+bs_window_size)] = BSR_segs[ii].reshape(-1,1)
-    
+
     ## segment signal
     BSR_segs = BSR[:,list(map(lambda x:np.arange(x,x+window_size), start_ids))].transpose(1,0,2).mean(axis=2)
     EEG_segs = EEG[:,list(map(lambda x:np.arange(x,x+window_size), start_ids))].transpose(1,0,2)  # (#window, #ch, window_size+2padding)
-    
+
     ## find nan in signal
-    
+
     nan2d = np.any(np.isnan(EEG_segs), axis=2)
     nan1d = np.where(np.any(nan2d, axis=1))[0]
     for i in nan1d:
         seg_masks[i] = '%s_%s'%(seg_mask_explanation[1], np.where(nan2d[i])[0])
-        
+
     ## calculate spectrogram
-    
+
     #TODO detrend(EEG_segs)
     #TODO remove_mean(EEG_segs) to remove frequency at 0Hz
-    
+
     #mne_epochs = mne.EpochsArray(EEG_segs, mne.create_info(ch_names=list(map(str, range(EEG_segs.shape[1]))), sfreq=Fs, ch_types='eeg'), verbose=False)
     BW = 2.
     specs, freq = mne.time_frequency.psd_array_multitaper(EEG_segs, Fs, fmin=bandpass_freq[0], fmax=bandpass_freq[1], adaptive=False, low_bias=False, n_jobs=n_jobs, verbose='ERROR', bandwidth=BW, normalization='full')
@@ -220,7 +198,7 @@ def segment_EEG(EEG, Ch_names, window_time, step_time, Fs, notch_freq=None, band
     nonan_spec_id = np.where(np.all(np.logical_not(np.isnan(specs)), axis=(1,2)))[0]
     for i in nan1d:
         seg_masks[i] = '%s_%s'%(seg_mask_explanation[5],np.where(nan2d[i])[0])
-        
+
     ## find staircase-like spectrum
     # | \      +-+
     # |  \     | |
@@ -251,7 +229,7 @@ def segment_EEG(EEG, Ch_names, window_time, step_time, Fs, notch_freq=None, band
     """
     for i in stsp1d:
         seg_masks[i] = seg_mask_explanation[9]
-    
+
     ## check ECG in spectrum (~1Hz and harmonics)
     #dspecs2 = dspecs[:,np.logical_and(freq2>=6,freq2<=10)]
     autocorrelation = Parallel(n_jobs=n_jobs,prefer="threads",verbose=True)(delayed(autocorrelate_noncentral_max_abs)(spec) for spec in dspecs)
@@ -260,7 +238,7 @@ def segment_EEG(EEG, Ch_names, window_time, step_time, Fs, notch_freq=None, band
     ecg1d = nonan_spec_id[np.any(ecg2d,axis=1)]
     for i in ecg1d:
         seg_masks[i] = seg_mask_explanation[11]
-    
+
     ## find overly fast rising/decreasing signal
     
     max_change_points = 0.1*Fs
