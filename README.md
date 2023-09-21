@@ -10,7 +10,7 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 - [The Conference](#the-conference)
 - [Description of the files/folders(modules)](#description-of-the-filesfoldersmodules)
 - [External Resources Used](#external-resources-used)
-  - [SQI (Signal Quality Index) Calculation](#sqi--signal-quality-index--calculation)
+  - [SQI (Signal Quality Index) Calculation](#sqi)
 
 <!-- tocstop -->
 
@@ -20,32 +20,37 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 
 [Official Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vTa94VmPIbywGJEBYjNkzJiGZuPLaajzPIZpoxsi12_X5DF66ccUFB6Qi3U41UEpVu2q1rzTF7nlSpY/pubhtml?gid=0&widget=true&headers=false)
 
-![Official Phase Leaderboard](images/cinc2023-official-phase-leaderboard.png)
+<img src="images/cinc2023-official-phase-leaderboard.png" alt="Official Phase Leaderboard" width="400"/>
 
 :point_right: [Back to TOC](#cinc2023)
 
 ## Description of the files/folders(modules)
 
-- README.md: this file, serving as the documentation of the project.
-- cfg_models.py, cfg.py: configuration files (the former for configuration of models, the latter for configuration of the whole project)
-- data_reader.py: data reader, including data downloading, file listing, data loading, etc.
-- dataset.py: dataset class, which feeds data to the models.
-- Dockerfile: docker file for building the docker image for submissions.
-- evaluate_model.py, helper_code.py, remove_data.py, remove_labels.py, run_model.py, train_model.py, truncate_data.py: scripts inherited from the [official baseline](https://github.com/physionetchallenges/python-example-2023.git) and [official scoring code](https://github.com/physionetchallenges/evaluation-2023.git). Modifications on these files are invalid which are immediately overwritten after pulled by the organizers (or the submission system).
-- official_baseline: the official baseline code, included as a submodule.
-- official_scoring_metric: the official scoring code, included as a submodule.
-- sync_data.py: script for synchronizing data from the official baseline and official scoring code.
-- requirements.txt, requirements-docker.txt, requirements-no-torch.txt: requirements files for different purposes.
-- team_code.py: entry file for the submissions.
-- test_local.py, test_docker.py, test_run_challenge.sh: scripts for testing the docker image and the local environment. The latter 2 files along with the [docker-test action](.github/workflows/docker-test.yml) are used for CI. Passing the CI almost garantees that the submission will run successfully in the official environment, except for potential GPU-related issues (e.g. model weights and data are on different devices, i.e. CPU and GPU, in which case torch will raise an error).
-- trainer.py: trainer class, which trains the models.
-- models: folder for model definitions, including [CRNN models](models/crnn.py), and [traditional ML models](models/ml.py). The latter serves as a minimal garantee model using patient metadata only, which is used when no (EEG) data is available. It is indeed a wrapper containing model construction, training, hyperparameter tuning via grid search, model saving/loading, and end-to-end inference (from raw input to the form of output that the challenge requires).
-- utils: various utility functions, as well as some intermediate data files (e.g. train-val split files, etc.). SQI computation code, as mentioned in the unofficial phase (and also the [v1 version of the I-CARE database](https://physionet.org/content/i-care/1.0/)). This will be described in detail in the [External Resources Used](#external-resources-used) section.
-- submissions: log file for the submissions, including the key hyperparameters, the scores received, commit hash, etc. The log file is updated after each submission and organized as a YAML file.
+### Files
+
+- [README.md](README.md): this file, serves as the documentation of the project.
+- [cfg_models.py](cfg_models.py), [cfg.py](cfg.py): configuration files (the former for configuration of models, the latter for configuration of the whole project)
+- [data_reader.py](data_reader.py): data reader, including data downloading, file listing, data loading, etc.
+- [dataset.py](dataset.py): dataset class, which feeds data to the models.
+- [Dockerfile](Dockerfile): docker file for building the docker image for submissions.
+- [evaluate_model.py](evaluate_model.py), [helper_code.py](helper_code.py), [remove_data.py](remove_data.py), [remove_labels.py](remove_labels.py), [run_model.py](run_model.py), [train_model.py](train_model.py), [truncate_data.py](truncate_data.py): scripts inherited from the [official baseline](https://github.com/physionetchallenges/python-example-2023.git) and [official scoring code](https://github.com/physionetchallenges/evaluation-2023.git). Modifications on these files are invalid and are immediately overwritten after being pulled by the organizers (or the submission system).
+- [sync_data.py](sync_data.py）: script for synchronizing data from the official baseline and official scoring code.
+- [requirements.txt](requirements.txt), [requirements-docker.txt](requirements-docker.txt), [requirements-no-torch.txt](requirements-no-torch.txt): requirements files for different purposes.
+- [team_code.py](team_code.py): entry file for the submissions.
+- [test_local.py](test_local.py), [test_docker.py](test_docker.py), test_run_challenge.sh: scripts for testing the docker image and the local environment. The latter 2 files along with the [docker-test action](.github/workflows/docker-test.yml) are used for CI. Passing the CI almost guarantees that the submission will run successfully in the official environment, except for potential GPU-related issues (e.g. model weights and data are on different devices, i.e. CPU and GPU, in which case torch will raise an error).
+- [trainer.py](trainer.py): trainer class, which trains the models.
+- [submissions](submissions): log file for the submissions, including the key hyperparameters, the scores received, commit hash, etc. The log file is updated after each submission and organized as a YAML file.
+
+### Folders(Modules)
+
+- [official_baseline](official_baseline): the official baseline code, included as a submodule.
+- [official_scoring_metric](official_scoring_metric): the official scoring code, included as a submodule.
+- [models](models): folder for model definitions, including [CRNN models](models/crnn.py), and [traditional ML models](models/ml.py). The latter serves as a minimal garantee model using patient metadata only, which is used when no (EEG) data is available. It is indeed a wrapper containing model construction, training, hyperparameter tuning via grid search, model saving/loading, and end-to-end inference (from raw input to the form of output that the challenge requires).
+- [utils](utils): various utility functions, as well as some intermediate data files (e.g. train-val split files, etc.). SQI computation code, as mentioned in the unofficial phase (and also the [v1 version of the I-CARE database](https://physionet.org/content/i-care/1.0/)). This will be described in detail in the [External Resources Used](#external-resources-used) section.
 
 ## External Resources Used
 
-### SQI (Signal Quality Index) Calculation
+### <a name="sqi"></a> SQI (Signal Quality Index) Calculation
 
 [Source Code](utils/sqi.py) integrated from [bdsp-core/icare-dl](https://github.com/bdsp-core/icare-dl/blob/main/Artifact_pipeline.zip).
 
