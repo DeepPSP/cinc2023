@@ -140,6 +140,7 @@ temp
 checkpoints
 log
 saved_models
+eval_res
 
 
 *.ipynb

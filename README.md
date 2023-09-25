@@ -42,6 +42,7 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 - [dataset.py](dataset.py): dataset class, which feeds data to the models.
 - [Dockerfile](Dockerfile): docker file for building the docker image for submissions.
 - [evaluate_model.py](evaluate_model.py), [helper_code.py](helper_code.py), [remove_data.py](remove_data.py), [remove_labels.py](remove_labels.py), [run_model.py](run_model.py), [train_model.py](train_model.py), [truncate_data.py](truncate_data.py): scripts inherited from the [official baseline](https://github.com/physionetchallenges/python-example-2023.git) and [official scoring code](https://github.com/physionetchallenges/evaluation-2023.git). Modifications on these files are invalid and are immediately overwritten after being pulled by the organizers (or the submission system).
+- [evaluate_pipeline.py](evaluate_pipeline.py): pipeline for evaluating models on multiple patients.
 - [sync_data.py](sync_data.py）: script for synchronizing data from the official baseline and official scoring code.
 - [requirements.txt](requirements.txt), [requirements-docker.txt](requirements-docker.txt), [requirements-no-torch.txt](requirements-no-torch.txt): requirements files for different purposes.
 - [team_code.py](team_code.py): entry file for the submissions.
