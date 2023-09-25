@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import requests
 import scipy as sp
+import wfdb
 import yaml
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.utils.misc import get_record_list_recursive3
@@ -35,7 +36,10 @@ __all__ = [
 
 
 def load_challenge_eeg_data(
-    data_folder: str, patient_id: str, hour_limit: Optional[int] = None
+    data_folder: str,
+    patient_id: str,
+    hour_limit: Optional[int] = None,
+    backend: str = "scipy",
 ) -> List[Tuple[np.ndarray, int, List[str]]]:
     """Load challenge EEG data given the data folder and patient ID.
 
@@ -49,7 +53,9 @@ def load_challenge_eeg_data(
         The patient ID.
     hour_limit : int, optional
         The hour limit of the recordings to load.
-        None for no limit, by default None
+        None for no limit, by default None.
+    backend : {"scipy", "wfdb"}
+        The backend to use, by default "scipy".
 
     Returns
     -------
@@ -68,7 +74,7 @@ def load_challenge_eeg_data(
         for recording_location in pbar:
             if os.path.exists(recording_location + ".hea"):
                 recording_data, channels, sampling_frequency = load_recording_data(
-                    recording_location
+                    recording_location, backend=backend
                 )
                 # utility_frequency = get_utility_frequency(recording_location + ".hea")
                 recordings.append((recording_data, int(sampling_frequency), channels))
@@ -177,7 +183,7 @@ def func_indicator(name: str) -> Callable:
 
 
 def load_recording_data(
-    record_name: str, check_values: bool = False
+    record_name: str, check_values: bool = False, backend: str = "scipy"
 ) -> Tuple[np.ndarray, List[str], float]:
     """Load a recording, including the data, channel names, and sampling frequency.
 
@@ -189,7 +195,9 @@ def load_recording_data(
     record_name : str
         The record name.
     check_values : bool, optional
-        Whether to check the values, by default False
+        Whether to check the values, by default False.
+    backend : {"scipy", "wfdb"}
+        The backend to use, by default "scipy".
 
     Returns
     -------
@@ -199,6 +207,11 @@ def load_recording_data(
         The channel names.
     sampling_frequency : float
         The sampling frequency.
+
+    .. note::
+
+        "ValueError: Mat 4 mopt wrong format, byteswapping problem?" encountered
+        when using `scipy.io.loadmat` to load the record "0430_086_098_EEG".
 
     """
     # Allow either the record name or the header filename.
@@ -264,7 +277,12 @@ def load_recording_data(
     # Load the signal file.
     head, tail = os.path.split(header_file)
     signal_file = os.path.join(head, list(signal_files)[0])
-    data = np.asarray(sp.io.loadmat(signal_file)["val"])
+    if backend == "wfdb":
+        data = wfdb.rdrecord(signal_file, physical=False, return_res=16).d_signal.T
+    elif backend == "scipy":
+        data = np.asarray(sp.io.loadmat(signal_file)["val"])
+    else:
+        raise ValueError(f"backend must be one of ['wfdb', 'scipy'], got {backend}.")
 
     # Check that the dimensions of the signal data in the signal file is consistent with the dimensions for the signal data given
     # in the header file.

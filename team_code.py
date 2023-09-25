@@ -74,7 +74,7 @@ ENHANCED_ML_MODEL = True
 
 # NOTE: it is observed that in some submissions, challenge scores for 48 hours
 # are higher than those for 72 hours
-HOUR_LIMIT = 48  # hours, None for no limit
+HOUR_LIMIT = None  # hours, None for no limit
 ################################################################################
 
 
@@ -491,7 +491,7 @@ def run_challenge_models(
 
     # recording_data: list of 3-tuples (signal, sampling_frequency, channel_names)
     recording_data = load_challenge_eeg_data(
-        data_folder, patient_id, hour_limit=HOUR_LIMIT
+        data_folder, patient_id, hour_limit=HOUR_LIMIT, backend="wfdb"
     )
     # find recordings whose channels are a superset of the common channels
     valid_indices = [
