@@ -278,7 +278,8 @@ def load_recording_data(
     head, tail = os.path.split(header_file)
     signal_file = os.path.join(head, list(signal_files)[0])
     if backend == "wfdb":
-        data = wfdb.rdrecord(signal_file, physical=False, return_res=16).d_signal.T
+        signal_file_ = str(Path(signal_file).with_suffix(""))
+        data = wfdb.rdrecord(signal_file_, physical=False, return_res=16).d_signal.T
     elif backend == "scipy":
         data = np.asarray(sp.io.loadmat(signal_file)["val"])
     else:
