@@ -97,6 +97,8 @@ def find_eeg_recording_files(
 
     """
     patient_folder = Path(data_folder) / patient_id
+    # resolve to avoid comparison fails if `data_folder` is a symlink
+    patient_folder = patient_folder.expanduser().resolve()
     recording_files = get_record_list_recursive3(
         patient_folder, f"{BaseCfg.recording_pattern}\\.hea", relative=False
     )
