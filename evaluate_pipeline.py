@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Union, Dict, Sequence
 
 import numpy as np
+import torch
 from tqdm.auto import tqdm
 
 from cfg import TrainCfg
@@ -28,6 +29,7 @@ from evaluate_model import (  # noqa: F401
 )  # noqa: F401
 
 
+@torch.no_grad()
 def evaluate_pipeline(
     db_dir: Union[Path, str],
     model_path: Union[Path, str],
@@ -136,6 +138,13 @@ def evaluate_pipeline(
         save_challenge_outputs(
             output_file, patient_id, outcome_binary, outcome_probability, cpc
         )
+
+        del outcome_binary, outcome_probability, cpc
+
+    del model
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     ####################################################################
 
