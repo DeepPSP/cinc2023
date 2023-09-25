@@ -401,6 +401,7 @@ def load_challenge_models(
 
 # Run your trained models. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments of this function.
+@torch.no_grad()
 def run_challenge_models(
     models: Dict[str, Union[CFG, torch.nn.Module, BaseEstimator]],
     data_folder: str,
