@@ -1,4 +1,3 @@
-import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Union, Dict, Sequence
@@ -115,6 +114,7 @@ def evaluate_pipeline(
         patient_id = patient_ids[i]
         # os.makedirs(os.path.join(output_folder, patient_id), exist_ok=True)
         output_file = output_folder / patient_id / (patient_id + ".txt")
+        output_file.parent.mkdir(parents=True, exist_ok=True)
 
         if Path(output_file).exists():
             continue
@@ -156,8 +156,8 @@ def evaluate_pipeline(
 
     label_folder = data_folder
     for i in range(num_patients):
-        patient_data_file = os.path.join(
-            label_folder, patient_ids[i], patient_ids[i] + ".txt"
+        patient_data_file = str(
+            Path(label_folder) / patient_ids[i] / (patient_ids[i] + ".txt")
         )
         patient_data = load_text_file(patient_data_file)
 
@@ -175,9 +175,7 @@ def evaluate_pipeline(
     output_cpcs = list()
 
     for i in range(num_patients):
-        output_file = os.path.join(
-            output_folder, patient_ids[i], patient_ids[i] + ".txt"
-        )
+        output_file = str(output_folder / patient_ids[i] / (patient_ids[i] + ".txt"))
         output_data = load_text_file(output_file)
 
         output_outcome = get_outcome(output_data)
