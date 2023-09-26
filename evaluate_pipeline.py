@@ -100,7 +100,7 @@ def evaluate_pipeline(
         cpc_model=None,
     )
 
-    output_folder = Path("./eval_res").resolve() / f"{model_path.stem}-{data_part}"
+    output_folder = Path("./eval_res").resolve() / model_path.stem
     output_folder.mkdir(parents=True, exist_ok=True)
 
     ####################################################################
@@ -111,8 +111,8 @@ def evaluate_pipeline(
         range(num_patients), total=num_patients, desc="Evaluating", unit="patient"
     ):
         patient_id = patient_ids[i]
-        os.makedirs(os.path.join(output_folder, patient_id), exist_ok=True)
-        output_file = os.path.join(output_folder, patient_id, patient_id + ".txt")
+        # os.makedirs(os.path.join(output_folder, patient_id), exist_ok=True)
+        output_file = output_folder / (patient_id + ".txt")
 
         if Path(output_file).exists():
             continue
