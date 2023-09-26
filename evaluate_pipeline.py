@@ -112,7 +112,7 @@ def evaluate_pipeline(
     ):
         patient_id = patient_ids[i]
         # os.makedirs(os.path.join(output_folder, patient_id), exist_ok=True)
-        output_file = output_folder / (patient_id + ".txt")
+        output_file = output_folder / patient_id / (patient_id + ".txt")
 
         if Path(output_file).exists():
             continue
