@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 from pathlib import Path
 from typing import Union, Dict, Sequence
 
@@ -78,6 +79,7 @@ def evaluate_pipeline(
     ds = CinC2023Dataset(
         TrainCfg, db_dir=db_dir, training=True if data_part == "train" else False
     )
+    input_patient_ids = deepcopy(patient_ids)
     if patient_ids is not None:
         if patient_ids == "all":
             patient_ids = ds.reader._df_records_all_bak.subject.unique().tolist()
@@ -208,6 +210,26 @@ def evaluate_pipeline(
     #     labels=np.unique(np.concatenate((label_outcomes, output_outcomes))),
     # )
 
+    # Construct a string with scores.
+    # This string is copied from evaluate_model.py
+    output_string = (
+        "Challenge Score: {:.3f}\n".format(challenge_score)
+        + "Outcome AUROC: {:.3f}\n".format(auroc_outcomes)
+        + "Outcome AUPRC: {:.3f}\n".format(auprc_outcomes)
+        + "Outcome Accuracy: {:.3f}\n".format(accuracy_outcomes)
+        + "Outcome F-measure: {:.3f}\n".format(f_measure_outcomes)
+        + "CPC MSE: {:.3f}\n".format(mse_cpcs)
+        + "CPC MAE: {:.3f}\n".format(mae_cpcs)
+    )
+    print(output_string)
+    if input_patient_ids is None or input_patient_ids == "all":
+        # write to a file if evaluating on specific sets of patients
+        if input_patient_ids == "all":
+            result_file = output_folder / "all-results.txt"
+        else:
+            result_file = output_folder / f"{data_part}-results.txt"
+        result_file.write_text(output_string)
+
     return dict(
         challenge_score=challenge_score,
         auroc_outcomes=auroc_outcomes,
@@ -256,7 +278,7 @@ if __name__ == "__main__":
             "If 'all', evaluate on all patients."
         ),
         dest="patient_ids",
-        default="all",
+        default=None,
     )
     parser.add_argument(
         "--allow-failures",
