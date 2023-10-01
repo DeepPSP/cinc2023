@@ -27,6 +27,13 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 
 </details>
 
+<details>
+<summary>Click to view the conference poster</summary>
+
+  <img src="images/cinc2023_poster.svg" alt="Conference Poster" width="500"/>
+
+</details>
+
 :point_right: [Back to TOC](#cinc2023)
 
 ## Description of the files/folders(modules)
