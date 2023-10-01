@@ -1,16 +1,13 @@
 from copy import deepcopy
-from typing import Sequence, Optional
+from typing import Optional, Sequence
 
 import numpy as np
 import pandas as pd
 from torch_ecg.cfg import CFG
 from torch_ecg.utils import mask_to_intervals
 
-from .artifact_pipeline.segment_EEG import (
-    segment_EEG as eeg_segment_func,
-    seg_mask_explanation,
-)
-
+from .artifact_pipeline.segment_EEG import seg_mask_explanation
+from .artifact_pipeline.segment_EEG import segment_EEG as eeg_segment_func
 
 __all__ = [
     "compute_sqi",
@@ -123,9 +120,7 @@ def compute_sqi(
     siglen = signal.shape[1]
     if bipolar_signal.shape[1] < int(_config.window_time * fs):
         pad_len = int(_config.window_time * fs) - bipolar_signal.shape[1]
-        bipolar_signal = np.pad(
-            bipolar_signal, ((0, 0), (0, pad_len)), mode="constant", constant_values=0
-        )
+        bipolar_signal = np.pad(bipolar_signal, ((0, 0), (0, pad_len)), mode="constant", constant_values=0)
 
     # compute segments and information of the segments
     segs_, bs_, seg_start_ids_, seg_mask, specs_, freqs_ = eeg_segment_func(
@@ -170,9 +165,7 @@ def compute_sqi(
         # count the number of segments that is totally in the window
         # and the number of normal segments
         num_total = np.sum((seg_start_ids_ >= start) & (seg_end_ids_ <= end))
-        num_normal = np.sum(
-            (seg_start_ids_ >= start) & (seg_end_ids_ <= end) & normal_mask
-        )
+        num_normal = np.sum((seg_start_ids_ >= start) & (seg_end_ids_ <= end) & normal_mask)
         sqi[i, 2] = num_normal / num_total if num_total > 0 else 0.0
 
     # convert the time units if needed
@@ -184,10 +177,7 @@ def compute_sqi(
             sqi[:, :2] /= fs * 60
             columns = ["start_time_m", "end_time_m", "sqi"]
         else:
-            raise ValueError(
-                f"Invalid time units: {sqi_time_units}. "
-                f"Must be one of None, 's', 'm'."
-            )
+            raise ValueError(f"Invalid time units: {sqi_time_units}. " f"Must be one of None, 's', 'm'.")
     else:
         columns = ["start_index", "end_index", "sqi"]
 
@@ -278,14 +268,9 @@ def find_normal_intervals(
     seg_mask = np.array([seg_mask_explanation.index(item) for item in seg_mask])
     # convert to intervals
     normal_index = seg_mask_explanation.index("normal")
-    normal_window_intervals = mask_to_intervals(
-        seg_mask, vals=normal_index, right_inclusive=False
-    )
+    normal_window_intervals = mask_to_intervals(seg_mask, vals=normal_index, right_inclusive=False)
     # convert to samples according to seg_start_ids_ and seg_end_ids_
-    normal_intervals = [
-        [seg_start_ids_[start], seg_end_ids_[end - 1]]
-        for start, end in normal_window_intervals
-    ]
+    normal_intervals = [[seg_start_ids_[start], seg_end_ids_[end - 1]] for start, end in normal_window_intervals]
     normal_intervals = np.array(normal_intervals).astype(np.int64)
 
     return normal_intervals

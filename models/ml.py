@@ -9,38 +9,33 @@ import pickle
 import warnings
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, List, Union, Tuple, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sklearn.base import BaseEstimator
+from sklearn.ensemble import BaggingClassifier, GradientBoostingClassifier, RandomForestClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.model_selection import ParameterGrid, GridSearchCV
+from sklearn.model_selection import GridSearchCV, ParameterGrid
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 # from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
-from sklearn.ensemble import (
-    RandomForestClassifier,
-    GradientBoostingClassifier,
-    BaggingClassifier,
-)
-from xgboost import XGBClassifier
 from torch_ecg.cfg import CFG, DEFAULTS
-from torch_ecg.components.outputs import ClassificationOutput
 from torch_ecg.components.loggers import LoggerManager
+from torch_ecg.components.outputs import ClassificationOutput
 from torch_ecg.utils.utils_data import stratified_train_test_split
 from torch_ecg.utils.utils_metrics import _cls_to_bin
 from tqdm.auto import tqdm
+from xgboost import XGBClassifier
 
 from cfg import BaseCfg, MLCfg
 from data_reader import CINC2023Reader
-from outputs import CINC2023Outputs
 from helper_code import get_hospital
-from utils.scoring_metrics import compute_challenge_metrics
+from outputs import CINC2023Outputs
 from utils.features import get_features, get_labels
 from utils.misc import get_outcome_from_cpc, predict_proba_ordered
-
+from utils.scoring_metrics import compute_challenge_metrics
 
 __all__ = [
     "ML_Classifier_CINC2023",
@@ -133,9 +128,7 @@ class ML_Classifier_CINC2023(object):
             self.logger_manager = LoggerManager.from_config(logger_config)
 
         self.config.db_dir = Path(self.config.db_dir).resolve().absolute()
-        self.reader = CINC2023Reader(
-            self.config.db_dir, working_dir=self.config.working_dir
-        )
+        self.reader = CINC2023Reader(self.config.db_dir, working_dir=self.config.working_dir)
 
         # let the data reader (re-)load the metadata dataframes
         # in which case would be read from the disk via `pd.read_csv`
@@ -147,9 +140,7 @@ class ML_Classifier_CINC2023(object):
 
         self.__df_features = pd.DataFrame()
         for subject in self.reader.all_subjects:
-            metadata_string = self.reader.get_absolute_path(
-                subject, extension=self.reader.ann_ext
-            ).read_text()
+            metadata_string = self.reader.get_absolute_path(subject, extension=self.reader.ann_ext).read_text()
             patient_features = get_features(metadata_string, ret_type="dict")
             patient_features.update(get_labels(metadata_string, ret_type="dict"))
             patient_features["hospital"] = get_hospital(metadata_string)
@@ -168,17 +159,12 @@ class ML_Classifier_CINC2023(object):
         self.__df_features.loc[:, self.feature_list] = self.__imputer.fit_transform(
             self.__df_features.loc[:, self.feature_list]
         )
-        self.__df_features.loc[
-            :, self.config.cont_features
-        ] = self.__scaler.fit_transform(
+        self.__df_features.loc[:, self.config.cont_features] = self.__scaler.fit_transform(
             self.__df_features.loc[:, self.config.cont_features]
         )
         # convert labels from str to int
         self.__df_features.loc[:, self.y_col] = (
-            self.__df_features.loc[:, self.y_col]
-            .astype(int)
-            .astype(str)
-            .map(self.config.class_map)
+            self.__df_features.loc[:, self.y_col].astype(int).astype(str).map(self.config.class_map)
         )
         self._class_map_inv = {v: k for k, v in self.config.class_map.items()}
 
@@ -192,9 +178,7 @@ class ML_Classifier_CINC2023(object):
         self.train_hospitals = df_train["hospital"].values
         self.test_hospitals = df_test["hospital"].values
 
-    def get_model(
-        self, model_name: str, params: Optional[dict] = None
-    ) -> BaseEstimator:
+    def get_model(self, model_name: str, params: Optional[dict] = None) -> BaseEstimator:
         """Returns a model instance.
 
         Parameters
@@ -325,12 +309,8 @@ class ML_Classifier_CINC2023(object):
         """
         assert self.best_clf is not None, "No model found."
         features = get_features(patient_metadata, ret_type="pd")
-        features.loc[:, self.feature_list] = self.__imputer.transform(
-            features.loc[:, self.feature_list]
-        )
-        features.loc[:, self.config.cont_features] = self.__scaler.transform(
-            features.loc[:, self.config.cont_features]
-        )
+        features.loc[:, self.feature_list] = self.__imputer.transform(features.loc[:, self.feature_list])
+        features.loc[:, self.config.cont_features] = self.__scaler.transform(features.loc[:, self.config.cont_features])
         features = features[self.feature_list].values.astype(BaseCfg.np_dtype)
         y_prob = self.best_clf.predict_proba(features)
         if y_prob.shape[1] < len(self.config.classes):
@@ -342,9 +322,7 @@ class ML_Classifier_CINC2023(object):
                 np.array([self.config.class_map[k] for k in self.config.classes]),
             )
         y_pred = self.best_clf.predict(features)
-        bin_pred = _cls_to_bin(
-            y_pred, shape=(y_pred.shape[0], len(self.config.classes))
-        )
+        bin_pred = _cls_to_bin(y_pred, shape=(y_pred.shape[0], len(self.config.classes)))
 
         model_output = ClassificationOutput(
             classes=self.config.classes,
@@ -396,11 +374,7 @@ class ML_Classifier_CINC2023(object):
         if cv is None:
             msg = "Performing grid search with no cross validation."
             self.logger_manager.log_message(msg)
-            (
-                self.best_clf,
-                self.best_params,
-                self.best_score,
-            ) = self._perform_grid_search_no_cv(
+            (self.best_clf, self.best_params, self.best_score,) = self._perform_grid_search_no_cv(
                 model_name,
                 self.config.grids[model_name],
                 self.X_train,
@@ -424,11 +398,7 @@ class ML_Classifier_CINC2023(object):
         else:
             msg = f"Performing grid search with {cv}-fold cross validation."
             self.logger_manager.log_message(msg)
-            (
-                self.best_clf,
-                self.best_params,
-                self.best_score,
-            ) = self._perform_grid_search_cv(
+            (self.best_clf, self.best_params, self.best_score,) = self._perform_grid_search_cv(
                 model_name,
                 self.config.grids[model_name],
                 self.X_train,
@@ -497,9 +467,7 @@ class ML_Classifier_CINC2023(object):
         best_score = -np.inf
         best_clf = None
         best_params = None
-        with tqdm(
-            enumerate(param_grid), total=len(param_grid), mininterval=1.0
-        ) as pbar:
+        with tqdm(enumerate(param_grid), total=len(param_grid), mininterval=1.0) as pbar:
             for idx, params in pbar:
                 updated_params = deepcopy(params)
                 updated_params["n_jobs"] = self._num_workers
@@ -516,14 +484,10 @@ class ML_Classifier_CINC2023(object):
                     y_prob = predict_proba_ordered(
                         y_prob,
                         clf_gs.classes_,
-                        np.array(
-                            [self.config.class_map[k] for k in self.config.classes]
-                        ),
+                        np.array([self.config.class_map[k] for k in self.config.classes]),
                     )
                 y_pred = clf_gs.predict(X_val)
-                bin_pred = _cls_to_bin(
-                    y_pred, shape=(y_pred.shape[0], len(self.config.classes))
-                )
+                bin_pred = _cls_to_bin(y_pred, shape=(y_pred.shape[0], len(self.config.classes)))
                 outputs = CINC2023Outputs(
                     cpc_output=ClassificationOutput(
                         classes=self.config.classes,
@@ -540,9 +504,7 @@ class ML_Classifier_CINC2023(object):
                     # convert the original cpc to outcome
                     labels["outcome"] = get_outcome_from_cpc(labels["outcome"])
                     # convert the outcome to the mapped outcome
-                    labels["outcome"] = [
-                        BaseCfg.outcome_map[v] for v in labels["outcome"]
-                    ]
+                    labels["outcome"] = [BaseCfg.outcome_map[v] for v in labels["outcome"]]
 
                 val_metrics = compute_challenge_metrics(
                     labels=[labels],
@@ -637,9 +599,7 @@ class ML_Classifier_CINC2023(object):
                 np.array([self.config.class_map[k] for k in self.config.classes]),
             )
         y_pred = best_clf.predict(X_val)
-        bin_pred = _cls_to_bin(
-            y_pred, shape=(y_pred.shape[0], len(self.config.classes))
-        )
+        bin_pred = _cls_to_bin(y_pred, shape=(y_pred.shape[0], len(self.config.classes)))
         outputs = CINC2023Outputs(
             cpc_output=ClassificationOutput(
                 classes=self.config.classes,
@@ -777,9 +737,7 @@ class ML_Classifier_CINC2023(object):
             "xgb": XGBClassifier,
         }
 
-    def _train_test_split(
-        self, train_ratio: float = 0.8, force_recompute: bool = False
-    ) -> Tuple[List[str], List[str]]:
+    def _train_test_split(self, train_ratio: float = 0.8, force_recompute: bool = False) -> Tuple[List[str], List[str]]:
         """Stratified train/test split.
 
         Parameters
@@ -817,16 +775,12 @@ class ML_Classifier_CINC2023(object):
             writable = False
 
         (BaseCfg.project_dir / "utils").mkdir(exist_ok=True)
-        aux_train_file = (
-            BaseCfg.project_dir / "utils" / f"train_ratio_{_train_ratio}.json"
-        )
+        aux_train_file = BaseCfg.project_dir / "utils" / f"train_ratio_{_train_ratio}.json"
         aux_test_file = BaseCfg.project_dir / "utils" / f"test_ratio_{_test_ratio}.json"
 
         if not force_recompute:
             if writable and train_file.exists() and test_file.exists():
-                return json.loads(train_file.read_text()), json.loads(
-                    test_file.read_text()
-                )
+                return json.loads(train_file.read_text()), json.loads(test_file.read_text())
             elif aux_train_file.exists() and aux_test_file.exists():
                 train_set = json.loads(aux_train_file.read_text())
                 test_set = json.loads(aux_test_file.read_text())
@@ -837,15 +791,11 @@ class ML_Classifier_CINC2023(object):
                 return train_set, test_set
 
         df = self.reader._df_subjects.copy()
-        df.loc[:, "Age"] = (
-            df["Age"].fillna(df["Age"].mean()).astype(int)
-        )  # only one nan
+        df.loc[:, "Age"] = df["Age"].fillna(df["Age"].mean()).astype(int)  # only one nan
         # to age group
         df.loc[:, "Age"] = df["Age"].apply(lambda x: str(20 * (x // 20)))
         for col in ["OHCA", "Shockable Rhythm"]:
-            df.loc[:, col] = df[col].apply(
-                lambda x: 1 if x is True else 0 if x is False else x
-            )
+            df.loc[:, col] = df[col].apply(lambda x: 1 if x is True else 0 if x is False else x)
             df.loc[:, col] = df[col].fillna(-1).astype(int)
             df.loc[:, col] = df[col].astype(int).astype(str)
 
@@ -865,11 +815,7 @@ class ML_Classifier_CINC2023(object):
         train_set = df_train.index.tolist()
         test_set = df_test.index.tolist()
 
-        if (
-            (writable and force_recompute)
-            or not train_file.exists()
-            or not test_file.exists()
-        ):
+        if (writable and force_recompute) or not train_file.exists() or not test_file.exists():
             train_file.write_text(json.dumps(train_set, ensure_ascii=False))
             test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 

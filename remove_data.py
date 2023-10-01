@@ -1,16 +1,21 @@
 #!/usr/bin/env python
 
 # Load libraries.
-import os, sys, shutil, argparse
+import argparse
+import os
+import shutil
+import sys
+
 
 # Parse arguments.
 def get_parser():
-    description = 'Remove data from the dataset.'
+    description = "Remove data from the dataset."
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--input_folder', type=str, required=True)
-    parser.add_argument('-p', '--patient_ids', nargs='*', type=str, required=False, default=[])
-    parser.add_argument('-o', '--output_folder', type=str, required=True)
+    parser.add_argument("-i", "--input_folder", type=str, required=True)
+    parser.add_argument("-p", "--patient_ids", nargs="*", type=str, required=False, default=[])
+    parser.add_argument("-o", "--output_folder", type=str, required=True)
     return parser
+
 
 # Find folders with data files.
 def find_data_folders(root_folder):
@@ -18,10 +23,11 @@ def find_data_folders(root_folder):
     for x in sorted(os.listdir(root_folder)):
         data_folder = os.path.join(root_folder, x)
         if os.path.isdir(data_folder):
-            data_file = os.path.join(data_folder, x + '.txt')
+            data_file = os.path.join(data_folder, x + ".txt")
             if os.path.isfile(data_file):
                 data_folders.append(x)
     return sorted(data_folders)
+
 
 # Run script.
 def run(args):
@@ -44,8 +50,9 @@ def run(args):
             output_file = os.path.join(output_path, file_name)
 
             # If the file is not the binary signal data, then copy it.
-            if not (file_ext == '.mat'):
+            if not (file_ext == ".mat"):
                 shutil.copy2(input_file, output_file)
 
-if __name__=='__main__':
+
+if __name__ == "__main__":
     run(get_parser().parse_args(sys.argv[1:]))

@@ -7,27 +7,23 @@ import warnings
 from ast import literal_eval
 from numbers import Real
 from pathlib import Path
-from typing import Union, Optional, Any, List, Dict, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import gdown
 import numpy as np
 import pandas as pd
-import wfdb
 import scipy.signal as SS
-from diff_binom_confint import (
-    compute_confidence_interval,
-    compute_difference_confidence_interval,
-)
-from tqdm.auto import tqdm
+import wfdb
+from diff_binom_confint import compute_confidence_interval, compute_difference_confidence_interval
 from torch_ecg.cfg import DEFAULTS
-from torch_ecg.databases.base import PhysioNetDataBase, DataBaseInfo
-from torch_ecg.utils.misc import get_record_list_recursive3, add_docstring
+from torch_ecg.databases.base import DataBaseInfo, PhysioNetDataBase
 from torch_ecg.utils.download import _untar_file, _unzip_file, http_get
+from torch_ecg.utils.misc import add_docstring, get_record_list_recursive3
+from tqdm.auto import tqdm
 
 from cfg import BaseCfg
 from utils.misc import load_unofficial_phase_metadata, url_is_reachable
 from utils.sqi import compute_sqi
-
 
 __all__ = [
     "CINC2023Reader",
@@ -174,9 +170,7 @@ class CINC2023Reader(PhysioNetDataBase):
     default_eeg_reference_channel = None
     # fmt: on
 
-    _channel_names_to_signal_types = {
-        item: name for name, items in channel_names.items() for item in items
-    }
+    _channel_names_to_signal_types = {item: name for name, items in channel_names.items() for item in items}
 
     _rec_pattern = BaseCfg.recording_pattern
 
@@ -218,17 +212,14 @@ class CINC2023Reader(PhysioNetDataBase):
         if self.eeg_bipolar_channels is not None:
             if eeg_reference_channel is not None:
                 warnings.warn(
-                    "Both `eeg_bipolar_channels` and `eeg_reference_channel` are provided, "
-                    "the latter will be ignored.",
+                    "Both `eeg_bipolar_channels` and `eeg_reference_channel` are provided, " "the latter will be ignored.",
                     RuntimeWarning,
                 )
             self.eeg_reference_channel = None
         elif eeg_reference_channel is not None:
             self.eeg_reference_channel = eeg_reference_channel
             self.eeg_bipolar_channels = [
-                f"{ch}-{eeg_reference_channel}"
-                for ch in self.common_eeg_channels
-                if ch != eeg_reference_channel
+                f"{ch}-{eeg_reference_channel}" for ch in self.common_eeg_channels if ch != eeg_reference_channel
             ]
         else:
             self.eeg_reference_channel = self.default_eeg_reference_channel
@@ -302,31 +293,21 @@ class CINC2023Reader(PhysioNetDataBase):
         self.hour_limit = new_hour_limit
 
         if self.hour_limit is not None:
-            self._df_records_all = self._df_records_all_bak[
-                self._df_records_all_bak.hour <= self.hour_limit
-            ]
-            self._df_records = self._df_records_bak[
-                self._df_records_bak.hour <= self.hour_limit
-            ]
+            self._df_records_all = self._df_records_all_bak[self._df_records_all_bak.hour <= self.hour_limit]
+            self._df_records = self._df_records_bak[self._df_records_bak.hour <= self.hour_limit]
         else:
             self._df_records_all = self._df_records_all_bak.copy()
             self._df_records = self._df_records_bak.copy()
 
         self._all_records_all = {
-            sig_type: self._df_records_all[
-                self._df_records_all.sig_type == sig_type
-            ].index.tolist()
+            sig_type: self._df_records_all[self._df_records_all.sig_type == sig_type].index.tolist()
             for sig_type in self._df_records_all.sig_type.unique().tolist()
         }
         self._subject_records_all = {
-            sbj: self._df_records_all.loc[
-                self._df_records_all["subject"] == sbj
-            ].index.tolist()
-            for sbj in self._all_subjects
+            sbj: self._df_records_all.loc[self._df_records_all["subject"] == sbj].index.tolist() for sbj in self._all_subjects
         }
         self._subject_records = {
-            sbj: self._df_records.loc[self._df_records["subject"] == sbj].index.tolist()
-            for sbj in self._all_subjects
+            sbj: self._df_records.loc[self._df_records["subject"] == sbj].index.tolist() for sbj in self._all_subjects
         }
         self._all_records = self._df_records.index.tolist()
 
@@ -362,9 +343,7 @@ class CINC2023Reader(PhysioNetDataBase):
         if self.records_file is not None:
             # is records file exists then records/subjects metadata file also exist
             cache_exists = (
-                self.records_file.exists()
-                and self.records_metadata_file.exists()
-                and self.subjects_metadata_file.exists()
+                self.records_file.exists() and self.records_metadata_file.exists() and self.subjects_metadata_file.exists()
             )
             writable = True
         else:
@@ -374,29 +353,15 @@ class CINC2023Reader(PhysioNetDataBase):
 
         # load from cache if exists
         if cache_exists:
-            self._df_records_all = pd.read_csv(
-                self.records_metadata_file, index_col="record"
-            )
-            self._df_records_all["subject"] = self._df_records_all["subject"].apply(
-                lambda x: f"{x:04d}"
-            )
-            self._df_records_all["path"] = self._df_records_all["path"].apply(
-                lambda x: Path(x).resolve()
-            )
-            self._df_records_all["sig_name"] = self._df_records_all["sig_name"].apply(
-                literal_eval
-            )  # cells from str to list
-            self._df_records_all["diff_inds"] = self._df_records_all["diff_inds"].apply(
-                literal_eval
-            )  # cells from str to list
-            self._df_subjects = pd.read_csv(
-                self.subjects_metadata_file, index_col="subject"
-            )
+            self._df_records_all = pd.read_csv(self.records_metadata_file, index_col="record")
+            self._df_records_all["subject"] = self._df_records_all["subject"].apply(lambda x: f"{x:04d}")
+            self._df_records_all["path"] = self._df_records_all["path"].apply(lambda x: Path(x).resolve())
+            self._df_records_all["sig_name"] = self._df_records_all["sig_name"].apply(literal_eval)  # cells from str to list
+            self._df_records_all["diff_inds"] = self._df_records_all["diff_inds"].apply(literal_eval)  # cells from str to list
+            self._df_subjects = pd.read_csv(self.subjects_metadata_file, index_col="subject")
             self._df_subjects.index = self._df_subjects.index.map(lambda x: f"{x:04d}")
             self._df_subjects["CPC"] = self._df_subjects["CPC"].apply(str)
-            self._df_subjects["Directory"] = self._df_subjects["Directory"].apply(
-                lambda x: Path(x).resolve()
-            )
+            self._df_subjects["Directory"] = self._df_subjects["Directory"].apply(lambda x: Path(x).resolve())
         elif self._subsample is None:
             write_files = True
 
@@ -404,9 +369,7 @@ class CINC2023Reader(PhysioNetDataBase):
             # filter out records that do not have data files
             data_suffix = f".{self.data_ext}"
             self._df_records_all = self._df_records_all[
-                self._df_records_all["path"].apply(
-                    lambda x: Path(x).with_suffix(data_suffix).exists()
-                )
+                self._df_records_all["path"].apply(lambda x: Path(x).with_suffix(data_suffix).exists())
             ]
 
         # collect all records in the database directory recursively
@@ -417,13 +380,9 @@ class CINC2023Reader(PhysioNetDataBase):
             self._df_records_all["path"] = get_record_list_recursive3(
                 self.db_dir, f"{self._rec_pattern}\\.{self.data_ext}", relative=False
             )
-            self._df_records_all["path"] = self._df_records_all["path"].apply(
-                lambda x: Path(x)
-            )
+            self._df_records_all["path"] = self._df_records_all["path"].apply(lambda x: Path(x))
 
-            self._df_records_all["record"] = self._df_records_all["path"].apply(
-                lambda x: x.stem
-            )
+            self._df_records_all["record"] = self._df_records_all["path"].apply(lambda x: x.stem)
             self._df_records_all["subject"] = self._df_records_all["record"].apply(
                 lambda x: re.match(self._rec_pattern, x).group("sbj")
             )
@@ -431,9 +390,7 @@ class CINC2023Reader(PhysioNetDataBase):
                 lambda x: re.match(self._rec_pattern, x).group("sig")
             )
             self._df_records_all["hour"] = (
-                self._df_records_all["record"]
-                .apply(lambda x: re.match(self._rec_pattern, x).group("hour"))
-                .astype(int)
+                self._df_records_all["record"].apply(lambda x: re.match(self._rec_pattern, x).group("hour")).astype(int)
             )
 
             self._df_records_all = self._df_records_all.sort_values(by="record")
@@ -466,36 +423,23 @@ class CINC2023Reader(PhysioNetDataBase):
                     for idx, row in pbar:
                         header = wfdb.rdheader(str(row.path))
                         for extra_col in ["fs", "sig_len", "n_sig", "sig_name"]:
-                            self._df_records_all.at[idx, extra_col] = getattr(
-                                header, extra_col
-                            )
+                            self._df_records_all.at[idx, extra_col] = getattr(header, extra_col)
                         # assign "diff-inds" column for EEG records
                         if row.sig_type != "EEG":
                             diff_inds = []
                         else:
-                            diff_inds = [
-                                [header.sig_name.index(item) for item in lst]
-                                for lst in eeg_bipolar_channels
-                            ]
+                            diff_inds = [[header.sig_name.index(item) for item in lst] for lst in eeg_bipolar_channels]
                         self._df_records_all.at[idx, "diff_inds"] = diff_inds
                         # assign "start_sec", "end_sec" and "utility_freq" columns
                         # which are comments in the header file
                         d = re.search(pattern, "\n".join(header.comments)).groupdict()
-                        self._df_records_all.at[idx, "start_sec"] = int(
-                            d["start_minute"]
-                        ) * 60 + int(d["start_second"])
+                        self._df_records_all.at[idx, "start_sec"] = int(d["start_minute"]) * 60 + int(d["start_second"])
                         # plus 1 to end_sec to make it exclusive
                         # i.e. [start_sec, end_sec)
-                        self._df_records_all.at[idx, "end_sec"] = (
-                            int(d["end_minute"]) * 60 + int(d["end_second"]) + 1
-                        )
-                        self._df_records_all.at[idx, "utility_freq"] = int(
-                            d["utility_frequency"]
-                        )
+                        self._df_records_all.at[idx, "end_sec"] = int(d["end_minute"]) * 60 + int(d["end_second"]) + 1
+                        self._df_records_all.at[idx, "utility_freq"] = int(d["utility_frequency"])
                 for extra_col in ["fs", "sig_len", "n_sig"]:
-                    self._df_records_all[extra_col] = self._df_records_all[
-                        extra_col
-                    ].astype(int)
+                    self._df_records_all[extra_col] = self._df_records_all[extra_col].astype(int)
 
         if len(self._df_records_all) > 0 and self._subsample is not None:
             all_subjects = self._df_records_all["subject"].unique().tolist()
@@ -505,9 +449,9 @@ class CINC2023Reader(PhysioNetDataBase):
             )
             self.logger.debug(f"subsample `{size}` subjects from `{len(all_subjects)}`")
             all_subjects = DEFAULTS.RNG.choice(all_subjects, size=size, replace=False)
-            self._df_records_all = self._df_records_all.loc[
-                self._df_records_all["subject"].isin(all_subjects)
-            ].sort_values(by="record")
+            self._df_records_all = self._df_records_all.loc[self._df_records_all["subject"].isin(all_subjects)].sort_values(
+                by="record"
+            )
 
         self._all_subjects = self._df_records_all["subject"].unique().tolist()
 
@@ -523,48 +467,31 @@ class CINC2023Reader(PhysioNetDataBase):
             ) as pbar:
                 for sbj in pbar:
                     file_path = (
-                        self._df_records_all.loc[self._df_records_all["subject"] == sbj]
-                        .iloc[0]["path"]
-                        .parent
-                        / f"{sbj}.txt"
+                        self._df_records_all.loc[self._df_records_all["subject"] == sbj].iloc[0]["path"].parent / f"{sbj}.txt"
                     )
                     metadata = {
-                        k.strip(): v.strip()
-                        for k, v in [
-                            line.split(":")
-                            for line in file_path.read_text().splitlines()
-                        ]
+                        k.strip(): v.strip() for k, v in [line.split(":") for line in file_path.read_text().splitlines()]
                     }
                     metadata["subject"] = sbj
                     metadata["Directory"] = file_path.parent
                     metadata_list.append(metadata)
-            self._df_subjects = pd.DataFrame(
-                metadata_list, columns=["subject"] + subjects_cols
-            )
+            self._df_subjects = pd.DataFrame(metadata_list, columns=["subject"] + subjects_cols)
             self._df_subjects.set_index("subject", inplace=True)
             self._df_subjects = self._df_subjects[subjects_cols]
         else:
-            self._df_subjects = self._df_subjects[
-                self._df_subjects.index.isin(self._all_subjects)
-            ]
+            self._df_subjects = self._df_subjects[self._df_subjects.index.isin(self._all_subjects)]
 
         if self._df_records_all.empty or self._df_subjects.empty:
             write_files = False
 
         if writable and write_files:
             self.records_file.write_text(
-                "\n".join(
-                    self._df_records_all["path"]
-                    .apply(lambda x: x.relative_to(self.db_dir).as_posix())
-                    .tolist()
-                )
+                "\n".join(self._df_records_all["path"].apply(lambda x: x.relative_to(self.db_dir).as_posix()).tolist())
             )
             self._df_records_all.to_csv(self.records_metadata_file)
             self._df_subjects.to_csv(self.subjects_metadata_file)
 
-        self._df_records = self._df_records_all[
-            self._df_records_all["sig_type"] == "EEG"
-        ]
+        self._df_records = self._df_records_all[self._df_records_all["sig_type"] == "EEG"]
         for aux_sig in ["ECG", "REF", "OTHER"]:
             df_tmp = self._df_records_all[self._df_records_all["sig_type"] == aux_sig]
             df_tmp.index = df_tmp.index.map(lambda x: x.replace(aux_sig, "EEG"))
@@ -671,12 +598,7 @@ class CINC2023Reader(PhysioNetDataBase):
         fs: Optional[int] = None,
         return_fs: bool = False,
         return_channels: bool = False,
-    ) -> Union[
-        np.ndarray,
-        Tuple[np.ndarray, Real],
-        Tuple[np.ndarray, List[str]],
-        Tuple[np.ndarray, Real, List[str]],
-    ]:
+    ) -> Union[np.ndarray, Tuple[np.ndarray, Real], Tuple[np.ndarray, List[str]], Tuple[np.ndarray, Real, List[str]],]:
         """Load EEG data from the record.
 
         Parameters
@@ -730,12 +652,7 @@ class CINC2023Reader(PhysioNetDataBase):
         if channels is not None:
             if isinstance(channels, (str, int)):
                 channels = [channels]
-            channels = [
-                self._df_records.loc[rec, "sig_name"].index(chn)
-                if isinstance(chn, str)
-                else chn
-                for chn in channels
-            ]
+            channels = [self._df_records.loc[rec, "sig_name"].index(chn) if isinstance(chn, str) else chn for chn in channels]
             rdrecord_kwargs["channels"] = channels
             n_channels = len(channels)
         else:
@@ -769,16 +686,12 @@ class CINC2023Reader(PhysioNetDataBase):
         data = wfdb_rec.d_signal.astype(DEFAULTS.DTYPE.NP)
         if units is not None:
             # do analog-to-digital conversion
-            data = (data - np.array(wfdb_rec.baseline).reshape((1, -1))) / np.array(
-                wfdb_rec.adc_gain
-            ).reshape((1, -1))
+            data = (data - np.array(wfdb_rec.baseline).reshape((1, -1))) / np.array(wfdb_rec.adc_gain).reshape((1, -1))
             data = data.astype(DEFAULTS.DTYPE.NP)
 
         data_fs = fs or self.fs
         if data_fs is not None and data_fs != wfdb_rec.fs:
-            data = SS.resample_poly(data, data_fs, wfdb_rec.fs, axis=0).astype(
-                data.dtype
-            )
+            data = SS.resample_poly(data, data_fs, wfdb_rec.fs, axis=0).astype(data.dtype)
         else:
             data_fs = wfdb_rec.fs
 
@@ -867,21 +780,14 @@ class CINC2023Reader(PhysioNetDataBase):
         data = wfdb_rec.d_signal.astype(DEFAULTS.DTYPE.NP)
         if units is not None:
             # do analog-to-digital conversion
-            data = (data - np.array(wfdb_rec.baseline).reshape((1, -1))) / np.array(
-                wfdb_rec.adc_gain
-            ).reshape((1, -1))
+            data = (data - np.array(wfdb_rec.baseline).reshape((1, -1))) / np.array(wfdb_rec.adc_gain).reshape((1, -1))
             data = data.astype(DEFAULTS.DTYPE.NP)
 
-        data = (
-            data[:, metadata_row["diff_inds"][0]]
-            - data[:, metadata_row["diff_inds"][1]]
-        )
+        data = data[:, metadata_row["diff_inds"][0]] - data[:, metadata_row["diff_inds"][1]]
 
         data_fs = fs or self.fs
         if data_fs is not None and data_fs != wfdb_rec.fs:
-            data = SS.resample_poly(data, data_fs, wfdb_rec.fs, axis=0).astype(
-                data.dtype
-            )
+            data = SS.resample_poly(data, data_fs, wfdb_rec.fs, axis=0).astype(data.dtype)
         else:
             data_fs = wfdb_rec.fs
 
@@ -948,17 +854,13 @@ class CINC2023Reader(PhysioNetDataBase):
         else:
             signal_type = self._df_records_all.loc[rec, "sig_type"].index[0]
         if signal_type is None:
-            assert (
-                channels is not None
-            ), "`signal_type` should be provided when `channels` is None"
+            assert channels is not None, "`signal_type` should be provided when `channels` is None"
             if isinstance(channels, str):
                 signal_type = self._channel_names_to_signal_types[channels]
             elif isinstance(channels, (list, tuple)):
                 signal_type = self._channel_names_to_signal_types[channels[0]]
             else:
-                raise TypeError(
-                    f"Could not determine `signal_type` from `channels` of type `{type(channels)}`"
-                )
+                raise TypeError(f"Could not determine `signal_type` from `channels` of type `{type(channels)}`")
         else:
             # if rec is obtained from the index of all_records
             rec = rec.replace("EEG", signal_type)
@@ -970,10 +872,7 @@ class CINC2023Reader(PhysioNetDataBase):
             if isinstance(channels, (str, int)):
                 channels = [channels]
             channels = [
-                self._df_records_all.loc[rec, "sig_name"].index(chn)
-                if isinstance(chn, str)
-                else chn
-                for chn in channels
+                self._df_records_all.loc[rec, "sig_name"].index(chn) if isinstance(chn, str) else chn for chn in channels
             ]
             rdrecord_kwargs["channels"] = channels
             n_channels = len(channels)
@@ -999,10 +898,9 @@ class CINC2023Reader(PhysioNetDataBase):
         )
         wfdb_rec = wfdb.rdrecord(fp, **rdrecord_kwargs)
 
-        data = (
-            wfdb_rec.d_signal.astype(DEFAULTS.DTYPE.NP)
-            - np.array(wfdb_rec.baseline).reshape((1, -1))
-        ) / np.array(wfdb_rec.adc_gain).reshape((1, -1))
+        data = (wfdb_rec.d_signal.astype(DEFAULTS.DTYPE.NP) - np.array(wfdb_rec.baseline).reshape((1, -1))) / np.array(
+            wfdb_rec.adc_gain
+        ).reshape((1, -1))
         data = data.astype(DEFAULTS.DTYPE.NP)
         if fs is not None and fs != wfdb_rec.fs:
             data = SS.resample_poly(data, fs, wfdb_rec.fs, axis=0).astype(data.dtype)
@@ -1045,9 +943,7 @@ class CINC2023Reader(PhysioNetDataBase):
         )
         return ann
 
-    def load_outcome(
-        self, rec_or_sbj: Union[str, int], class_map: Optional[Dict[str, int]] = None
-    ) -> Union[str, int]:
+    def load_outcome(self, rec_or_sbj: Union[str, int], class_map: Optional[Dict[str, int]] = None) -> Union[str, int]:
         """Load Outcome annotation corresponding to
         the record `rec` or the subject `sbj`.
 
@@ -1072,9 +968,7 @@ class CINC2023Reader(PhysioNetDataBase):
             outcome = class_map[outcome]
         return outcome
 
-    def load_cpc(
-        self, rec_or_sbj: Union[str, int], class_map: Optional[Dict[str, int]] = None
-    ) -> Union[str, int]:
+    def load_cpc(self, rec_or_sbj: Union[str, int], class_map: Optional[Dict[str, int]] = None) -> Union[str, int]:
         """Load CPC annotation corresponding to
         the record `rec` or the subject `sbj`.
 
@@ -1114,18 +1008,14 @@ class CINC2023Reader(PhysioNetDataBase):
 
         """
         if self.sqi_dir is None:
-            print(
-                "Directory of SQI files is not specified, or no write permission is given."
-            )
+            print("Directory of SQI files is not specified, or no write permission is given.")
             return pd.DataFrame()
         if isinstance(rec, int):
             rec = self.all_records[rec]
         sid = self.get_subject_id(rec)
         path = self.sqi_dir / sid / f"{rec}_SQI.csv"
         if not path.exists():
-            print(
-                f"SQI file `{path.name}` does not exist, call `compute_eeg_sqi` instead to get the SQI table"
-            )
+            print(f"SQI file `{path.name}` does not exist, call `compute_eeg_sqi` instead to get the SQI table")
             return pd.DataFrame()
         return pd.read_csv(path)
 
@@ -1154,9 +1044,7 @@ class CINC2023Reader(PhysioNetDataBase):
         print("Quality tables are removed from the database starting from version 2.")
         return pd.DataFrame()
 
-    def get_metadata(
-        self, rec: Union[str, int], field: Optional[str] = None
-    ) -> Union[Dict[str, Any], Any]:
+    def get_metadata(self, rec: Union[str, int], field: Optional[str] = None) -> Union[Dict[str, Any], Any]:
         """Get metadata of the record.
 
         Metadata of the record includes the following fields:
@@ -1192,9 +1080,7 @@ class CINC2023Reader(PhysioNetDataBase):
         metadata = self._df_records.loc[rec].to_dict()
         for item in ["path", "sig_type"]:
             metadata.pop(item)
-        metadata["Hospital"] = self._df_subjects.loc[
-            self.get_subject_id(rec), "Hospital"
-        ]
+        metadata["Hospital"] = self._df_subjects.loc[self.get_subject_id(rec), "Hospital"]
         # the rest of the subject-level metadata other than "Hospital"
         # will NOT be included in the record-level metadata
         if field is None:
@@ -1276,9 +1162,7 @@ class CINC2023Reader(PhysioNetDataBase):
     def subject_records_all(self) -> Dict[str, List[str]]:
         return self._subject_records_all
 
-    def plot_correlation(
-        self, target: str = "CPC", col: str = "OHCA", **kwargs: Any
-    ) -> tuple:
+    def plot_correlation(self, target: str = "CPC", col: str = "OHCA", **kwargs: Any) -> tuple:
         """Plot the correlation between the `target` and the feature `col`.
 
         Parameters
@@ -1314,18 +1198,12 @@ class CINC2023Reader(PhysioNetDataBase):
         colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
         hatches = ["/", "\\", "|", ".", "x"]
 
-        assert target in ["Outcome", "CPC"], (
-            """`target` should be one of `{"Outcome", "CPC"}`, """
-            f"""but got `{target}`"""
-        )
+        assert target in ["Outcome", "CPC"], """`target` should be one of `{"Outcome", "CPC"}`, """ f"""but got `{target}`"""
         assert col in ["Hospital", "Sex", "OHCA", "Shockable Rhythm"], (
-            """`col` should be one of `["Hospital", "Sex", "OHCA", "Shockable Rhythm"]`, """
-            f"""but got `{col}`"""
+            """`col` should be one of `["Hospital", "Sex", "OHCA", "Shockable Rhythm"]`, """ f"""but got `{col}`"""
         )
         prefix_sep = " - "
-        df_dummies = pd.get_dummies(
-            self._df_subjects[col], prefix=col, prefix_sep=prefix_sep
-        )
+        df_dummies = pd.get_dummies(self._df_subjects[col], prefix=col, prefix_sep=prefix_sep)
         columns = df_dummies.columns.tolist()
         df_stats = pd.concat((self._df_subjects, df_dummies), axis=1)
         df_stats = df_stats.drop(columns=["Directory"])
@@ -1464,9 +1342,7 @@ class CINC2023Reader(PhysioNetDataBase):
         df_data = df_data.fillna("NA")
         # map True/False to Yes/No
         df_data["OHCA"] = df_data["OHCA"].map({True: "Yes", False: "No", "NA": "NA"})
-        df_data["Shockable Rhythm"] = df_data["Shockable Rhythm"].map(
-            {True: "Yes", False: "No", "NA": "NA"}
-        )
+        df_data["Shockable Rhythm"] = df_data["Shockable Rhythm"].map({True: "Yes", False: "No", "NA": "NA"})
         df_data = df_data[[target_col] + feature_cols]
 
         rows = []
@@ -1502,9 +1378,7 @@ class CINC2023Reader(PhysioNetDataBase):
             ]
         )
 
-        feature_classes = {
-            col: sorted(df_data[col].unique().tolist()) for col in feature_cols
-        }
+        feature_classes = {col: sorted(df_data[col].unique().tolist()) for col in feature_cols}
         # put ref item at the beginning
         for col in feature_cols:
             ref_item = ref_groups[col]
@@ -1513,14 +1387,9 @@ class CINC2023Reader(PhysioNetDataBase):
 
         # the categorical metadata features
         for col in feature_cols:
-            n_affected = {
-                item: df_data[df_data[col] == item].shape[0]
-                for item in feature_classes[col]
-            }
+            n_affected = {item: df_data[df_data[col] == item].shape[0] for item in feature_classes[col]}
             n_positive = {
-                item: df_data[
-                    (df_data[col] == item) & (df_data[target_col] == positive_class)
-                ].shape[0]
+                item: df_data[(df_data[col] == item) & (df_data[target_col] == positive_class)].shape[0]
                 for item in feature_classes[col]
             }
             poor_outcome_risk = {}
@@ -1541,8 +1410,7 @@ class CINC2023Reader(PhysioNetDataBase):
                     }
                     continue
                 poor_outcome_risk_diff[item] = {
-                    "risk_difference": poor_outcome_risk[item]["risk"]
-                    - poor_outcome_risk[ref_item]["risk"],
+                    "risk_difference": poor_outcome_risk[item]["risk"] - poor_outcome_risk[ref_item]["risk"],
                     "confidence_interval": compute_difference_confidence_interval(
                         n_positive[item],
                         n_affected[item],
@@ -1580,19 +1448,11 @@ class CINC2023Reader(PhysioNetDataBase):
                     "Poor Outcome Risk": {
                         "n": n_positive[item],
                         "percent": poor_outcome_risk[item]["risk"],
-                        "confidence_interval": poor_outcome_risk[item][
-                            "confidence_interval"
-                        ],
+                        "confidence_interval": poor_outcome_risk[item]["confidence_interval"],
                     },
                     "Poor Outcome Risk Difference": {
-                        "risk_difference": poor_outcome_risk_diff[item][
-                            "risk_difference"
-                        ]
-                        if item != ref_item
-                        else 0,
-                        "confidence_interval": poor_outcome_risk_diff[item][
-                            "confidence_interval"
-                        ]
+                        "risk_difference": poor_outcome_risk_diff[item]["risk_difference"] if item != ref_item else 0,
+                        "confidence_interval": poor_outcome_risk_diff[item]["confidence_interval"]
                         if item != ref_item
                         else (0, 0),
                     },
@@ -1610,18 +1470,13 @@ class CINC2023Reader(PhysioNetDataBase):
         if return_type.lower() == "pd":
             return df
         elif return_type.lower() == "latex":
-            rows = [
-                line.replace("%", r"\%")
-                for line in df.to_latex(header=False, index=False).splitlines()
-            ]
+            rows = [line.replace("%", r"\%") for line in df.to_latex(header=False, index=False).splitlines()]
             rows[0] = r"\begin{tabular}{@{\extracolsep{6pt}}lllllll@{}}"
             rows[
                 2
             ] = r"\multicolumn{2}{l}{Feature} & \multicolumn{2}{l}{Affected} & \multicolumn{2}{l}{Poor Outcome Risk ($95\%$ CI)} & Poor Outcome Risk Difference  ($95\%$ CI) \\ \cline{1-2}\cline{3-4}\cline{5-6}\cline{7-7}"
             ret_lines = "\n".join(rows)
-            if save_path is not None and (
-                not save_path.with_suffix(".tex").is_file() or overwrite
-            ):
+            if save_path is not None and (not save_path.with_suffix(".tex").is_file() or overwrite):
                 save_path.with_suffix(".tex").write_text(ret_lines)
             return ret_lines
         elif return_type.lower() in ["md", "markdown"]:
@@ -1644,14 +1499,9 @@ class CINC2023Reader(PhysioNetDataBase):
         # self._ls_rec()
         if full:
             print("The full database is too large.")
-            print(
-                "Please download from PhysioNet or Google Cloud Platform "
-                "manually or using tools like `wget`, `gsutil`."
-            )
+            print("Please download from PhysioNet or Google Cloud Platform " "manually or using tools like `wget`, `gsutil`.")
             print(f"Webpage of the database at PhysioNet: {self.webpage}")
-            print(
-                f"Webpage of the database at Google Cloud Platform: {self.gcp_webpage}"
-            )
+            print(f"Webpage of the database at Google Cloud Platform: {self.gcp_webpage}")
         else:
             url = self._url_compressed["subset"]
             dl_file = str(self.db_dir / "training_subset.tar.gz")
@@ -1668,20 +1518,14 @@ class CINC2023Reader(PhysioNetDataBase):
             source = "deep-psp"
             url = self._url_compressed["sqi_alt"]
         else:
-            warnings.warn(
-                "Can reach neither Google Drive nor deep-psp.tech. "
-                "The SQI files will not be downloaded."
-            )
+            warnings.warn("Can reach neither Google Drive nor deep-psp.tech. " "The SQI files will not be downloaded.")
             return
         if os.access(self.db_dir, os.W_OK):
             dl_dir = self.db_dir
         elif os.access(self.working_dir, os.W_OK):
             dl_dir = self.working_dir
         else:
-            warnings.warn(
-                "No access to write the SQI files. "
-                "The SQI files will not be downloaded."
-            )
+            warnings.warn("No access to write the SQI files. " "The SQI files will not be downloaded.")
             return
         dl_file = str(dl_dir / "CinC2023-SQI.zip")
         if source == "gdrive":
@@ -1697,9 +1541,7 @@ class CINC2023Reader(PhysioNetDataBase):
 
     @property
     def gcp_webpage(self) -> str:
-        return (
-            "https://console.cloud.google.com/storage/browser/i-care-2.0.physionet.org/"
-        )
+        return "https://console.cloud.google.com/storage/browser/i-care-2.0.physionet.org/"
 
 
 if __name__ == "__main__":
@@ -1800,9 +1642,7 @@ if __name__ == "__main__":
         sqi_dir.mkdir(parents=True, exist_ok=True)
         sqi_error_file = sqi_dir / "error-recs.txt"
         if args.sqi_subjects is not None:
-            records = dr._df_records[
-                dr._df_records["subject"].isin(args.sqi_subjects.split(","))
-            ].index.tolist()
+            records = dr._df_records[dr._df_records["subject"].isin(args.sqi_subjects.split(","))].index.tolist()
         else:
             records = dr.all_records
         with tqdm(records) as pbar:
@@ -1812,11 +1652,7 @@ if __name__ == "__main__":
                 save_path.parent.mkdir(parents=True, exist_ok=True)
                 # is save_path is an non-empty file, skip
                 # non-empty means the file is not empty and has at least one row
-                if (
-                    save_path.is_file()
-                    and save_path.stat().st_size != 0
-                    and len(pd.read_csv(save_path)) != 0
-                ):
+                if save_path.is_file() and save_path.stat().st_size != 0 and len(pd.read_csv(save_path)) != 0:
                     continue
                 pbar.set_description(f"Computing SQI for {rec}")
                 try:

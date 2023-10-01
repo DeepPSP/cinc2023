@@ -1,11 +1,10 @@
-from typing import Tuple, Sequence, Dict
+from typing import Dict, Sequence, Tuple
 
 import numpy as np
 
-from helper_code import is_nan
 from cfg import BaseCfg
+from helper_code import is_nan
 from outputs import CINC2023Outputs
-
 
 __all__ = [
     "compute_challenge_metrics",
@@ -99,39 +98,24 @@ def compute_challenge_metrics(
 
     # compute the outcome metrics
     if outputs[0].outcome_output is not None:
-        outcome_labels = np.concatenate(
-            [label["outcome"] for label in labels]  # categorical or binarized labels
-        )
+        outcome_labels = np.concatenate([label["outcome"] for label in labels])  # categorical or binarized labels
         if outcome_labels.ndim == 2 and outcome_labels.shape[1] == len(BaseCfg.outcome):
             outcome_labels = outcome_labels.argmax(axis=1)
         # outcome_prob_outputs <- probabilities of the "Poor" class
         outcome_prob_outputs = np.concatenate(
-            [
-                item.outcome_output.prob[:, item.outcome_output.classes.index("Poor")]
-                for item in outputs
-            ]  # probability outputs
+            [item.outcome_output.prob[:, item.outcome_output.classes.index("Poor")] for item in outputs]  # probability outputs
         )
         # outcome_prob_outputs = outcome_prob_outputs.max(axis=1)
-        outcome_pred_outputs = np.concatenate(
-            [item.outcome_output.pred for item in outputs]  # categorical outputs
-        )
+        outcome_pred_outputs = np.concatenate([item.outcome_output.pred for item in outputs])  # categorical outputs
         hospitals = np.concatenate(hospitals)
-        metrics.update(
-            compute_outcome_metrics(
-                outcome_labels, outcome_prob_outputs, outcome_pred_outputs, hospitals
-            )
-        )
+        metrics.update(compute_outcome_metrics(outcome_labels, outcome_prob_outputs, outcome_pred_outputs, hospitals))
 
     # compute the cpc metrics
     if outputs[0].cpc_output is not None:
-        cpc_labels = np.concatenate(
-            [label["cpc"] for label in labels]  # categorical or binarized labels
-        )
+        cpc_labels = np.concatenate([label["cpc"] for label in labels])  # categorical or binarized labels
         if cpc_labels.ndim == 2 and cpc_labels.shape[1] == len(BaseCfg.cpc):
             cpc_labels = cpc_labels.argmax(axis=1) + 1
-        cpc_pred_outputs = np.concatenate(
-            [item.cpc_value for item in outputs]  # categorical or regression outputs
-        )
+        cpc_pred_outputs = np.concatenate([item.cpc_value for item in outputs])  # categorical or regression outputs
         metrics.update(compute_cpc_metrics(cpc_labels, cpc_pred_outputs))
 
     return metrics
@@ -177,24 +161,16 @@ def compute_outcome_metrics(
 
     """
     metrics = {}
-    metrics["outcome_score"] = compute_challenge_score(
-        outcome_labels, outcome_prob_outputs, hospitals
-    )
+    metrics["outcome_score"] = compute_challenge_score(outcome_labels, outcome_prob_outputs, hospitals)
     auroc, auprc = compute_auc(outcome_labels, outcome_prob_outputs)
     metrics["outcome_auroc"] = auroc
     metrics["outcome_auprc"] = auprc
-    metrics["outcome_f_measure"] = compute_f_measure(
-        outcome_labels, outcome_pred_outputs
-    )[0]
-    metrics["outcome_accuracy"] = compute_accuracy(
-        outcome_labels, outcome_pred_outputs
-    )[0]
+    metrics["outcome_f_measure"] = compute_f_measure(outcome_labels, outcome_pred_outputs)[0]
+    metrics["outcome_accuracy"] = compute_accuracy(outcome_labels, outcome_pred_outputs)[0]
     return metrics
 
 
-def compute_cpc_metrics(
-    cpc_labels: np.ndarray, cpc_pred_outputs: np.ndarray
-) -> Dict[str, float]:
+def compute_cpc_metrics(cpc_labels: np.ndarray, cpc_pred_outputs: np.ndarray) -> Dict[str, float]:
     """Compute the CPC metrics.
 
     Parameters
@@ -229,9 +205,7 @@ def compute_cpc_metrics(
 ###########################################
 
 
-def compute_challenge_score(
-    labels: np.ndarray, outputs: np.ndarray, hospitals: Sequence[str]
-) -> float:
+def compute_challenge_score(labels: np.ndarray, outputs: np.ndarray, hospitals: Sequence[str]) -> float:
     """Compute the Challenge score.
 
     The Challenge score is the largest TPR such that FPR <= 0.05
@@ -474,9 +448,7 @@ def compute_one_hot_encoding(data: np.ndarray, classes: np.ndarray) -> np.ndarra
     return one_hot_encoding
 
 
-def compute_confusion_matrix(
-    labels: np.ndarray, outputs: np.ndarray, classes: np.ndarray
-) -> np.ndarray:
+def compute_confusion_matrix(labels: np.ndarray, outputs: np.ndarray, classes: np.ndarray) -> np.ndarray:
     """Compute the binary confusion matrix.
 
     The columns are the expert labels and
@@ -516,9 +488,7 @@ def compute_confusion_matrix(
     return A
 
 
-def compute_one_vs_rest_confusion_matrix(
-    labels: np.ndarray, outputs: np.ndarray, classes: np.ndarray
-) -> np.ndarray:
+def compute_one_vs_rest_confusion_matrix(labels: np.ndarray, outputs: np.ndarray, classes: np.ndarray) -> np.ndarray:
     """Construct the binary one-vs-rest (OVR) confusion matrices.
 
     The columns are the expert labels and
@@ -561,9 +531,7 @@ def compute_one_vs_rest_confusion_matrix(
     return A
 
 
-def compute_accuracy(
-    labels: np.ndarray, outputs: np.ndarray
-) -> Tuple[float, np.ndarray, np.ndarray]:
+def compute_accuracy(labels: np.ndarray, outputs: np.ndarray) -> Tuple[float, np.ndarray, np.ndarray]:
     """Compute the accuracy and per-class accuracy.
 
     Parameters
@@ -611,9 +579,7 @@ def compute_accuracy(
     return accuracy, per_class_accuracy, classes
 
 
-def compute_f_measure(
-    labels: np.ndarray, outputs: np.ndarray
-) -> Tuple[float, np.ndarray, np.ndarray]:
+def compute_f_measure(labels: np.ndarray, outputs: np.ndarray) -> Tuple[float, np.ndarray, np.ndarray]:
     """Compute the F-measure and per-class F-measure.
 
     Parameters

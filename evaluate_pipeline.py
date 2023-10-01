@@ -1,6 +1,6 @@
 from copy import deepcopy
 from pathlib import Path
-from typing import Union, Dict, Sequence
+from typing import Dict, Sequence, Union
 
 import numpy as np
 import torch
@@ -8,25 +8,18 @@ from tqdm.auto import tqdm
 
 from cfg import TrainCfg
 from dataset import CinC2023Dataset
+from evaluate_model import (  # noqa: F401
+    compute_accuracy,
+    compute_auc,
+    compute_challenge_score,
+    compute_f_measure,
+    compute_mae,
+    compute_mse,
+    compute_one_vs_rest_confusion_matrix,
+)
+from helper_code import get_cpc, get_hospital, get_outcome, get_outcome_probability, load_text_file, save_challenge_outputs
 from models import CRNN_CINC2023
 from team_code import run_challenge_models
-from helper_code import (
-    save_challenge_outputs,
-    load_text_file,
-    get_hospital,
-    get_outcome,
-    get_cpc,
-    get_outcome_probability,
-)
-from evaluate_model import (  # noqa: F401
-    compute_challenge_score,
-    compute_auc,
-    compute_accuracy,
-    compute_f_measure,
-    compute_mse,
-    compute_mae,
-    compute_one_vs_rest_confusion_matrix,
-)  # noqa: F401
 
 
 @torch.no_grad()
@@ -75,9 +68,7 @@ def evaluate_pipeline(
         "train",
         "val",
     ], f"""Invalid data part: {data_part}, must be one of ["train", "val"]"""
-    ds = CinC2023Dataset(
-        TrainCfg, db_dir=db_dir, training=True if data_part == "train" else False
-    )
+    ds = CinC2023Dataset(TrainCfg, db_dir=db_dir, training=True if data_part == "train" else False)
     input_patient_ids = deepcopy(patient_ids)
     if patient_ids is not None:
         if patient_ids == "all":
@@ -108,9 +99,7 @@ def evaluate_pipeline(
     # this enclosed block is adapted from run_model.py
 
     # Iterate over the patients.
-    for i in tqdm(
-        range(num_patients), total=num_patients, desc="Evaluating", unit="patient"
-    ):
+    for i in tqdm(range(num_patients), total=num_patients, desc="Evaluating", unit="patient"):
         patient_id = patient_ids[i]
         # os.makedirs(os.path.join(output_folder, patient_id), exist_ok=True)
         output_file = output_folder / patient_id / (patient_id + ".txt")
@@ -121,9 +110,7 @@ def evaluate_pipeline(
 
         # Allow or disallow the model(s) to fail on parts of the data; this can be helpful for debugging.
         try:
-            outcome_binary, outcome_probability, cpc = run_challenge_models(
-                models, data_folder, patient_id, verbose
-            )
+            outcome_binary, outcome_probability, cpc = run_challenge_models(models, data_folder, patient_id, verbose)
         except Exception as e:
             if allow_failures:
                 if verbose >= 2:
@@ -137,9 +124,7 @@ def evaluate_pipeline(
                 raise e
 
         # Save Challenge outputs.
-        save_challenge_outputs(
-            output_file, patient_id, outcome_binary, outcome_probability, cpc
-        )
+        save_challenge_outputs(output_file, patient_id, outcome_binary, outcome_probability, cpc)
 
         del outcome_binary, outcome_probability, cpc
 
@@ -156,9 +141,7 @@ def evaluate_pipeline(
 
     label_folder = data_folder
     for i in range(num_patients):
-        patient_data_file = str(
-            Path(label_folder) / patient_ids[i] / (patient_ids[i] + ".txt")
-        )
+        patient_data_file = str(Path(label_folder) / patient_ids[i] / (patient_ids[i] + ".txt"))
         patient_data = load_text_file(patient_data_file)
 
         hospital = get_hospital(patient_data)
@@ -187,12 +170,8 @@ def evaluate_pipeline(
         output_cpcs.append(output_cpc)
 
     # Evaluate the models.
-    challenge_score = compute_challenge_score(
-        label_outcomes, output_outcome_probabilities, hospitals
-    )
-    auroc_outcomes, auprc_outcomes = compute_auc(
-        label_outcomes, output_outcome_probabilities
-    )
+    challenge_score = compute_challenge_score(label_outcomes, output_outcome_probabilities, hospitals)
+    auroc_outcomes, auprc_outcomes = compute_auc(label_outcomes, output_outcome_probabilities)
     accuracy_outcomes, _, _ = compute_accuracy(label_outcomes, output_outcomes)
     f_measure_outcomes, _, _ = compute_f_measure(label_outcomes, output_outcomes)
     mse_cpcs = compute_mse(label_cpcs, output_cpcs)

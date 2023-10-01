@@ -14,35 +14,28 @@ import pickle
 import time
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, Union, Tuple, Sequence
+from typing import Dict, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.impute import SimpleImputer
-from torch.nn.parallel import (  # noqa: F401
-    DistributedDataParallel as DDP,
-    DataParallel as DP,
-)  # noqa: F401
+from torch.nn.parallel import DataParallel as DP
+from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
+from torch_ecg._preprocessors import PreprocManager
 from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import str2bool
-from torch_ecg._preprocessors import PreprocManager
 from tqdm.auto import tqdm
 
-from cfg import TrainCfg, ModelCfg, MLCfg
+from cfg import MLCfg, ModelCfg, TrainCfg
 from dataset import CinC2023Dataset
+from helper_code import find_data_folders
 from models import CRNN_CINC2023, ML_Classifier_CINC2023
 from trainer import CINC2023Trainer, _set_task
-from helper_code import find_data_folders
 from utils.features import get_features, get_labels
-from utils.misc import (
-    load_challenge_metadata,
-    load_challenge_eeg_data,
-    find_eeg_recording_files,
-)
+from utils.misc import find_eeg_recording_files, load_challenge_eeg_data, load_challenge_metadata
 from utils.sqi import compute_sqi  # noqa: F401
-
 
 ################################################################################
 # environment variables
@@ -310,9 +303,7 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
     ).fit(features, cpcs.ravel())
 
     d = {"imputer": imputer, "outcome_model": outcome_model, "cpc_model": cpc_model}
-    model_path = (
-        Path(model_folder).resolve().absolute() / _ModelFilename_ml_min_guarantee
-    )
+    model_path = Path(model_folder).resolve().absolute() / _ModelFilename_ml_min_guarantee
     with open(model_path, "wb") as f:
         pickle.dump(d, f)
 
@@ -322,9 +313,7 @@ def train_challenge_model(data_folder: str, model_folder: str, verbose: int) -> 
 
 # Load your trained models. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments of this function.
-def load_challenge_models(
-    model_folder: str, verbose: int
-) -> Dict[str, Union[CFG, torch.nn.Module, BaseEstimator]]:
+def load_challenge_models(model_folder: str, verbose: int) -> Dict[str, Union[CFG, torch.nn.Module, BaseEstimator]]:
     """Load trained models.
 
     Parameters
@@ -379,9 +368,7 @@ def load_challenge_models(
     else:
         aux_model = None
 
-    min_guarantee_model_path = (
-        Path(model_folder).resolve().absolute() / _ModelFilename_ml_min_guarantee
-    )
+    min_guarantee_model_path = Path(model_folder).resolve().absolute() / _ModelFilename_ml_min_guarantee
     with open(min_guarantee_model_path, "rb") as f:
         min_guarantee_models = pickle.load(f)
 
@@ -467,9 +454,7 @@ def run_challenge_models(
     # Load data.
     # patient_metadata: str
     patient_metadata = load_challenge_metadata(data_folder, patient_id)
-    recording_files = find_eeg_recording_files(
-        data_folder, patient_id, hour_limit=HOUR_LIMIT
-    )
+    recording_files = find_eeg_recording_files(data_folder, patient_id, hour_limit=HOUR_LIMIT)
     num_recordings = len(recording_files)
 
     if verbose >= 1:
@@ -490,9 +475,7 @@ def run_challenge_models(
     # There are available recordings.
 
     # recording_data: list of 3-tuples (signal, sampling_frequency, channel_names)
-    recording_data = load_challenge_eeg_data(
-        data_folder, patient_id, hour_limit=HOUR_LIMIT, backend="wfdb"
-    )
+    recording_data = load_challenge_eeg_data(data_folder, patient_id, hour_limit=HOUR_LIMIT, backend="wfdb")
     # find recordings whose channels are a superset of the common channels
     valid_indices = [
         idx
@@ -599,20 +582,14 @@ def run_challenge_models(
     #     the list of outcome classes
 
     # Aggregate the CPC predictions.
-    cpc_outputs = np.array(
-        [output.cpc_value for output in main_model_outputs]
-    ).flatten()
+    cpc_outputs = np.array([output.cpc_value for output in main_model_outputs]).flatten()
     cpc = cpc_outputs.mean().item()
 
     # Aggregate the outcome predictions.
-    outcome_outputs = np.concatenate(
-        [output.outcome_output.prob for output in main_model_outputs]
-    )
+    outcome_outputs = np.concatenate([output.outcome_output.prob for output in main_model_outputs])
     outcome_outputs = outcome_outputs.mean(axis=0, keepdims=True)
     # apply softmax to get the probabilities
-    outcome_outputs = np.exp(outcome_outputs) / np.exp(outcome_outputs).sum(
-        axis=1, keepdims=True
-    )
+    outcome_outputs = np.exp(outcome_outputs) / np.exp(outcome_outputs).sum(axis=1, keepdims=True)
     # get the predicted outcome
     outcome = outcome_outputs.argmax(axis=1)[0].item()
     # outcome_probability is the probability of the "Poor" class
@@ -729,9 +706,7 @@ def _to_dtype(data: np.ndarray, dtype: np.dtype = np.float32) -> np.ndarray:
     return data
 
 
-def format_input_signal(
-    raw_signal: np.ndarray, input_channels: Sequence[str]
-) -> np.ndarray:
+def format_input_signal(raw_signal: np.ndarray, input_channels: Sequence[str]) -> np.ndarray:
     """Format the input signal via forming the single-channel raw
     signal to bipolar signal.
 
@@ -751,13 +726,9 @@ def format_input_signal(
     missing_channels = list(set(TrainCfg.common_eeg_channels) - set(input_channels))
     if len(missing_channels) > 0:
         # add missing channels
-        raw_signal = np.concatenate(
-            [raw_signal, np.zeros((len(missing_channels), raw_signal.shape[1]))]
-        )
+        raw_signal = np.concatenate([raw_signal, np.zeros((len(missing_channels), raw_signal.shape[1]))])
         input_channels = list(input_channels) + missing_channels
 
-    diff_inds = [
-        [input_channels.index(item) for item in lst] for lst in EEG_BIPOLAR_CHANNELS
-    ]
+    diff_inds = [[input_channels.index(item) for item in lst] for lst in EEG_BIPOLAR_CHANNELS]
     signal = raw_signal[diff_inds[0]] - raw_signal[diff_inds[1]]
     return signal

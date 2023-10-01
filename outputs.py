@@ -1,16 +1,13 @@
 """
 """
 
-from typing import Optional, Sequence
 from dataclasses import dataclass
+from typing import Optional, Sequence
 
 import numpy as np
-from torch_ecg.components.outputs import (
-    ClassificationOutput,
-)
+from torch_ecg.components.outputs import ClassificationOutput
 
 from cfg import BaseCfg
-
 
 __all__ = [
     "CINC2023Outputs",
@@ -25,8 +22,7 @@ cpc2outcome_map = {
     for k, v in cpc_map_inv.items()
 }  # {0: 0, 1: 0, 2: 1, 3: 1, 4: 1}
 cpc2outcome_map_inv = {
-    v: [k for k, v_ in cpc2outcome_map.items() if v == v_]
-    for v in set(cpc2outcome_map.values())
+    v: [k for k, v_ in cpc2outcome_map.items() if v == v_] for v in set(cpc2outcome_map.values())
 }  # {0: [0, 1], 1: [2, 3, 4]}
 
 

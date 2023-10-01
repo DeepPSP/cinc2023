@@ -5,7 +5,7 @@ Miscellaneous functions.
 import os
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Any, List, Tuple, Union, Iterable, Optional
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -18,8 +18,7 @@ from torch_ecg.utils.misc import get_record_list_recursive3
 from tqdm.auto import tqdm
 
 from cfg import BaseCfg
-from helper_code import load_text_file, get_end_time
-
+from helper_code import get_end_time, load_text_file
 
 __all__ = [
     "load_challenge_eeg_data",
@@ -68,22 +67,16 @@ def load_challenge_eeg_data(
     # Load recordings.
     recording_files = find_eeg_recording_files(data_folder, patient_id, hour_limit)
     recordings = list()
-    with tqdm(
-        recording_files, desc=f"Loading {patient_id} recordings", mininterval=1
-    ) as pbar:
+    with tqdm(recording_files, desc=f"Loading {patient_id} recordings", mininterval=1) as pbar:
         for recording_location in pbar:
             if os.path.exists(recording_location + ".hea"):
-                recording_data, channels, sampling_frequency = load_recording_data(
-                    recording_location, backend=backend
-                )
+                recording_data, channels, sampling_frequency = load_recording_data(recording_location, backend=backend)
                 # utility_frequency = get_utility_frequency(recording_location + ".hea")
                 recordings.append((recording_data, int(sampling_frequency), channels))
     return recordings
 
 
-def find_eeg_recording_files(
-    data_folder: str, patient_id: str, hour_limit: Optional[int] = None
-) -> List[str]:
+def find_eeg_recording_files(data_folder: str, patient_id: str, hour_limit: Optional[int] = None) -> List[str]:
     """Find the EEG recording files.
 
     Parameters
@@ -105,25 +98,15 @@ def find_eeg_recording_files(
     patient_folder = Path(data_folder) / patient_id
     # resolve to avoid comparison fails if `data_folder` is a symlink
     patient_folder = patient_folder.expanduser().resolve()
-    recording_files = get_record_list_recursive3(
-        patient_folder, f"{BaseCfg.recording_pattern}\\.hea", relative=False
-    )
-    recording_files = [
-        fp
-        for fp in recording_files
-        if fp.endswith("EEG") and Path(fp).parent == patient_folder
-    ]
+    recording_files = get_record_list_recursive3(patient_folder, f"{BaseCfg.recording_pattern}\\.hea", relative=False)
+    recording_files = [fp for fp in recording_files if fp.endswith("EEG") and Path(fp).parent == patient_folder]
     if hour_limit is not None:
         end_hours = [
             # get_end_time returns a tuple of (hour, minute, second)
             get_end_time(Path(fp + ".hea").read_text())[0]
             for fp in recording_files
         ]
-        recording_files = [
-            fp
-            for fp, end_hour in zip(recording_files, end_hours)
-            if end_hour < hour_limit
-        ]
+        recording_files = [fp for fp, end_hour in zip(recording_files, end_hours) if end_hour < hour_limit]
     return recording_files
 
 
@@ -269,9 +252,7 @@ def load_recording_data(
     if num_signal_files != 1:
         raise NotImplementedError(
             "The header file {}".format(header_file)
-            + " references {} signal files; one signal file expected.".format(
-                num_signal_files
-            )
+            + " references {} signal files; one signal file expected.".format(num_signal_files)
         )
 
     # Load the signal file.
@@ -289,10 +270,7 @@ def load_recording_data(
     # in the header file.
     num_channels = len(channels)
     if np.shape(data) != (num_channels, num_samples):
-        raise ValueError(
-            "The header file {}".format(header_file)
-            + " is inconsistent with the dimensions of the signal file."
-        )
+        raise ValueError("The header file {}".format(header_file) + " is inconsistent with the dimensions of the signal file.")
 
     # Check that the initial value and checksums in the signal file are consistent with the initial value and checksums in the
     # header file.
@@ -301,16 +279,12 @@ def load_recording_data(
             if data[i, 0] != initial_values[i]:
                 raise ValueError(
                     "The initial value in header file {}".format(header_file)
-                    + " is inconsistent with the initial value for channel {} in the signal data".format(
-                        channels[i]
-                    )
+                    + " is inconsistent with the initial value for channel {} in the signal data".format(channels[i])
                 )
             if np.sum(np.asarray(data[i, :], dtype=np.int16)) != checksums[i]:
                 raise ValueError(
                     "The checksum in header file {}".format(header_file)
-                    + " is inconsistent with the checksum value for channel {} in the signal data".format(
-                        channels[i]
-                    )
+                    + " is inconsistent with the checksum value for channel {} in the signal data".format(channels[i])
                 )
 
     # Convert the signal data to float32 (original data is int16)
@@ -324,9 +298,7 @@ def load_recording_data(
     return rescaled_data, channels, sampling_frequency
 
 
-def get_outcome_from_cpc(
-    cpc_value: Union[int, str, Iterable[Union[int, str]]]
-) -> Union[str, List[str]]:
+def get_outcome_from_cpc(cpc_value: Union[int, str, Iterable[Union[int, str]]]) -> Union[str, List[str]]:
     """Get the outcome from the CPC value.
 
     Parameters
@@ -353,9 +325,7 @@ def get_outcome_from_cpc(
     return outcome
 
 
-def predict_proba_ordered(
-    probs: np.ndarray, classes_: np.ndarray, all_classes: np.ndarray
-) -> np.ndarray:
+def predict_proba_ordered(probs: np.ndarray, classes_: np.ndarray, all_classes: np.ndarray) -> np.ndarray:
     """Workaround for the problem that one can not set explicitly
     the list of classes for models in sklearn.
 
@@ -404,9 +374,7 @@ def url_is_reachable(url: str) -> bool:
         return False
 
 
-def get_leaderboard(
-    by_team: Union[bool, str] = False, sort_by: int = 72
-) -> pd.DataFrame:
+def get_leaderboard(by_team: Union[bool, str] = False, sort_by: int = 72) -> pd.DataFrame:
     """Get the leaderboard of the official phase.
 
     Parameters
@@ -479,7 +447,7 @@ def load_submission_log() -> pd.DataFrame:
 
     """
     path = Path(__file__).parents[1] / "submissions"
-    df_sub_log = pd.DataFrame.from_dict(
-        yaml.safe_load(path.read_text())["Official Phase"], orient="index"
-    ).sort_values("score", ascending=False)
+    df_sub_log = pd.DataFrame.from_dict(yaml.safe_load(path.read_text())["Official Phase"], orient="index").sort_values(
+        "score", ascending=False
+    )
     return df_sub_log

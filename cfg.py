@@ -9,11 +9,10 @@ import numpy as np
 import torch
 from sklearn.model_selection import ParameterGrid
 from torch_ecg.cfg import CFG
-from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths
 from torch_ecg.components.inputs import InputConfig
+from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths
 
 from cfg_models import ModelArchCfg
-
 
 __all__ = [
     "BaseCfg",
@@ -40,12 +39,7 @@ BaseCfg.model_dir = _BASE_DIR / "saved_models"
 BaseCfg.log_dir.mkdir(exist_ok=True)
 BaseCfg.model_dir.mkdir(exist_ok=True)
 BaseCfg.fs = 100
-BaseCfg.recording_pattern = (
-    "(?P<sbj>[\\d]{4})\\_"
-    "(?P<seg>[\\d]{3})\\_"
-    "(?P<hour>[\\d]{3})\\_"
-    "(?P<sig>EEG|ECG|REF|OTHER)"
-)
+BaseCfg.recording_pattern = "(?P<sbj>[\\d]{4})\\_" "(?P<seg>[\\d]{3})\\_" "(?P<hour>[\\d]{3})\\_" "(?P<sig>EEG|ECG|REF|OTHER)"
 # fmt: off
 BaseCfg.common_eeg_channels = [
     "Fp1", "Fp2", "F7", "F8", "F3", "F4", "T3", "T4", "C3", "C4",
@@ -159,9 +153,7 @@ TrainCfg.classification.input_config = InputConfig(
     fs=TrainCfg.classification.fs,
 )
 TrainCfg.classification.num_channels = TrainCfg.classification.input_config.n_channels
-TrainCfg.classification.input_len = int(
-    180 * TrainCfg.classification.fs
-)  # units in seconds, to adjust
+TrainCfg.classification.input_len = int(180 * TrainCfg.classification.fs)  # units in seconds, to adjust
 TrainCfg.classification.siglen = TrainCfg.classification.input_len  # alias
 TrainCfg.classification.sig_slice_tol = None  # None, do no slicing
 
@@ -177,9 +169,7 @@ elif TrainCfg.classification.output_target == "outcome":
 # all EEG data was pre-processed with bandpass filtering (0.5-20Hz, or 0.5-30Hz?)
 # and resampled to 100 Hz.
 TrainCfg.classification.resample = CFG(fs=TrainCfg.classification.fs)
-TrainCfg.classification.bandpass = CFG(
-    lowcut=0.5, highcut=30, filter_type="butter", filter_order=4
-)
+TrainCfg.classification.bandpass = CFG(lowcut=0.5, highcut=30, filter_type="butter", filter_order=4)
 TrainCfg.classification.normalize = CFG(  # None or False for no normalization
     method="z-score",
     mean=0.0,
@@ -257,9 +247,7 @@ for t in TrainCfg.tasks:
     ]:
         if mn not in ModelCfg[t]:
             continue
-        ModelCfg[t][mn] = adjust_cnn_filter_lengths(
-            ModelCfg[t][mn], int(ModelCfg[t].fs * cnn_filter_length_ratio)
-        )
+        ModelCfg[t][mn] = adjust_cnn_filter_lengths(ModelCfg[t][mn], int(ModelCfg[t].fs * cnn_filter_length_ratio))
         ModelCfg[t][mn].cnn.name = ModelCfg[t].cnn_name
         ModelCfg[t][mn].rnn.name = ModelCfg[t].rnn_name
         ModelCfg[t][mn].attn.name = ModelCfg[t].attn_name

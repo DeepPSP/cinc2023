@@ -11,16 +11,15 @@ tmp_data_dir = Path("/home/wenh06/Jupyter/wenhao/data/CinC2023/")
 
 import numpy as np
 import torch
-from torch_ecg.utils.misc import str2bool, dict_to_str
+from torch_ecg.utils.misc import dict_to_str, str2bool
 
-from utils.misc import func_indicator
-from cfg import TrainCfg, ModelCfg, _BASE_DIR
+from cfg import _BASE_DIR, ModelCfg, TrainCfg
+from evaluate_model import evaluate_model
+from run_model import run_model
 
 # from train_model import train_challenge_model
 from team_code import train_challenge_model
-from run_model import run_model
-from evaluate_model import evaluate_model
-
+from utils.misc import func_indicator
 
 # set_entry_test_flag(True)
 
@@ -36,9 +35,7 @@ else:
 TASK = "classification"  # "classification" or "regression", etc.
 
 
-trunc_data_folder = {
-    limit: tmp_data_dir / f"trunc_subset_{limit}" for limit in [12, 24, 48, 72]
-}
+trunc_data_folder = {limit: tmp_data_dir / f"trunc_subset_{limit}" for limit in [12, 24, 48, 72]}
 
 
 @func_indicator("testing challenge entry")

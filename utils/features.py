@@ -7,18 +7,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from helper_code import (
-    get_age,
-    get_sex,
-    get_rosc,
-    get_ohca,
-    # get_vfib,
-    get_shockable_rhythm,
-    get_ttm,
-    get_outcome,
-    get_cpc,
-)
-
+from helper_code import get_age, get_cpc, get_ohca, get_outcome, get_rosc, get_sex, get_shockable_rhythm, get_ttm  # get_vfib,
 
 __all__ = [
     "get_features",
@@ -26,9 +15,7 @@ __all__ = [
 ]
 
 
-def get_features(
-    patient_metadata: str, ret_type: str = "np"
-) -> Union[np.ndarray, pd.DataFrame, dict]:
+def get_features(patient_metadata: str, ret_type: str = "np") -> Union[np.ndarray, pd.DataFrame, dict]:
     """Extract features from the patient metadata.
 
     Adapted from the official repo.
@@ -100,9 +87,7 @@ def get_features(
     return patient_features
 
 
-def get_labels(
-    patient_metadata: str, ret_type: str = "dict"
-) -> Union[np.ndarray, pd.DataFrame, dict]:
+def get_labels(patient_metadata: str, ret_type: str = "dict") -> Union[np.ndarray, pd.DataFrame, dict]:
     """Extract labels from the patient metadata.
 
     Adapted from the official repo.

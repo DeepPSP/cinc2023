@@ -4,7 +4,6 @@ synchronize with the official repo
 
 from pathlib import Path
 
-
 project_dir = Path(__file__).resolve().parent
 official_dir = {
     "baseline": project_dir / "official_baseline_classifier",
@@ -33,10 +32,7 @@ def main():
             dst = project_dir / filename
             if src.read_text() == dst.read_text():
                 continue
-            print(
-                f"Copying **{src.relative_to(project_dir)}** "
-                f"to **{dst.relative_to(project_dir)}**"
-            )
+            print(f"Copying **{src.relative_to(project_dir)}** " f"to **{dst.relative_to(project_dir)}**")
             dst.write_text(src.read_text())
 
 

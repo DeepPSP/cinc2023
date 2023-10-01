@@ -8,28 +8,22 @@ from typing import Union
 
 import numpy as np
 import torch
+from torch.nn.parallel import DataParallel as DP  # DistributedDataParallel as DDP,
 from torch.utils.data import DataLoader
-from torch.nn.parallel import (
-    # DistributedDataParallel as DDP,
-    DataParallel as DP,
-)
 from torch_ecg.cfg import CFG
-from torch_ecg.utils.misc import str2bool, dict_to_str
+from torch_ecg.components.outputs import ClassificationOutput
+from torch_ecg.utils.misc import dict_to_str, str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
-from torch_ecg.components.outputs import (
-    ClassificationOutput,
-)
 
-from utils.scoring_metrics import compute_challenge_metrics
-from utils.misc import func_indicator
-from cfg import TrainCfg, ModelCfg, BaseCfg, _BASE_DIR
+from cfg import _BASE_DIR, BaseCfg, ModelCfg, TrainCfg
 from data_reader import CINC2023Reader
 from dataset import CinC2023Dataset
-from outputs import CINC2023Outputs, cpc2outcome_map
 from models import CRNN_CINC2023
+from outputs import CINC2023Outputs, cpc2outcome_map
 from trainer import CINC2023Trainer, _set_task
 from truncate_data import run as truncate_data_run
-
+from utils.misc import func_indicator
+from utils.scoring_metrics import compute_challenge_metrics
 
 # set_entry_test_flag(True)
 
@@ -47,9 +41,7 @@ else:
     DTYPE = np.float32
 
 
-tmp_data_dir = Path(
-    os.environ.get("revenger_data_dir", _BASE_DIR / "tmp" / "CINC2023")
-).resolve()
+tmp_data_dir = Path(os.environ.get("revenger_data_dir", _BASE_DIR / "tmp" / "CINC2023")).resolve()
 print(f"tmp_data_dir: {str(tmp_data_dir)}")
 tmp_data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -85,15 +77,11 @@ truncated_data_dir = {}
 for limit in [12, 24, 48, 72]:
     truncate_cfg.time_limit = limit
     truncate_cfg.patient_ids = []
-    truncated_data_dir[limit] = str(
-        tmp_model_dir / "truncated_data" / f"CINC2023_{limit}h"
-    )
+    truncated_data_dir[limit] = str(tmp_model_dir / "truncated_data" / f"CINC2023_{limit}h")
     truncate_cfg.output_folder = truncated_data_dir[limit]
     truncate_data_run(truncate_cfg)
 
-tmp_output_dir = Path(
-    os.environ.get("revenger_output_dir", _BASE_DIR / "tmp" / "output")
-).resolve()
+tmp_output_dir = Path(os.environ.get("revenger_output_dir", _BASE_DIR / "tmp" / "output")).resolve()
 
 
 TASK = "classification"
@@ -108,9 +96,7 @@ TASK = "classification"
 
 def echo_write_permission(folder: Union[str, Path]) -> None:
     """ """
-    is_writeable = (
-        "is writable" if os.access(str(folder), os.W_OK) else "is not writable"
-    )
+    is_writeable = "is writable" if os.access(str(folder), os.W_OK) else "is not writable"
     print(f"{str(folder)} {is_writeable}")
 
 
@@ -181,9 +167,7 @@ def test_challenge_metrics() -> None:
 
     # random ground truth
     cpc_gt = np.random.randint(1, len(BaseCfg.cpc) + 1, size=100)
-    outcome_gt = np.array(
-        [cpc2outcome_map[BaseCfg.cpc_map[str(cpc)]] for cpc in cpc_gt]
-    )
+    outcome_gt = np.array([cpc2outcome_map[BaseCfg.cpc_map[str(cpc)]] for cpc in cpc_gt])
     labels = {
         "cpc": cpc_gt,
         "outcome": outcome_gt,
@@ -254,10 +238,11 @@ def test_trainer() -> None:
     print("trainer test passed")
 
 
+from evaluate_model import evaluate_model
+from run_model import run_model
+
 # from train_model import train_challenge_model
 from team_code import train_challenge_model
-from run_model import run_model
-from evaluate_model import evaluate_model
 
 
 @func_indicator("testing challenge entry")
@@ -355,9 +340,7 @@ if __name__ == "__main__":
         #     "please set CINC2023_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test"
         # )
         print("Test is skipped.")
-        print(
-            "Please set CINC2023_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test"
-        )
+        print("Please set CINC2023_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test")
         exit(0)
 
     print("#" * 80)

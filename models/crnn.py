@@ -2,21 +2,18 @@
 """
 
 from copy import deepcopy
-from typing import Union, Optional, Any, Dict
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 import torch
 from torch import Tensor
 from torch_ecg.cfg import CFG
+from torch_ecg.components.outputs import ClassificationOutput
 from torch_ecg.models.ecg_crnn import ECG_CRNN
-from torch_ecg.components.outputs import (
-    ClassificationOutput,
-)
 from torch_ecg.utils import add_docstring
 
 from cfg import ModelCfg
 from outputs import CINC2023Outputs
-
 
 __all__ = ["CRNN_CINC2023"]
 

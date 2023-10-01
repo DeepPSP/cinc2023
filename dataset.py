@@ -5,20 +5,19 @@ import json
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Optional, List, Sequence, Dict
+from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 import torch
 from torch.utils.data.dataset import Dataset
+from torch_ecg._preprocessors import PreprocManager
 from torch_ecg.cfg import CFG, DEFAULTS
 from torch_ecg.utils.misc import ReprMixin, list_sum
 from torch_ecg.utils.utils_data import stratified_train_test_split
-from torch_ecg._preprocessors import PreprocManager
 from tqdm.auto import tqdm
 
 from cfg import BaseCfg, TrainCfg
 from data_reader import CINC2023Reader
-
 
 __all__ = [
     "CinC2023Dataset",
@@ -106,14 +105,10 @@ class CinC2023Dataset(Dataset, ReprMixin):
         self.reader._df_records = self.reader._df_records[condition]
 
         self.reader._all_records = self.reader._df_records.index.tolist()
-        self.reader._df_subjects[
-            self.reader._df_subjects.index.isin(self.reader._df_records.subject)
-        ]
+        self.reader._df_subjects[self.reader._df_subjects.index.isin(self.reader._df_records.subject)]
         self.reader._all_subjects = self.reader._df_subjects.index.tolist()
         self.reader._subject_records = {
-            sbj: self.reader._df_records.loc[
-                self.reader._df_records["subject"] == sbj
-            ].index.tolist()
+            sbj: self.reader._df_records.loc[self.reader._df_records["subject"] == sbj].index.tolist()
             for sbj in self.reader._all_subjects
         }
 
@@ -122,9 +117,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
         ############################################################################
 
         self.subjects = self._train_test_split()
-        self.records = list_sum(
-            [self.reader.subject_records[sbj] for sbj in self.subjects]
-        )
+        self.records = list_sum([self.reader.subject_records[sbj] for sbj in self.subjects])
         if self.training:
             DEFAULTS.RNG.shuffle(self.records)
 
@@ -152,12 +145,8 @@ class CinC2023Dataset(Dataset, ReprMixin):
                 official_start_sec = official_phase_row.start_sec
                 rec_start_sec = unofficial_phase_row.start_sec
                 rec_end_sec = unofficial_phase_row.end_sec
-                self.start_indices.append(
-                    int(rec_fs * (rec_start_sec - official_start_sec))
-                )
-                self.end_indices.append(
-                    int(rec_fs * (rec_end_sec - official_start_sec))
-                )
+                self.start_indices.append(int(rec_fs * (rec_start_sec - official_start_sec)))
+                self.end_indices.append(int(rec_fs * (rec_end_sec - official_start_sec)))
 
         ############################################################################
         # end of workaround
@@ -187,12 +176,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
     def __set_task(self, task: str, lazy: bool) -> None:
         """Set the task and load the data."""
         assert task.lower() in TrainCfg.tasks, f"illegal task \042{task}\042"
-        if (
-            hasattr(self, "task")
-            and self.task == task.lower()
-            and self.cache is not None
-            and len(self.cache["waveforms"]) > 0
-        ):
+        if hasattr(self, "task") and self.task == task.lower() and self.cache is not None and len(self.cache["waveforms"]) > 0:
             return
         self.task = task.lower()
 
@@ -231,13 +215,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
                 tmp_cache.append(self.fdr[idx])
         keys = tmp_cache[0].keys()
         self.__cache = {
-            k: np.concatenate(
-                [
-                    v[k] if v[k].shape == (1,) else v[k][np.newaxis, ...]
-                    for v in tmp_cache
-                ]
-            )
-            for k in keys
+            k: np.concatenate([v[k] if v[k].shape == (1,) else v[k][np.newaxis, ...] for v in tmp_cache]) for k in keys
         }
         # for k in keys:
         #     if self.__cache[k].ndim == 1:
@@ -249,9 +227,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
         """Load all data into memory."""
         self.__set_task(self.task, lazy=False)
 
-    def _train_test_split(
-        self, train_ratio: float = 0.8, force_recompute: bool = False
-    ) -> List[str]:
+    def _train_test_split(self, train_ratio: float = 0.8, force_recompute: bool = False) -> List[str]:
         """Train-test split the subjects."""
         _train_ratio = int(train_ratio * 100)
         _test_ratio = 100 - _train_ratio
@@ -273,9 +249,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
             writable = False
 
         (BaseCfg.project_dir / "utils").mkdir(exist_ok=True)
-        aux_train_file = (
-            BaseCfg.project_dir / "utils" / f"train_ratio_{_train_ratio}.json"
-        )
+        aux_train_file = BaseCfg.project_dir / "utils" / f"train_ratio_{_train_ratio}.json"
         aux_test_file = BaseCfg.project_dir / "utils" / f"test_ratio_{_test_ratio}.json"
 
         if not force_recompute:
@@ -287,16 +261,8 @@ class CinC2023Dataset(Dataset, ReprMixin):
             elif aux_train_file.exists() and aux_test_file.exists():
                 # TODO: remove this workaround after stratified_train_test_split is enhanced
                 # take the intersections of the two splits with self.reader.subjects
-                train_set = list(
-                    set(json.loads(aux_train_file.read_text())).intersection(
-                        self.reader.all_subjects
-                    )
-                )
-                test_set = list(
-                    set(json.loads(aux_test_file.read_text())).intersection(
-                        self.reader.all_subjects
-                    )
-                )
+                train_set = list(set(json.loads(aux_train_file.read_text())).intersection(self.reader.all_subjects))
+                test_set = list(set(json.loads(aux_test_file.read_text())).intersection(self.reader.all_subjects))
                 # and write them to the train_file and test_file if writable
                 if writable:
                     train_file.write_text(json.dumps(train_set, ensure_ascii=False))
@@ -314,15 +280,11 @@ class CinC2023Dataset(Dataset, ReprMixin):
         #         return json.loads(aux_test_file.read_text())
 
         df = self.reader._df_subjects.copy()
-        df.loc[:, "Age"] = (
-            df["Age"].fillna(df["Age"].mean()).astype(int)
-        )  # only one nan
+        df.loc[:, "Age"] = df["Age"].fillna(df["Age"].mean()).astype(int)  # only one nan
         # to age group
         df.loc[:, "Age"] = df["Age"].apply(lambda x: str(20 * (x // 20)))
         for col in ["OHCA", "Shockable Rhythm"]:
-            df.loc[:, col] = df[col].apply(
-                lambda x: 1 if x is True else 0 if x is False else x
-            )
+            df.loc[:, col] = df[col].apply(lambda x: 1 if x is True else 0 if x is False else x)
             df.loc[:, col] = df[col].fillna(-1).astype(int)
             df.loc[:, col] = df[col].astype(int).astype(str)
 
@@ -342,11 +304,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
         train_set = df_train.index.tolist()
         test_set = df_test.index.tolist()
 
-        if (
-            (writable and force_recompute)
-            or not train_file.exists()
-            or not test_file.exists()
-        ):
+        if (writable and force_recompute) or not train_file.exists() or not test_file.exists():
             train_file.write_text(json.dumps(train_set, ensure_ascii=False))
             test_file.write_text(json.dumps(test_set, ensure_ascii=False))
 
@@ -407,20 +365,9 @@ class FastDataReader(ReprMixin, Dataset):
             self.dtype = np.float64
         else:
             self.dtype = np.float32
-        self.aux_target = (
-            "outcome" if self.config[self.task].output_target == "cpc" else "cpc"
-        )
-        self.aux_classes = (
-            BaseCfg.outcome
-            if self.config[self.task].output_target == "cpc"
-            else BaseCfg.cpc
-        )
-        self.hospitals = [
-            self.reader._df_subjects.loc[
-                self.reader._df_records.loc[r, "subject"], "Hospital"
-            ]
-            for r in records
-        ]
+        self.aux_target = "outcome" if self.config[self.task].output_target == "cpc" else "cpc"
+        self.aux_classes = BaseCfg.outcome if self.config[self.task].output_target == "cpc" else BaseCfg.cpc
+        self.hospitals = [self.reader._df_subjects.loc[self.reader._df_records.loc[r, "subject"], "Hospital"] for r in records]
         self.hospitals = [self.config.hospitals.index(h) for h in self.hospitals]
 
     def __len__(self) -> int:
@@ -459,9 +406,7 @@ class FastDataReader(ReprMixin, Dataset):
         out_tensors = {
             "waveforms": waveforms.squeeze(0).astype(self.dtype),
             self.config[self.task].output_target: label.astype(self.dtype),
-            self.aux_target: np.array([self.aux_classes.index(aux_label)]).astype(
-                int
-            ),  # categorical
+            self.aux_target: np.array([self.aux_classes.index(aux_label)]).astype(int),  # categorical
             "hospitals": np.array([self.hospitals[index]]).astype("uint8"),
         }
         return out_tensors
@@ -521,18 +466,12 @@ if __name__ == "__main__":
                 sid = ds.reader.get_subject_id(rec)
                 dst = move_dst / sid
                 dst.mkdir(exist_ok=True, parents=True)
-                metadata_file = ds.reader.get_absolute_path(
-                    sid, extension=ds.reader.ann_ext
-                )
+                metadata_file = ds.reader.get_absolute_path(sid, extension=ds.reader.ann_ext)
                 if not (dst / metadata_file.name).exists():
                     shutil.copy(metadata_file, dst)
-                sig_file = ds.reader.get_absolute_path(
-                    rec, extension=ds.reader.data_ext
-                )
+                sig_file = ds.reader.get_absolute_path(rec, extension=ds.reader.data_ext)
                 if not (dst / sig_file.name).exists():
                     shutil.copy(sig_file, dst)
-                header_file = ds.reader.get_absolute_path(
-                    rec, extension=ds.reader.header_ext
-                )
+                header_file = ds.reader.get_absolute_path(rec, extension=ds.reader.header_ext)
                 if not (dst / header_file.name).exists():
                     shutil.copy(header_file, dst)

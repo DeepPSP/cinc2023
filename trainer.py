@@ -1,42 +1,31 @@
 """
 """
 
+import argparse
 import os
 import sys
-import argparse
 import textwrap
 from copy import deepcopy
-from typing import Any, Optional, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import Dataset, DataLoader
-from torch.nn.parallel import (  # noqa: F401
-    DistributedDataParallel as DDP,
-    DataParallel as DP,
-)  # noqa: F401
+from torch.nn.parallel import DataParallel as DP
+from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
+from torch.utils.data import DataLoader, Dataset
+from torch_ecg.augmenters import AugmenterManager
 from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
-from torch_ecg.augmenters import AugmenterManager
+from torch_ecg.models.loss import AsymmetricLoss, BCEWithLogitsWithClassWeightLoss, FocalLoss, MaskedBCEWithLogitsLoss
 from torch_ecg.utils.misc import str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
-from torch_ecg.models.loss import (
-    AsymmetricLoss,
-    BCEWithLogitsWithClassWeightLoss,
-    FocalLoss,
-    MaskedBCEWithLogitsLoss,
-)
 from tqdm.auto import tqdm
 
-from models import (
-    CRNN_CINC2023,
-    # TODO: implement and add more models
-)
-from cfg import TrainCfg, ModelCfg
+from cfg import ModelCfg, TrainCfg
 from dataset import CinC2023Dataset
+from models import CRNN_CINC2023  # TODO: implement and add more models
 from utils.scoring_metrics import compute_challenge_metrics
-
 
 __all__ = [
     "CINC2023Trainer",
@@ -176,23 +165,14 @@ class CINC2023Trainer(BaseTrainer):
 
     def _setup_augmenter_manager(self) -> None:
         """ """
-        self.augmenter_manager = AugmenterManager.from_config(
-            config=self.train_config[self.train_config.task]
-        )
+        self.augmenter_manager = AugmenterManager.from_config(config=self.train_config[self.train_config.task])
 
     def _setup_criterion(self) -> None:
         """ """
-        loss_kw = (
-            self.train_config[self.train_config.task]
-            .get("loss_kw", {})
-            .get(self._criterion_key, {})
-        )
+        loss_kw = self.train_config[self.train_config.task].get("loss_kw", {}).get(self._criterion_key, {})
         if self.train_config.loss[self._criterion_key] == "BCEWithLogitsLoss":
             self.criterion = nn.BCEWithLogitsLoss(**loss_kw)
-        elif (
-            self.train_config.loss[self._criterion_key]
-            == "BCEWithLogitsWithClassWeightLoss"
-        ):
+        elif self.train_config.loss[self._criterion_key] == "BCEWithLogitsWithClassWeightLoss":
             self.criterion = BCEWithLogitsWithClassWeightLoss(**loss_kw)
         elif self.train_config.loss[self._criterion_key] == "BCELoss":
             self.criterion = nn.BCELoss(**loss_kw)
@@ -224,11 +204,7 @@ class CINC2023Trainer(BaseTrainer):
             the progress bar for training
 
         """
-        if (
-            self.train_config.reload_data_every > 0
-            and self.epoch > 0
-            and self.epoch % self.train_config.reload_data_every == 0
-        ):
+        if self.train_config.reload_data_every > 0 and self.epoch > 0 and self.epoch % self.train_config.reload_data_every == 0:
             self.log_manager.log_message(f"Reloading data at epoch {self.epoch}...")
             # reload data of the `Dataset` instances
             self.train_loader.dataset.empty_cache()
@@ -248,10 +224,7 @@ class CINC2023Trainer(BaseTrainer):
             # "outcome" (optional): the outcome labels, for classification task
 
             # move input_tensors to device
-            input_tensors = {
-                k: v.to(device=self.device, dtype=self.dtype)
-                for k, v in input_tensors.items()
-            }
+            input_tensors = {k: v.to(device=self.device, dtype=self.dtype) for k, v in input_tensors.items()}
 
             # out_tensors is a dict of tensors, with the following items (some are optional):
             # - "cpc": the cpc predictions, of shape (batch_size, n_classes) or (batch_size,)
@@ -269,9 +242,7 @@ class CINC2023Trainer(BaseTrainer):
             )
 
             if self.train_config.flooding_level > 0:
-                flood = (
-                    loss - self.train_config.flooding_level
-                ).abs() + self.train_config.flooding_level
+                flood = (loss - self.train_config.flooding_level).abs() + self.train_config.flooding_level
                 self.epoch_loss += loss.item()
                 self.optimizer.zero_grad()
                 flood.backward()
@@ -308,9 +279,7 @@ class CINC2023Trainer(BaseTrainer):
                 )
             pbar.update(n_samples)
 
-    def run_one_step(
-        self, input_tensors: Dict[str, torch.Tensor]
-    ) -> Dict[str, torch.Tensor]:
+    def run_one_step(self, input_tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Run one step (batch) of training
 
         Parameters
@@ -331,9 +300,7 @@ class CINC2023Trainer(BaseTrainer):
         """
         waveforms = input_tensors.pop("waveforms").to(self.device)
         input_tensors = {k: v.to(self.device) for k, v in input_tensors.items()}
-        waveforms, input_tensors[self._criterion_key] = self.augmenter_manager(
-            waveforms, input_tensors[self._criterion_key]
-        )
+        waveforms, input_tensors[self._criterion_key] = self.augmenter_manager(waveforms, input_tensors[self._criterion_key])
         out_tensors = self.model(waveforms, input_tensors)
         return out_tensors
 
@@ -368,10 +335,7 @@ class CINC2023Trainer(BaseTrainer):
             log_head_num = 5
             head_scalar_preds = all_outputs[0].cpc_output.prob[:log_head_num]
             head_bin_preds = all_outputs[0].cpc_output.bin_pred[:log_head_num]
-            head_preds_classes = [
-                np.array(all_outputs[0].cpc_output.classes)[np.where(row)[0]]
-                for row in head_bin_preds
-            ]
+            head_preds_classes = [np.array(all_outputs[0].cpc_output.classes)[np.where(row)[0]] for row in head_bin_preds]
             head_labels = all_labels[0]["cpc"][:log_head_num]
             head_labels_classes = [
                 np.array(all_outputs[0].cpc_output.classes)[np.where(row)]
