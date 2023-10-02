@@ -1278,7 +1278,7 @@ class CINC2023Reader(PhysioNetDataBase):
         overwrite: bool = False,
         dropna: bool = True,
         **kwargs: Any,
-    ) -> pd.DataFrame:
+    ) -> Union[pd.DataFrame, dict, str]:
         """Generate the risk table of the poor outcome with respect to
         the categorical metadata features.
 
@@ -1304,6 +1304,11 @@ class CINC2023Reader(PhysioNetDataBase):
             Type (computation method) of the confidence interval of the difference.
             For a full list of the available methods, see
             :func:`diff_binom_confint.list_difference_confidence_interval_methods`.
+        save_path : str or pathlib.Path, optional
+            Path to save the risk table.
+            If is None, the risk table will not be saved.
+        return_type : {"pd", "dict", "latex", "md", "markdown", "html"}, default "pd"
+            The type of the returned risk table.
         dropna: bool, default True
             Whether to drop missing values (column-wise).
         kwargs : dict, optional
@@ -1312,7 +1317,7 @@ class CINC2023Reader(PhysioNetDataBase):
 
         Returns
         -------
-        df_diff : pandas.DataFrame
+        df_diff : pandas.DataFrame or dict or str
             The confidence interval of the difference of the outcome
             between the groups of the feature `col`.
 
