@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import scipy.signal as SS
 import wfdb
-from diff_binom_confint import compute_confidence_interval, compute_difference_confidence_interval
+from diff_binom_confint import make_risk_report
 from torch_ecg.cfg import DEFAULTS
 from torch_ecg.databases.base import DataBaseInfo, PhysioNetDataBase
 from torch_ecg.utils.download import _untar_file, _unzip_file, http_get
@@ -1317,7 +1317,7 @@ class CINC2023Reader(PhysioNetDataBase):
 
         Returns
         -------
-        df_diff : pandas.DataFrame or dict or str
+        risk_table : pandas.DataFrame or dict or str
             The confidence interval of the difference of the outcome
             between the groups of the feature `col`.
 
@@ -1340,7 +1340,6 @@ class CINC2023Reader(PhysioNetDataBase):
             "OHCA": "Yes",
             "Shockable Rhythm": "Yes",
         }
-        ref_indicator = " (Ref.)"
 
         df_data = self._df_subjects.copy()
         # fill empty values with "NA"
@@ -1350,146 +1349,24 @@ class CINC2023Reader(PhysioNetDataBase):
         df_data["Shockable Rhythm"] = df_data["Shockable Rhythm"].map({True: "Yes", False: "No", "NA": "NA"})
         df_data = df_data[[target_col] + feature_cols]
 
-        rows = []
-        ret_dict = {}
+        if not overwrite and save_path is not None and Path(save_path).exists():
+            save_path = None
 
-        # row 1 - 2
-        rows.extend(
-            [
-                [
-                    "Feature",
-                    "",
-                    "Affected",
-                    "",
-                    "Poor Outcome Risk (95% CI)",
-                    "",
-                    "Poor Outcome Risk Difference (95% CI)",
-                ],
-                ["", "", "n", "%", "n", "%", ""],
-            ]
+        risk_table = make_risk_report(
+            data_source=df_data,
+            target=target_col,
+            positive_class=positive_class,
+            ref_classes=ref_groups,
+            risk_name="Poor Outcome",
+            conf_level=conf_level,
+            method=method,
+            diff_method=diff_method,
+            dropna=dropna,
+            save_path=save_path,
+            return_type=return_type,
         )
 
-        # row 3: overall statitics
-        n_positive = df_data[df_data[target_col] == positive_class].shape[0]
-        rows.append(
-            [
-                "Total",
-                "",
-                f"{len(df_data)}",
-                "100%",
-                f"{n_positive}",
-                f"{n_positive / len(df_data):.1%}",
-                "-",
-            ]
-        )
-
-        feature_classes = {col: sorted(df_data[col].unique().tolist()) for col in feature_cols}
-        # put ref item at the beginning
-        for col in feature_cols:
-            ref_item = ref_groups[col]
-            feature_classes[col].remove(ref_item)
-            feature_classes[col].insert(0, ref_item)
-
-        # the categorical metadata features
-        for col in feature_cols:
-            n_affected = {item: df_data[df_data[col] == item].shape[0] for item in feature_classes[col]}
-            n_positive = {
-                item: df_data[(df_data[col] == item) & (df_data[target_col] == positive_class)].shape[0]
-                for item in feature_classes[col]
-            }
-            poor_outcome_risk = {}
-            ref_item = ref_groups[col]
-            for item in feature_classes[col]:
-                poor_outcome_risk[item] = {
-                    "risk": n_positive[item] / n_affected[item],
-                    "confidence_interval": compute_confidence_interval(
-                        n_positive[item], n_affected[item], conf_level, method
-                    ).astuple(),
-                }
-            poor_outcome_risk_diff = {}
-            for item in feature_classes[col]:
-                if item == ref_item:
-                    poor_outcome_risk_diff[f"{item} (Ref.)"] = {
-                        "risk_difference": 0,
-                        "confidence_interval": (0, 0),
-                    }
-                    continue
-                poor_outcome_risk_diff[item] = {
-                    "risk_difference": poor_outcome_risk[item]["risk"] - poor_outcome_risk[ref_item]["risk"],
-                    "confidence_interval": compute_difference_confidence_interval(
-                        n_positive[item],
-                        n_affected[item],
-                        n_positive[ref_item],
-                        n_affected[ref_item],
-                        conf_level,
-                        method,
-                        **kwargs,
-                    ).astuple(),
-                }
-
-            rows.append([col, "", "", "", "", "", ""])
-            ret_dict[col] = {}
-            for item in feature_classes[col]:
-                if dropna and item == "NA":
-                    continue
-                rows.append(
-                    [
-                        "",
-                        item,
-                        f"{n_affected[item]}",
-                        f"{n_affected[item] / len(df_data):.1%}",
-                        f"{n_positive[item]}",
-                        f"{poor_outcome_risk[item]['risk']:.1%} (from {poor_outcome_risk[item]['confidence_interval'][0]:.1%} to {poor_outcome_risk[item]['confidence_interval'][1]:.1%})",
-                        f"{poor_outcome_risk_diff[item]['risk_difference']:.1%} (from {poor_outcome_risk_diff[item]['confidence_interval'][0]:.1%} to {poor_outcome_risk_diff[item]['confidence_interval'][1]:.1%})"
-                        if item != ref_item
-                        else "REF",
-                    ]
-                )
-                ret_dict[col][item + (ref_indicator if item == ref_item else "")] = {
-                    "Affected": {
-                        "n": n_affected[item],
-                        "percent": n_affected[item] / len(df_data),
-                    },
-                    "Poor Outcome Risk": {
-                        "n": n_positive[item],
-                        "percent": poor_outcome_risk[item]["risk"],
-                        "confidence_interval": poor_outcome_risk[item]["confidence_interval"],
-                    },
-                    "Poor Outcome Risk Difference": {
-                        "risk_difference": poor_outcome_risk_diff[item]["risk_difference"] if item != ref_item else 0,
-                        "confidence_interval": poor_outcome_risk_diff[item]["confidence_interval"]
-                        if item != ref_item
-                        else (0, 0),
-                    },
-                }
-
-        df = pd.DataFrame(rows)
-
-        if save_path is not None:
-            save_path = Path(save_path)
-
-        if save_path is not None and (not save_path.is_file() or overwrite):
-            df.to_csv(save_path.with_suffix(".csv"), index=False, header=False)
-            df.to_excel(save_path.with_suffix(".xlsx"), index=False, header=False)
-
-        if return_type.lower() == "pd":
-            return df
-        elif return_type.lower() == "latex":
-            rows = [line.replace("%", r"\%") for line in df.to_latex(header=False, index=False).splitlines()]
-            rows[0] = r"\begin{tabular}{@{\extracolsep{6pt}}lllllll@{}}"
-            rows[
-                2
-            ] = r"\multicolumn{2}{l}{Feature} & \multicolumn{2}{l}{Affected} & \multicolumn{2}{l}{Poor Outcome Risk ($95\%$ CI)} & Poor Outcome Risk Difference  ($95\%$ CI) \\ \cline{1-2}\cline{3-4}\cline{5-6}\cline{7-7}"
-            ret_lines = "\n".join(rows)
-            if save_path is not None and (not save_path.with_suffix(".tex").is_file() or overwrite):
-                save_path.with_suffix(".tex").write_text(ret_lines)
-            return ret_lines
-        elif return_type.lower() in ["md", "markdown"]:
-            return df.to_markdown(index=False)
-        elif return_type.lower() == "html":
-            return df.to_html(index=False)
-        elif return_type.lower() == "dict":
-            return ret_dict
+        return risk_table
 
     def download(self, full: bool = True) -> None:
         """Download the database from PhysioNet or Google Drive."""
