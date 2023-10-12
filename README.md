@@ -18,7 +18,19 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 ## The Conference
 
 [Conference Website](https://cinc2023.org/) |
-[Official Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vTa94VmPIbywGJEBYjNkzJiGZuPLaajzPIZpoxsi12_X5DF66ccUFB6Qi3U41UEpVu2q1rzTF7nlSpY/pubhtml?gid=0&widget=true&headers=false)
+[Official Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vTa94VmPIbywGJEBYjNkzJiGZuPLaajzPIZpoxsi12_X5DF66ccUFB6Qi3U41UEpVu2q1rzTF7nlSpY/pubhtml?gid=0&widget=true&headers=false) | [Final Results](https://moody-challenge.physionet.org/2023/results/)
+
+Final results collecting:
+
+```python
+from utils.gather_results import gather_results
+
+td = get_team_digest("Revenger")  # overall digest
+
+# a smaller part of the overall digest, in the format of a latex table
+# Challenge Score will always be included in the table in the front rows
+td = get_team_digest("Revenger", fmt="tex", hour_limits=[72, 48, 24], targets=["CPC"], metrics=["MAE"])
+```
 
 <details>
 <summary>Click to view the leaderboard</summary>
