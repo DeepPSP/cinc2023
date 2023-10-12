@@ -339,8 +339,8 @@ def get_team_digest(
         for hour in hour_limits:
             new_row.extend(
                 [
-                    get_score(team_name, hour, latest=latest),
-                    get_ranking(team_name, hour, latest=latest),
+                    get_score(team_name, hour, latest=latest, evaluated_set=es),
+                    get_ranking(team_name, hour, latest=latest, evaluated_set=es),
                 ]
             )
         rows.append(new_row)
