@@ -294,6 +294,8 @@ def get_team_digest(
 ) -> Union[str, pd.DataFrame]:
     """Get the digest of a team in the final results table.
 
+    Note that the Challenge Score will always be included in the table in the front rows
+
     Parameters
     ----------
     team_name : str
@@ -387,6 +389,10 @@ def get_team_digest(
                 multi_index_arr3.append(es)
 
     df = pd.DataFrame(rows, dtype=str)
+    # fill NA for unofficial results
+    # and replace cells with values "unofficial" with "-"
+    df = df.fillna("NA")
+    df = df.replace("unofficial", "-")
 
     # set multi-column for df
     df.columns = pd.MultiIndex.from_product([[f"{hour}h after ROSC" for hour in hour_limits], ["Score", "Rank"]])
