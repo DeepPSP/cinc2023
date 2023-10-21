@@ -20,6 +20,15 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 [Conference Website](https://cinc2023.org/) |
 [Official Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vTa94VmPIbywGJEBYjNkzJiGZuPLaajzPIZpoxsi12_X5DF66ccUFB6Qi3U41UEpVu2q1rzTF7nlSpY/pubhtml?gid=0&widget=true&headers=false) | [Final Results](https://moody-challenge.physionet.org/2023/results/)
 
+The table of final results of the team:
+
+<details>
+<summary>Click to view the table of final results</summary>
+
+  <img src="images/Revenger-team-digest.svg" alt="Table of Final Results" width="500"/>
+
+</details>
+
 Final results collecting:
 
 ```python
