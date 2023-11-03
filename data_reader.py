@@ -1189,10 +1189,10 @@ class CINC2023Reader(PhysioNetDataBase):
 
         # sns.set()
         sns.set_theme(style="white")  # darkgrid, whitegrid, dark, white, ticks
-        plt.rcParams["xtick.labelsize"] = 26
-        plt.rcParams["ytick.labelsize"] = 26
-        plt.rcParams["axes.labelsize"] = 28
-        plt.rcParams["legend.fontsize"] = 22
+        plt.rcParams["xtick.labelsize"] = 30
+        plt.rcParams["ytick.labelsize"] = 30
+        plt.rcParams["axes.labelsize"] = 34
+        plt.rcParams["legend.fontsize"] = 23
         plt.rcParams["hatch.linewidth"] = 3.5
 
         colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
@@ -1225,7 +1225,7 @@ class CINC2023Reader(PhysioNetDataBase):
         plot_ylim = int(1.1 * max(len(df_) for _, df_ in df_stats.groupby(target)))
         plot_kw = dict(
             kind="bar",
-            figsize=(8, 7),
+            figsize=(8, 7.2),
             ylabel="Number of Patients (n.u.)",
             stacked=True,
             rot=0,
