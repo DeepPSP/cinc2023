@@ -55,6 +55,8 @@ td = get_team_digest("Revenger", fmt="tex", hour_limits=[72, 48, 24], targets=["
 
 </details>
 
+Conference paper: [GitHub](https://github.com/wenh06/cinc2023_paper) | [IEEE Xplore](https://ieeexplore.ieee.org/document/103640147) | \[CinC Papers On-line\](to be added)
+
 :point_right: [Back to TOC](#cinc2023)
 
 ## Description of the files/folders(modules)
