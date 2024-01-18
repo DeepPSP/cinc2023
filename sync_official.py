@@ -6,7 +6,7 @@ from pathlib import Path
 
 project_dir = Path(__file__).resolve().parent
 official_dir = {
-    "baseline": project_dir / "official_baseline_classifier",
+    "baseline": project_dir / "official_baseline",
     "scoring": project_dir / "official_scoring_metric",
 }
 
