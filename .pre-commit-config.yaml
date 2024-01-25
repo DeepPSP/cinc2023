@@ -1,5 +1,5 @@
 # ignore svg, txt, json, html files and the folders utils/artifact_pipeline, final_results
-exclude: '^.*\.(svg|txt|json|html)$|utils/artifact_pipeline|final_results'
+exclude: '^.*\.(svg|txt|json|html)$|final_results|build|dist|official_baseline|official_scoring_metric|utils\/artifact_pipeline|helper_code\.py|run_model\.py|train_model\.py|evaluate_model\.py|remove_data\.py|remove_labels\.py|truncate_data\.py|\.ipynb_checkpoints|fast-test.*\.ipynb'
 fail_fast: false
 
 repos:
@@ -12,7 +12,7 @@ repos:
     rev: 23.12.1
     hooks:
       - id: black
-        args: [--line-length=128, --exclude="/(build|dist|official_baseline|official_scoring_metric)/|/(utils/artifact_pipeline)/|helper_code\.py|run_model\.py|train_model\.py|evaluate_model\.py|remove_data\.py|remove_labels\.py|truncate_data\.py|\.ipynb_checkpoints|fast-test.*\.ipynb", --verbose]
+        args: [--line-length=128, --verbose]
   - repo: https://github.com/PyCQA/flake8
     rev: 5.0.4
     hooks:

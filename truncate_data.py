@@ -1,25 +1,18 @@
 #!/usr/bin/env python
 
 # Load libraries.
-import argparse
-import os
-import os.path
-import shutil
-import sys
-
+import os, os.path, sys, shutil, argparse
 from helper_code import *
-
 
 # Parse arguments.
 def get_parser():
-    description = "Truncate recordings to the provided time limit (in hours)."
+    description = 'Truncate recordings to the provided time limit (in hours).'
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("-i", "--input_folder", type=str, required=True)
-    parser.add_argument("-p", "--patient_ids", nargs="*", type=str, required=False, default=[])
-    parser.add_argument("-t", "--time_limit", type=float, required=True)
-    parser.add_argument("-o", "--output_folder", type=str, required=True)
+    parser.add_argument('-i', '--input_folder', type=str, required=True)
+    parser.add_argument('-p', '--patient_ids', nargs='*', type=str, required=False, default=[])
+    parser.add_argument('-t', '--time_limit', type=float, required=True)
+    parser.add_argument('-o', '--output_folder', type=str, required=True)
     return parser
-
 
 # Run script.
 def run(args):
@@ -43,13 +36,13 @@ def run(args):
             os.makedirs(output_path, exist_ok=True)
 
             # Copy the patient metadata file.
-            input_patient_metadata_file = os.path.join(input_path, patient_id + ".txt")
-            output_patient_metadata_file = os.path.join(output_path, patient_id + ".txt")
+            input_patient_metadata_file = os.path.join(input_path, patient_id + '.txt')
+            output_patient_metadata_file = os.path.join(output_path, patient_id + '.txt')
             shutil.copy(input_patient_metadata_file, output_patient_metadata_file)
 
             # Copy the WFDB header and signal files for records that end before the end time.
             for filename in os.listdir(input_path):
-                if not filename.startswith(".") and filename.endswith(".hea"):
+                if not filename.startswith('.') and filename.endswith('.hea'):
                     header_file = filename
                     input_header_file = os.path.join(input_path, header_file)
                     output_header_file = os.path.join(output_path, header_file)
@@ -61,9 +54,9 @@ def run(args):
                     # If end time for a recording is before the time limit, then copy the recording.
                     if end_time < time_limit:
                         signal_files = set()
-                        for i, l in enumerate(header_text.split("\n")):
-                            arrs = [arr.strip() for arr in l.split(" ")]
-                            if i > 0 and not l.startswith("#") and len(arrs) > 0 and len(arrs[0]) > 0:
+                        for i, l in enumerate(header_text.split('\n')):
+                            arrs = [arr.strip() for arr in l.split(' ')]
+                            if i > 0 and not l.startswith('#') and len(arrs) > 0 and len(arrs[0]) > 0:
                                 signal_file = arrs[0]
                                 signal_files.add(signal_file)
 
@@ -77,15 +70,12 @@ def run(args):
 
                     # If the start time is before the time limit and the end time is after the time limit, then truncate the recording.
                     elif start_time < time_limit and end_time >= time_limit:
-                        record_name = header_text.split(" ")[0]
-                        raise NotImplementedError(
-                            "Part (but not all) of record {} exceeds the end time.".format(record_name)
-                        )  # All of the files in the dataset end on the hour.
+                        record_name = header_text.split(' ')[0]
+                        raise NotImplementedError('Part (but not all) of record {} exceeds the end time.'.format(record_name)) # All of the files in the dataset end on the hour.
 
                     # If the start time is after the time limit, then do not copy or truncate the recording.
                     elif start_time >= time_limit:
                         pass
 
-
-if __name__ == "__main__":
+if __name__=='__main__':
     run(get_parser().parse_args(sys.argv[1:]))

@@ -40,7 +40,6 @@ trunc_data_folder = {limit: tmp_data_dir / f"trunc_subset_{limit}" for limit in 
 
 @func_indicator("testing challenge entry")
 def test_entry():
-
     # data_folder = str(tmp_data_dir / "training_subset")  # subset
     data_folder = tmp_data_dir / "training"  # full set
     train_challenge_model(str(data_folder), str(TrainCfg.model_dir), verbose=2)

@@ -374,7 +374,11 @@ class ML_Classifier_CINC2023(object):
         if cv is None:
             msg = "Performing grid search with no cross validation."
             self.logger_manager.log_message(msg)
-            (self.best_clf, self.best_params, self.best_score,) = self._perform_grid_search_no_cv(
+            (
+                self.best_clf,
+                self.best_params,
+                self.best_score,
+            ) = self._perform_grid_search_no_cv(
                 model_name,
                 self.config.grids[model_name],
                 self.X_train,
@@ -398,7 +402,11 @@ class ML_Classifier_CINC2023(object):
         else:
             msg = f"Performing grid search with {cv}-fold cross validation."
             self.logger_manager.log_message(msg)
-            (self.best_clf, self.best_params, self.best_score,) = self._perform_grid_search_cv(
+            (
+                self.best_clf,
+                self.best_params,
+                self.best_score,
+            ) = self._perform_grid_search_cv(
                 model_name,
                 self.config.grids[model_name],
                 self.X_train,
