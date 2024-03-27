@@ -598,7 +598,12 @@ class CINC2023Reader(PhysioNetDataBase):
         fs: Optional[int] = None,
         return_fs: bool = False,
         return_channels: bool = False,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, Real], Tuple[np.ndarray, List[str]], Tuple[np.ndarray, Real, List[str]],]:
+    ) -> Union[
+        np.ndarray,
+        Tuple[np.ndarray, Real],
+        Tuple[np.ndarray, List[str]],
+        Tuple[np.ndarray, Real, List[str]],
+    ]:
         """Load EEG data from the record.
 
         Parameters

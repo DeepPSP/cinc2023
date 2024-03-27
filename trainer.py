@@ -338,9 +338,11 @@ class CINC2023Trainer(BaseTrainer):
             head_preds_classes = [np.array(all_outputs[0].cpc_output.classes)[np.where(row)[0]] for row in head_bin_preds]
             head_labels = all_labels[0]["cpc"][:log_head_num]
             head_labels_classes = [
-                np.array(all_outputs[0].cpc_output.classes)[np.where(row)]
-                if head_labels.ndim == 2
-                else np.array(all_outputs[0].cpc_output.classes)[row]
+                (
+                    np.array(all_outputs[0].cpc_output.classes)[np.where(row)]
+                    if head_labels.ndim == 2
+                    else np.array(all_outputs[0].cpc_output.classes)[row]
+                )
                 for row in head_labels
             ]
             log_head_num = min(log_head_num, len(head_scalar_preds))

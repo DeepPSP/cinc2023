@@ -25,7 +25,7 @@ jobs:
   build:
     if: contains(fromJson('["wenh06", "kjs11", "DeepPSP"]'), github.repository_owner)
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
   test:
     if: contains(fromJson('["wenh06", "kjs11", "DeepPSP"]'), github.repository_owner)
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
