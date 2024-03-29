@@ -19,30 +19,29 @@ __all__ = ["CRNN_CINC2023"]
 
 
 class CRNN_CINC2023(ECG_CRNN):
-    """ """
+    """CRNN model for CINC2023.
+
+    Parameters
+    ----------
+    config : dict
+        Hyper-parameters, including kernel sizes, etc.
+        ref. the corresponding config file.
+
+    Usage
+    -----
+    ```python
+    from cfg import ModelCfg
+    task = "classification"
+    model_cfg = deepcopy(ModelCfg[task])
+    model = ECG_CRNN_CINC2023(model_cfg)
+    ````
+
+    """
 
     __DEBUG__ = True
     __name__ = "CRNN_CINC2023"
 
     def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> None:
-        """
-
-        Parameters
-        ----------
-        config : dict
-            hyper-parameters, including kernel sizes, etc.
-            ref. the corresponding config file
-
-        Usage
-        -----
-        ```python
-        from cfg import ModelCfg
-        task = "classification"
-        model_cfg = deepcopy(ModelCfg[task])
-        model = ECG_CRNN_CINC2023(model_cfg)
-        ````
-
-        """
         if config is None:
             _config = deepcopy(ModelCfg.classification)
         else:
@@ -59,7 +58,7 @@ class CRNN_CINC2023(ECG_CRNN):
         waveforms: Tensor,
         labels: Optional[Dict[str, Tensor]] = None,
     ) -> Dict[str, Tensor]:
-        """
+        """Forward function of the model.
 
         Parameters
         ----------
@@ -89,7 +88,7 @@ class CRNN_CINC2023(ECG_CRNN):
 
     @torch.no_grad()
     def inference(self, waveforms: Union[np.ndarray, Tensor]) -> CINC2023Outputs:
-        """auxiliary function to `forward`, for CINC2023,
+        """Auxiliary function to `forward`, for CINC2023.
 
         Parameters
         ----------

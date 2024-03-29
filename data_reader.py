@@ -120,7 +120,7 @@ class CINC2023Reader(PhysioNetDataBase):
     """
     Parameters
     ----------
-    db_dir : str or pathlib.Path
+    db_dir : `path-like`
         Local storage path of the database.
     fs : int, default 100
         (Re-)sampling frequency of the recordings.
@@ -134,7 +134,7 @@ class CINC2023Reader(PhysioNetDataBase):
         Valid if `eeg_bipolar_channels` is None.
         If both `eeg_bipolar_channels` and `eeg_reference_channel` are None,
         `self.default_eeg_bipolar_channels` will be used.
-    working_dir : str, optional
+    working_dir : `path-like`, optional
         Working directory, to store intermediate files and log files.
     hour_limit : int, optional
         If not None, only the recordings recorded within the first
@@ -186,12 +186,12 @@ class CINC2023Reader(PhysioNetDataBase):
 
     def __init__(
         self,
-        db_dir: str,
+        db_dir: Union[str, bytes, os.PathLike],
         fs: int = 100,
         backend: str = "wfdb",
         eeg_bipolar_channels: Optional[List[str]] = None,
         eeg_reference_channel: Optional[str] = None,
-        working_dir: Optional[str] = None,
+        working_dir: Optional[Union[str, bytes, os.PathLike]] = None,
         hour_limit: Optional[int] = None,
         verbose: int = 2,
         **kwargs: Any,
