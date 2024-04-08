@@ -73,19 +73,19 @@ def compute_challenge_metrics(
     dict
         A dict of the following metrics:
             - outcome_score: float,
-            the Challenge score for the outcome predictions
+              the Challenge score for the outcome predictions
             - outcome_auroc: float,
-            the macro-averaged area under the receiver operating characteristic curve for the outcome predictions
+              the macro-averaged area under the receiver operating characteristic curve for the outcome predictions
             - outcome_auprc: float,
-            the macro-averaged area under the precision-recall curve for the outcome predictions
+              the macro-averaged area under the precision-recall curve for the outcome predictions
             - outcome_f_measure: float,
-            the macro-averaged F-measure for the outcome predictions
+              the macro-averaged F-measure for the outcome predictions
             - outcome_accuracy: float,
-            the accuracy for the outcome predictions
+              the accuracy for the outcome predictions
             - cpc_mse: float,
-            the mean squared error for the cpc predictions
+              the mean squared error for the cpc predictions
             - cpc_mae: float,
-            the mean absolute error for the cpc predictions
+              the mean absolute error for the cpc predictions
 
     NOTE
     ----

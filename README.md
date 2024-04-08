@@ -18,7 +18,8 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 ## The Conference
 
 [Conference Website](https://cinc2023.org/) |
-[Official Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vTa94VmPIbywGJEBYjNkzJiGZuPLaajzPIZpoxsi12_X5DF66ccUFB6Qi3U41UEpVu2q1rzTF7nlSpY/pubhtml?gid=0&widget=true&headers=false) | [Final Results](https://moody-challenge.physionet.org/2023/results/)
+[Official Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vTa94VmPIbywGJEBYjNkzJiGZuPLaajzPIZpoxsi12_X5DF66ccUFB6Qi3U41UEpVu2q1rzTF7nlSpY/pubhtml?gid=0&widget=true&headers=false) |
+[Final Results](https://moody-challenge.physionet.org/2023/results/)
 
 The table of final results of the team:
 
@@ -73,10 +74,10 @@ Conference paper: [GitHub](https://github.com/wenh06/cinc2023_paper) | [IEEE Xpl
 - [Dockerfile](Dockerfile): docker file for building the docker image for submissions.
 - [evaluate_model.py](evaluate_model.py), [helper_code.py](helper_code.py), [remove_data.py](remove_data.py), [remove_labels.py](remove_labels.py), [run_model.py](run_model.py), [train_model.py](train_model.py), [truncate_data.py](truncate_data.py): scripts inherited from the [official baseline](https://github.com/physionetchallenges/python-example-2023.git) and [official scoring code](https://github.com/physionetchallenges/evaluation-2023.git). Modifications on these files are invalid and are immediately overwritten after being pulled by the organizers (or the submission system).
 - [evaluate_pipeline.py](evaluate_pipeline.py): pipeline for evaluating models on multiple patients.
-- [sync_data.py](sync_data.py）: script for synchronizing data from the official baseline and official scoring code.
+- [sync_official.py](sync_official.py）: script for synchronizing data from the official baseline and official scoring code.
 - [requirements.txt](requirements.txt), [requirements-docker.txt](requirements-docker.txt), [requirements-no-torch.txt](requirements-no-torch.txt): requirements files for different purposes.
 - [team_code.py](team_code.py): entry file for the submissions.
-- [test_local.py](test_local.py), [test_docker.py](test_docker.py), test_run_challenge.sh: scripts for testing the docker image and the local environment. The latter 2 files along with the [docker-test action](.github/workflows/docker-test.yml) are used for CI. Passing the CI almost guarantees that the submission will run successfully in the official environment, except for potential GPU-related issues (e.g. model weights and data are on different devices, i.e. CPU and GPU, in which case torch will raise an error).
+- [test_local.py](test_local.py), [test_docker.py](test_docker.py), [test_run_challenge.sh](test_run_challenge.sh): scripts for testing the docker image and the local environment. The latter 2 files along with the [docker-test action](.github/workflows/docker-test.yml) are used for CI. Passing the CI almost guarantees that the submission will run successfully in the official environment, except for potential GPU-related issues (e.g. model weights and data are on different devices, i.e. CPU and GPU, in which case torch will raise an error).
 - [trainer.py](trainer.py): trainer class, which trains the models.
 - [submissions](submissions): log file for the submissions, including the key hyperparameters, the scores received, commit hash, etc. The log file is updated after each submission and organized as a YAML file.
 
