@@ -37,13 +37,13 @@ class CINC2023Trainer(BaseTrainer):
 
     Parameters
     ----------
-    model : torch.nnModule
-        the model to be trained
+    model : torch.nn.Module
+        The model to be trained.
     model_config : dict
-        the configuration of the model,
-        used to keep a record in the checkpoints
+        The configuration of the model,
+        used to keep a record in the checkpoints.
     train_config : dict
-        the configuration of the training,
+        The configuration of the training,
         including configurations for the data loader, for the optimization, etc.
         will also be recorded in the checkpoints.
         `train_config` should at least contain the following keys:
@@ -62,9 +62,9 @@ class CINC2023Trainer(BaseTrainer):
             - "momentum": obj:`float`, optional, depending on the optimizer
 
     device : torch.device, optional
-        the device to be used for training
+        The device to be used for training.
     lazy : bool, default True
-        whether to initialize the data loader lazily
+        Whether to initialize the data loader lazily.
 
     """
 
@@ -94,15 +94,14 @@ class CINC2023Trainer(BaseTrainer):
         train_dataset: Optional[Dataset] = None,
         val_dataset: Optional[Dataset] = None,
     ) -> None:
-        """
-        setup the dataloaders for training and validation
+        """Setup the dataloaders for training and validation.
 
         Parameters
         ----------
         train_dataset: Dataset, optional,
-            the training dataset
+            The training dataset.
         val_dataset: Dataset, optional,
-            the validation dataset
+            The validation dataset.
 
         """
         if train_dataset is None:
@@ -164,11 +163,9 @@ class CINC2023Trainer(BaseTrainer):
         )
 
     def _setup_augmenter_manager(self) -> None:
-        """ """
         self.augmenter_manager = AugmenterManager.from_config(config=self.train_config[self.train_config.task])
 
     def _setup_criterion(self) -> None:
-        """ """
         loss_kw = self.train_config[self.train_config.task].get("loss_kw", {}).get(self._criterion_key, {})
         if self.train_config.loss[self._criterion_key] == "BCEWithLogitsLoss":
             self.criterion = nn.BCEWithLogitsLoss(**loss_kw)
@@ -196,12 +193,12 @@ class CINC2023Trainer(BaseTrainer):
         self.criterion.to(device=self.device, dtype=self.dtype)
 
     def train_one_epoch(self, pbar: tqdm) -> None:
-        """Train one epoch, and update the progress bar
+        """Train one epoch, and update the progress bar.
 
         Parameters
         ----------
         pbar : tqdm
-            the progress bar for training
+            The progress bar for training.
 
         """
         if self.train_config.reload_data_every > 0 and self.epoch > 0 and self.epoch % self.train_config.reload_data_every == 0:
@@ -280,7 +277,7 @@ class CINC2023Trainer(BaseTrainer):
             pbar.update(n_samples)
 
     def run_one_step(self, input_tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        """Run one step (batch) of training
+        """Run one step (batch) of training.
 
         Parameters
         ----------
@@ -293,9 +290,9 @@ class CINC2023Trainer(BaseTrainer):
         Returns
         -------
         out_tensors : dict
-            with the following items (some are optional):
-                - "cpc": the cpc predictions, of shape (batch_size, n_classes) or (batch_size,)
-                - "outcome": the outcome predictions, of shape (batch_size, n_classes)
+            Output tensors, with the following items (some are optional):
+                - "cpc": the cpc predictions, of shape ``(batch_size, n_classes)`` or ``(batch_size,)``
+                - "outcome": the outcome predictions, of shape ``(batch_size, n_classes)``
 
         """
         waveforms = input_tensors.pop("waveforms").to(self.device)
@@ -306,7 +303,7 @@ class CINC2023Trainer(BaseTrainer):
 
     @torch.no_grad()
     def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
-        """Evaluate the model on the given data loader"""
+        """Evaluate the model on the given data loader."""
 
         self.model.eval()
 
@@ -376,9 +373,8 @@ class CINC2023Trainer(BaseTrainer):
 
     @property
     def batch_dim(self) -> int:
-        """
-        batch dimension, usually 0,
-        but can be 1 for some models, e.g. RR_LSTM
+        """Batch dimension, usually 0,
+        but can be 1 for some models, e.g. RR_LSTM.
         """
         return 0
 
@@ -411,7 +407,6 @@ class CINC2023Trainer(BaseTrainer):
 
 
 def get_args(**kwargs: Any):
-    """NOT checked,"""
     cfg = deepcopy(kwargs)
     parser = argparse.ArgumentParser(
         description="Train the Model on CINC2023 database",
