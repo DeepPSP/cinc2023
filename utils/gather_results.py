@@ -1,5 +1,4 @@
-"""
-"""
+""" """
 
 import posixpath
 from pathlib import Path
