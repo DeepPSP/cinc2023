@@ -1,5 +1,4 @@
-"""
-"""
+""" """
 
 from .crnn import CRNN_CINC2023
 from .ml import ML_Classifier_CINC2023
