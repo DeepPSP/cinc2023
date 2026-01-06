@@ -475,7 +475,7 @@ class ML_Classifier_CINC2023(object):
         best_score = -np.inf
         best_clf = None
         best_params = None
-        with tqdm(enumerate(param_grid), total=len(param_grid), mininterval=1.0) as pbar:
+        with tqdm(enumerate(param_grid), total=len(param_grid), dynamic_ncols=True, mininterval=1.0) as pbar:
             for idx, params in pbar:
                 updated_params = deepcopy(params)
                 updated_params["n_jobs"] = self._num_workers

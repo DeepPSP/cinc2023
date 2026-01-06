@@ -16,15 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
-    - uses: actions/cache@v3
+    - uses: actions/cache@v5
       id: cache
       with:
         path: ~/.cache/pip
@@ -41,4 +41,4 @@ jobs:
       run: |
         python -m pip list
     - name: Check code format with pre-commit
-      uses: pre-commit/action@v3.0.0
+      uses: pre-commit/action@v3.0.1

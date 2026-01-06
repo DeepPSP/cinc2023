@@ -99,7 +99,9 @@ def evaluate_pipeline(
     # this enclosed block is adapted from run_model.py
 
     # Iterate over the patients.
-    for i in tqdm(range(num_patients), total=num_patients, desc="Evaluating", unit="patient"):
+    for i in tqdm(
+        range(num_patients), total=num_patients, desc="Evaluating", unit="patient", dynamic_ncols=True, mininterval=1.0
+    ):
         patient_id = patient_ids[i]
         # os.makedirs(os.path.join(output_folder, patient_id), exist_ok=True)
         output_file = output_folder / patient_id / (patient_id + ".txt")

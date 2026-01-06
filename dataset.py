@@ -134,6 +134,8 @@ class CinC2023Dataset(Dataset, ReprMixin):
             self.records,
             desc="Finding intervals with SQI computed",
             unit="record",
+            dynamic_ncols=True,
+            mininterval=1.0,
         ) as pbar:
             for rec in pbar:
                 official_phase_row = self.reader._df_records.loc[rec]
@@ -209,7 +211,7 @@ class CinC2023Dataset(Dataset, ReprMixin):
             return
 
         tmp_cache = []
-        with tqdm(range(len(self.fdr)), desc="Loading data", unit="record") as pbar:
+        with tqdm(range(len(self.fdr)), desc="Loading data", unit="record", dynamic_ncols=True, mininterval=1.0) as pbar:
             for idx in pbar:
                 tmp_cache.append(self.fdr[idx])
         keys = tmp_cache[0].keys()
@@ -460,7 +462,7 @@ if __name__ == "__main__":
     )
 
     if "move_files" in operations:
-        with tqdm(ds.reader.all_records) as pbar:
+        with tqdm(ds.reader.all_records, dynamic_ncols=True, mininterval=1.0) as pbar:
             for rec in pbar:
                 sid = ds.reader.get_subject_id(rec)
                 dst = move_dst / sid

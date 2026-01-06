@@ -67,7 +67,7 @@ def load_challenge_eeg_data(
     # Load recordings.
     recording_files = find_eeg_recording_files(data_folder, patient_id, hour_limit)
     recordings = list()
-    with tqdm(recording_files, desc=f"Loading {patient_id} recordings", mininterval=1) as pbar:
+    with tqdm(recording_files, desc=f"Loading {patient_id} recordings", mininterval=1.0, dynamic_ncols=True) as pbar:
         for recording_location in pbar:
             if os.path.exists(recording_location + ".hea"):
                 recording_data, channels, sampling_frequency = load_recording_data(recording_location, backend=backend)

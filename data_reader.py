@@ -1532,7 +1532,7 @@ if __name__ == "__main__":
             records = dr._df_records[dr._df_records["subject"].isin(args.sqi_subjects.split(","))].index.tolist()
         else:
             records = dr.all_records
-        with tqdm(records) as pbar:
+        with tqdm(records, dynamic_ncols=True, mininterval=1.0) as pbar:
             for rec in pbar:
                 subject_id = dr.get_subject_id(rec)
                 save_path = sqi_dir / subject_id / f"{rec}_SQI.csv"
