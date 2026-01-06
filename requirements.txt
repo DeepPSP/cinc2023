@@ -1,13 +1,12 @@
-numpy==1.24.3
-scipy==1.10.1
-joblib==1.2.0
-# Cython==0.29.10
-pandas==2.0.0
-scikit-learn==1.2.2
-mne==1.4.0
-wfdb==3.2.0
-xgboost==1.6.2
-torch==1.13.1
+numpy
+scipy
+joblib
+pandas
+scikit-learn
+mne
+wfdb
+xgboost
+torch
 opencv-python
 torch-ecg
 torchsummary
