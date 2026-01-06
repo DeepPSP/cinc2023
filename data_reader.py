@@ -1,5 +1,4 @@
-"""
-"""
+""" """
 
 import os
 import re
@@ -377,6 +376,7 @@ class CINC2023Reader(PhysioNetDataBase):
         if len(self._df_records_all) == 0:
             if self._subsample is None:
                 write_files = True
+            self._df_records_all = self._df_records_all.reset_index(drop=True)
             self._df_records_all["path"] = get_record_list_recursive3(
                 self.db_dir, f"{self._rec_pattern}\\.{self.data_ext}", relative=False
             )

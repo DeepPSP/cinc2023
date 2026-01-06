@@ -24,8 +24,7 @@ from sklearn.svm import SVC
 from torch_ecg.cfg import CFG, DEFAULTS
 from torch_ecg.components.loggers import LoggerManager
 from torch_ecg.components.outputs import ClassificationOutput
-from torch_ecg.utils.utils_data import stratified_train_test_split
-from torch_ecg.utils.utils_metrics import _cls_to_bin
+from torch_ecg.utils.utils_data import one_hot_encode, stratified_train_test_split
 from tqdm.auto import tqdm
 from xgboost import XGBClassifier
 
@@ -322,7 +321,8 @@ class ML_Classifier_CINC2023(object):
                 np.array([self.config.class_map[k] for k in self.config.classes]),
             )
         y_pred = self.best_clf.predict(features)
-        bin_pred = _cls_to_bin(y_pred, shape=(y_pred.shape[0], len(self.config.classes)))
+        # bin_pred = _cls_to_bin(y_pred, shape=(y_pred.shape[0], len(self.config.classes)))
+        bin_pred = one_hot_encode(y_pred, num_classes=len(self.config.classes))
 
         model_output = ClassificationOutput(
             classes=self.config.classes,
@@ -495,7 +495,8 @@ class ML_Classifier_CINC2023(object):
                         np.array([self.config.class_map[k] for k in self.config.classes]),
                     )
                 y_pred = clf_gs.predict(X_val)
-                bin_pred = _cls_to_bin(y_pred, shape=(y_pred.shape[0], len(self.config.classes)))
+                # bin_pred = _cls_to_bin(y_pred, shape=(y_pred.shape[0], len(self.config.classes)))
+                bin_pred = one_hot_encode(y_pred, num_classes=len(self.config.classes))
                 outputs = CINC2023Outputs(
                     cpc_output=ClassificationOutput(
                         classes=self.config.classes,
@@ -607,7 +608,8 @@ class ML_Classifier_CINC2023(object):
                 np.array([self.config.class_map[k] for k in self.config.classes]),
             )
         y_pred = best_clf.predict(X_val)
-        bin_pred = _cls_to_bin(y_pred, shape=(y_pred.shape[0], len(self.config.classes)))
+        # bin_pred = _cls_to_bin(y_pred, shape=(y_pred.shape[0], len(self.config.classes)))
+        bin_pred = one_hot_encode(y_pred, num_classes=len(self.config.classes))
         outputs = CINC2023Outputs(
             cpc_output=ClassificationOutput(
                 classes=self.config.classes,

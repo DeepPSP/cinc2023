@@ -15,7 +15,10 @@ import logging
 from math import pi, log
 import numpy as np
 import pylab
-from scipy import fft, ifft
+try:
+    from scipy import fft, ifft
+except ImportError:
+    from scipy.fft import fft, ifft
 from scipy.optimize import curve_fit
 from scipy.signal import cspline1d_eval, cspline1d
 
