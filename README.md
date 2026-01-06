@@ -130,8 +130,6 @@ Distribution of SQI for all 5min windows (epochs):
 
 :point_right: [Back to TOC](#cinc2023)
 
-[CinC2020](https://github.com/DeepPSP/cinc2020) | [CinC2021](https://github.com/DeepPSP/cinc2021) | [CinC2022](https://github.com/DeepPSP/cinc2022)
-
 ## Citation
 
 If you find this repository useful for your research, please consider citing:
@@ -153,3 +151,7 @@ If you find this repository useful for your research, please consider citing:
 ```
 
 See also the [conference paper](https://ieeexplore.ieee.org/document/10364014).
+
+:point_right: [Back to TOC](#cinc2023)
+
+[CinC2020](https://github.com/DeepPSP/cinc2020) | [CinC2021](https://github.com/DeepPSP/cinc2021) | [CinC2022](https://github.com/DeepPSP/cinc2022) | [CinC2024](https://github.com/wenh06/cinc2024) | [CinC2025](https://github.com/wenh06/cinc2025)
