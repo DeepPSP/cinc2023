@@ -12,6 +12,7 @@ Predicting Neurological Recovery from Coma After Cardiac Arrest: The George B. M
 - [Distributions of the EEG data against clinical information of the patients](#corr)
 - [External Resources Used](#external-resources-used)
   - [SQI (Signal Quality Index) Calculation](#sqi)
+- [Citation](#citation)
 
 <!-- tocstop -->
 
@@ -130,3 +131,25 @@ Distribution of SQI for all 5min windows (epochs):
 :point_right: [Back to TOC](#cinc2023)
 
 [CinC2020](https://github.com/DeepPSP/cinc2020) | [CinC2021](https://github.com/DeepPSP/cinc2021) | [CinC2022](https://github.com/DeepPSP/cinc2022)
+
+## Citation
+
+If you find this repository useful for your research, please consider citing:
+
+```bibtex
+@inproceedings{Kang_cinc2023,
+       title = {{Predicting Neurological Recovery from Coma with Longitudinal Electroencephalogram Using Deep Neural Networks}},
+      author = {Kang, Jingsu and WEN, Hao},
+   booktitle = {{Computing in Cardiology Conference (CinC)}},
+      series = {{CinC2023}},
+        issn = {2325-887X},
+         doi = {10.22489/cinc.2023.060},
+   publisher = {{Computing in Cardiology}},
+        year = {2023},
+       month = {11},
+    location = {{Atlanta, GA, USA}},
+  collection = {{CinC2023}}
+}
+```
+
+See also the [conference paper](https://ieeexplore.ieee.org/document/10364014).
