@@ -3,6 +3,7 @@ scipy
 joblib
 pandas
 scikit-learn
+peakutils
 mne
 wfdb
 xgboost
