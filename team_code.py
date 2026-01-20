@@ -356,6 +356,7 @@ def load_challenge_models(model_folder: str, verbose: int) -> Dict[str, Union[CF
     main_model, train_cfg = model_cls.from_checkpoint(
         path=Path(model_folder).resolve().absolute() / _ModelFilename,
         device=DEVICE,
+        weights_only=False,
     )
     main_model.eval()
 

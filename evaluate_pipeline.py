@@ -82,7 +82,7 @@ def evaluate_pipeline(
 
     model_path = Path(model_path).expanduser().resolve()
 
-    model, train_config = CRNN_CINC2023.from_checkpoint(model_path)
+    model, train_config = CRNN_CINC2023.from_checkpoint(model_path, weights_only=False)
     models = dict(
         main_model=model,
         train_cfg=train_config,
