@@ -309,6 +309,8 @@ class ML_Classifier_CINC2023(object):
         assert self.best_clf is not None, "No model found."
         features = get_features(patient_metadata, ret_type="pd")
         features.loc[:, self.feature_list] = self.__imputer.transform(features.loc[:, self.feature_list])
+        # pandas 3 forbids lossy assignment (float values into int64 columns)
+        features.loc[:, self.config.cont_features] = features.loc[:, self.config.cont_features].astype("float64")
         features.loc[:, self.config.cont_features] = self.__scaler.transform(features.loc[:, self.config.cont_features])
         features = features[self.feature_list].values.astype(BaseCfg.np_dtype)
         y_prob = self.best_clf.predict_proba(features)

@@ -501,7 +501,9 @@ class CINC2023Reader(PhysioNetDataBase):
             # merge self._df_records and df_tmp
             self._df_records = self._df_records.join(df_tmp, how="outer")
             # fill NaNs with False
-            self._df_records[aux_sig].fillna(False, inplace=True)
+            # NOTE: `self._df_records[aux_sig].fillna(False, inplace=True)` silently
+            # no-ops under pandas 3 (Copy-on-Write); assign the column back instead
+            self._df_records[aux_sig] = self._df_records[aux_sig].fillna(False)
             del df_tmp
 
         self._df_records_all_bak = self._df_records_all.copy()
