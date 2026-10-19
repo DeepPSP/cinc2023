@@ -43,6 +43,14 @@ class CRNN_CINC2023(ECG_CRNN):
     def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> None:
         if config is None:
             _config = deepcopy(ModelCfg.classification)
+        elif "classes" not in config:
+            # torch_ecg>=0.0.32 CkptMixin.save stores only the model-arch sub-config
+            # (ModelCfg[t][model_name]) in checkpoints; rebuild the full task-level
+            # config so that `_config.classes` (etc.) resolves again
+            _config = deepcopy(ModelCfg.classification)
+            _config[_config.model_name].update(deepcopy(config))
+            if kwargs.get("classes") is not None:
+                _config.classes = list(kwargs["classes"])
         else:
             _config = deepcopy(config)
         super().__init__(

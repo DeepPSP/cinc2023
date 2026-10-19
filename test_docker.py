@@ -45,6 +45,12 @@ print(f"tmp_data_dir: {str(tmp_data_dir)}")
 tmp_data_dir.mkdir(parents=True, exist_ok=True)
 
 dr = CINC2023Reader(tmp_data_dir)
+
+# TEMP (pandas 3 experiment): expose the silent CoW breakage at data_reader.py:504
+# (`self._df_records[aux_sig].fillna(False, inplace=True)` no-ops under pandas 3)
+print("TEMP probe: ECG/REF/OTHER NaN counts (expect 0 if the inplace fillna worked):")
+print(dr._df_records[["ECG", "REF", "OTHER"]].isna().sum())
+
 # downloading is done outside the docker container
 # and the data folder is mounted to the docker container as read-only
 # dr.download(full=False)
