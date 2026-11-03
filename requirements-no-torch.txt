@@ -1,7 +1,7 @@
 numpy
 scipy
 joblib
-pandas>=2.2.1,<4
+pandas>=3.1.0,<4
 scikit-learn
 peakutils
 mne
